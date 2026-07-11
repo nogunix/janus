@@ -140,8 +140,7 @@ kernel 5.14.0-570.el9. The node panicked during a VM live migration.
 then up to 5 observe → hypothesize → probe rounds. Every probe and its
 output lands in `cases/<id>/audit/` — the report's claims point at them.
 
-**Upgrade / cross-version compatibility** (casket makes this deep; works
-shallower without it):
+**Upgrade / cross-version compatibility**:
 
 ```
 /janus What changed between OCP 4.18 and 4.20 that could break VMs
@@ -169,16 +168,6 @@ The plugin does not bundle MCP config — server paths are machine-specific.
 Register each server yourself (`claude mcp add …`) before running an
 investigation, then confirm `claude mcp list` shows `✔ Connected` — a tool
 being advertised isn't the same as the server being reachable.
-
-### casket — optional, not yet published
-Versioned OpenShift/RHEL/CNV source reverse-lookup, backed by a
-ripgrep/OpenGrok index over locally mirrored source trees. A personal
-project of the author that hasn't been released yet, so there's no
-public repo or instance to point at for now. Without it the rest of the
-pipeline still runs — only the `source-trace` stage goes idle.
-
-Everything below is public or self-hostable today, so the rest of the
-pipeline works for anyone.
 
 ### okp-mcp — Red Hat docs / CVE / errata / KB
 Bridges to the official **Offline Knowledge Portal** (OKP) Solr index.
