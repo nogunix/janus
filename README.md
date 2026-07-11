@@ -64,6 +64,12 @@ git clone https://github.com/nogunix/janus.git ~/janus
 /plugin install janus@janus         # install the plugin (plugin@marketplace)
 ```
 
+Submitted to Anthropic's community marketplace for review; once approved
+it will also be installable via `/plugin marketplace add
+anthropics/claude-plugins-community` → `janus@claude-community`. Until
+then, use the direct-from-GitHub install above — it already tracks the
+latest release.
+
 Restart Claude Code so the skills and agents load, then verify:
 
 - `/plugin` — `janus` shows as installed and enabled
