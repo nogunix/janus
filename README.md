@@ -302,4 +302,8 @@ root-cause call is the human's.
 
 ## License
 
-[MIT](LICENSE)
+MIT License - see the [LICENSE](LICENSE) file for details.
+
+This is my personal project. It is created and maintained in my
+personal capacity, and has no relation to my employer's business or
+confidential information.
