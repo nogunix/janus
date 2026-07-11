@@ -167,9 +167,13 @@ claude mcp add --transport http mslearn https://learn.microsoft.com/api/mcp
 
 ### slack — optional, bring your own workspace
 doc-search can supplement official docs with your team's Slack
-discussions when a Slack MCP server is registered (it calls tools like
-`search_messages` / `get_thread` / `get_channel_history` — e.g.
-korotovsky/slack-mcp-server provides these). Point it at a workspace
+discussions. It calls the tools of
+[redhat-community-ai-tools/slack-mcp](https://github.com/redhat-community-ai-tools/slack-mcp)
+(`search_messages`, `get_thread`, `get_channel_history`,
+`list_joined_channels`, …), which runs locally via Podman/Docker
+(`quay.io/redhat-ai-tools/slack-mcp`) or its one-shot setup script.
+Register it with **`SLACK_MCP_READ_ONLY=1`** so state-mutating tools
+(post/react/join) error out — JANUS only reads. Point it at a workspace
 you are authorized to search. Slack hits are supplementary evidence
 only — findings attribute them as `[slack] #channel, YYYY-MM-DD` and
 never rest a conclusion on them alone. Without it, doc-search simply
