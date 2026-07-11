@@ -175,8 +175,9 @@ only — findings attribute them as `[slack] #channel, YYYY-MM-DD` and
 never rest a conclusion on them alone. Without it, doc-search simply
 skips the Slack angle.
 
-(Jira/Confluence MCP servers such as mcp-atlassian are **not** JANUS
-dependencies — no stage calls them.)
+(Jira/Confluence MCP servers such as
+[mcp-atlassian](https://github.com/sooperset/mcp-atlassian) are **not**
+JANUS dependencies — no stage calls them.)
 
 ### drgn — vmcore static analysis
 Public OSS (walac/drgn-mcp). Run it sandboxed — network-cut, read-only,
