@@ -6,7 +6,7 @@
     {
       "name": "janus",
       "source": "./plugins/janus",
-      "description": "OpenShift/RHEL/CNV research & investigation pipeline (crash forensics, upgrade/compat, CVE impact, component behavior): 5 pipeline agents + 2 periodic, driven by the /janus skill, backed by casket/okp/drgn MCP."
+      "description": "OpenShift/RHEL/CNV research & investigation pipeline (crash forensics, upgrade/compat, CVE impact, component behavior): 7 pipeline agents (2 conditional) + 2 periodic, driven by the /janus skill, backed by casket/okp/drgn/github/mcp-atlassian MCP."
     }
   ]
 }

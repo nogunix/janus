@@ -128,6 +128,10 @@ duration_s: <seconds>
 - A document or thread references a GitHub PR/issue you cannot open →
   summarizing the PR from memory → record the exact `owner/repo#N` in
   Findings **and Gaps**; the lead launches github-trace with it.
+- A document or thread references a Jira ticket (RHEL-NNNNN,
+  OCPBUGS-NNNNN, CNV-NNNNN) you cannot open → reconstructing its content
+  from the ID or a snippet → record the exact key in Findings **and
+  Gaps**; the lead launches jira-trace with it.
 
 ## okp-mcp usage knowledge
 

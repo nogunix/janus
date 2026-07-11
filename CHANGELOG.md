@@ -2,6 +2,22 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.8.0 — 2026-07-11
+
+- **New conditional stage: jira-trace.** Jira ticket deep-dive (e.g. Red
+  Hat Jira `RHEL-NNNNN` / `OCPBUGS-NNNNN`) via
+  [sooperset/mcp-atlassian](https://github.com/sooperset/mcp-atlassian),
+  launched by the lead at fan-in when another stage surfaces a ticket
+  key no stage can open — the gap seen in the scsi3pr-multipath case
+  (RHEL-65852, RHEL-118722 stayed uninvestigated). Reads ticket fields,
+  comment threads, changelogs, clone chains, and attachments;
+  `fixVersions` is treated as intent, never as shipped-in-build proof
+  (that stays source-trace's call). Strictly read-only: the agent's
+  allowlist contains only read tools, and the server is registered with
+  `READ_ONLY_MODE=true` as the second boundary.
+- doc-search and github-trace now record unopenable Jira keys in Gaps
+  (fixed format) so the lead can trigger the follow-up.
+
 ## 0.7.0 — 2026-07-11
 
 Working-method discipline: make the pipeline's quality behavior explicit

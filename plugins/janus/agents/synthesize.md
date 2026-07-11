@@ -16,6 +16,7 @@ Read everything in `cases/<id>/findings/`:
 - `doc-search.md` — CVE/errata/KB matches
 - `source-trace.md` — versioned source findings
 - `github-trace.md` — upstream PR/issue/commit deep-dive (conditional stage)
+- `jira-trace.md` — Jira ticket deep-dive (conditional stage)
 - `crash-analyze.md` — vmcore/coredump analysis
 - `lab-verify.md` — live cluster verification results
 
@@ -128,6 +129,7 @@ Write to `cases/<id>/results/report.md`:
 | doc-search | complete/partial/missing | N |
 | source-trace | complete/partial/missing | N |
 | github-trace | complete/partial/missing/not-triggered | N |
+| jira-trace | complete/partial/missing/not-triggered | N |
 | crash-analyze | complete/partial/missing | N |
 | lab-verify | complete/partial/missing | N |
 ```

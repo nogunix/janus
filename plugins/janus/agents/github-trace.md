@@ -120,6 +120,9 @@ duration_s: <seconds>
 - GitHub shows upstream truth only. Never claim a fix is in a RHEL/OCP
   build from tags alone — that is source-trace's (casket's) call. Record
   it as a gap instead.
+- When a PR/issue references a Jira ticket (RHEL-NNNNN, OCPBUGS-NNNNN…)
+  that bears on the case, record the exact key in Gaps — the lead can
+  launch jira-trace with it.
 - Do not speculate about root causes — report what the PR/issue/commits
   show.
 

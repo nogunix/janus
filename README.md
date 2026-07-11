@@ -18,15 +18,15 @@ plugins/janus/
   skills/janus/SKILL.md              # /janus — pipeline driver
   skills/deck/                       # report → branded .pptx/PDF
   skills/okp-doc-search/             # okp-mcp research know-how (queries, doc_id rules)
-  agents/                            # 8 agents (patterns inlined into each)
-    doc-search  source-trace  github-trace  crash-analyze  lab-verify
-    synthesize  self-improver  upstream-adviser
+  agents/                            # 9 agents (patterns inlined into each)
+    doc-search  source-trace  github-trace  jira-trace  crash-analyze
+    lab-verify  synthesize  self-improver  upstream-adviser
 ```
 
 The pipeline: `{ doc-search, source-trace, crash-analyze, [approve] lab-verify } | synthesize`
-— six composable stages connected by a universal `findings/*.md` format
-(github-trace joins conditionally when another stage surfaces an upstream
-PR/issue), plus two periodic agents. Reusable investigation patterns (drgn triage, CVE tracing,
+— seven composable stages connected by a universal `findings/*.md` format
+(github-trace and jira-trace join conditionally when another stage surfaces
+an upstream PR/issue or a Jira ticket), plus two periodic agents. Reusable investigation patterns (drgn triage, CVE tracing,
 refuting an a-priori hypothesis, goroutine-leak repro, etc.) are **inlined into
 each agent** so they travel with the plugin.
 
@@ -54,7 +54,7 @@ git clone https://github.com/nogunix/janus.git ~/janus
 Restart Claude Code so the skills and agents load, then verify:
 
 - `/plugin` — `janus` shows as installed and enabled
-- `/janus` appears in the skill list; the eight `janus:*` agents appear in
+- `/janus` appears in the skill list; the nine `janus:*` agents appear in
   the Agent tool list
 
 Day-to-day maintenance:
@@ -175,9 +175,23 @@ only — findings attribute them as `[slack] #channel, YYYY-MM-DD` and
 never rest a conclusion on them alone. Without it, doc-search simply
 skips the Slack angle.
 
-(Jira/Confluence MCP servers such as
-[mcp-atlassian](https://github.com/sooperset/mcp-atlassian) are **not**
-JANUS dependencies — no stage calls them.)
+### mcp-atlassian — optional, Jira ticket deep-dive
+Used by the conditional `jira-trace` stage when another stage surfaces a
+Jira ticket key (e.g. Red Hat Jira `RHEL-NNNNN` / `OCPBUGS-NNNNN`).
+Public OSS: <https://github.com/sooperset/mcp-atlassian>. **Register it
+with `READ_ONLY_MODE=true`** — that disables every write tool at server
+level and is the safety boundary that keeps jira-trace observation-only
+(JANUS never creates, edits, comments on, or transitions tickets):
+```bash
+claude mcp add mcp-atlassian -s user \
+  --env JIRA_URL=https://issues.redhat.com \
+  --env JIRA_PERSONAL_TOKEN=<your-PAT> \
+  --env READ_ONLY_MODE=true \
+  -- uvx mcp-atlassian
+```
+For Jira Cloud, use `JIRA_USERNAME` + `JIRA_API_TOKEN` instead of the
+personal access token. Without this server, jira-trace is skipped and
+ticket references stay in the report as gaps.
 
 ### drgn — vmcore static analysis
 Public OSS (walac/drgn-mcp). Run it sandboxed — network-cut, read-only,

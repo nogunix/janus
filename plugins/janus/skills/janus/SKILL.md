@@ -39,15 +39,17 @@ connects, it does not process.
 | **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure) | findings/doc-search.md | okp-mcp + slack + mslearn | Static | sonnet |
 | **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp | Static | sonnet |
 | **github-trace** | Upstream GitHub PR/issue/commit deep-dive | findings/github-trace.md | github MCP (read-only) | Static | sonnet |
+| **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | mcp-atlassian (read-only) | Static | sonnet |
 | **crash-analyze** | vmcore/coredump analysis | findings/crash-analyze.md | drgn-mcp + gdb | Static | opus |
 | **lab-verify** | Live cluster verification | findings/lab-verify.md | oc, terraform, bpftrace, linux-mcp | Dynamic | opus |
 | **synthesize** | All findings → report | results/report.md | Read only | Static | opus |
 
-github-trace is normally a **conditional follow-up stage**: the lead
-launches it at fan-in when another stage's findings reference a GitHub
-PR/issue/commit that no other stage can access (doc-search has only
-okp/slack; source-trace only casket). Include it up front only when the
-case question itself names an upstream PR/issue.
+github-trace and jira-trace are normally **conditional follow-up
+stages**: the lead launches them at fan-in when another stage's
+findings reference a GitHub PR/issue/commit or a Jira ticket that no
+other stage can open (doc-search has only okp/slack; source-trace only
+casket). Include one up front only when the case question itself names
+an upstream PR/issue or a Jira key.
 
 ## Periodic agents (outside the pipeline)
 
@@ -111,14 +113,16 @@ The `tracks` field in `case.yaml` determines which stages run.
 | `[source]` | `source-trace \| synthesize` |
 | `[debug]` | `crash-analyze \| synthesize` |
 | `[documentation, source, github]` | `{ doc-search, source-trace, github-trace } \| synthesize` |
+| `[documentation, source, jira]` | `{ doc-search, source-trace, jira-trace } \| synthesize` |
 
 - `{ }` = parallel fan-out (each stage launched simultaneously as a background Agent)
 - `|` = serial pipe (wait for the prior stage to fully complete before starting the next)
 - `[approve]` = safety gate (skipped without human approval)
 
-The `github` track is set at intake only when the case question itself
-names an upstream PR/issue. Otherwise github-trace joins dynamically as a
-gap-driven follow-up at fan-in (step 5).
+The `github` / `jira` tracks are set at intake only when the case
+question itself names an upstream PR/issue or a Jira key. Otherwise
+github-trace / jira-trace join dynamically as gap-driven follow-ups at
+fan-in (step 5).
 
 ---
 
@@ -137,7 +141,8 @@ mode = artifact → includes crash-analyze
 Then check each composed stage's required MCP server with
 `claude mcp list` (`✔ Connected` — a tool being advertised is not the
 server being reachable): doc-search → okp-mcp, source-trace → casket,
-github-trace → github, crash-analyze → drgn, lab-verify → linux.
+github-trace → github, jira-trace → mcp-atlassian, crash-analyze →
+drgn, lab-verify → linux.
 A stage whose server is not connected is **dropped from the composition
 and recorded as a gap** (note it in the step-2 presentation; synthesize
 reports it under Investigation Gaps) — never launched to fail at
@@ -226,6 +231,7 @@ synthesize runs:
 | Gap signal in findings | Follow-up stage |
 |---|---|
 | GitHub PR/issue/commit referenced but not investigated | github-trace |
+| Jira ticket (RHEL-/OCPBUGS-/CNV-…) referenced but not opened | jira-trace |
 | casket phase/layer "unexplored (reason: ...)" | source-trace (re-run, scoped to that layer) |
 | Symbol/version question raised by crash-analyze | source-trace |
 
@@ -367,6 +373,7 @@ contradiction — synthesize and the lead's gates reject it.
 | doc-search | `cases/<id>/findings/doc-search.md` |
 | source-trace | `cases/<id>/findings/source-trace.md` |
 | github-trace | `cases/<id>/findings/github-trace.md` |
+| jira-trace | `cases/<id>/findings/jira-trace.md` |
 | crash-analyze | `cases/<id>/findings/crash-analyze.md` |
 | lab-verify | `cases/<id>/findings/lab-verify.md` |
 | synthesize | `cases/<id>/results/report.md` |
@@ -386,6 +393,7 @@ nothing.
 | doc-search | sonnet | Search and organization. Doesn't need heavy reasoning |
 | source-trace | sonnet | Symbol tracing and diff extraction. Routine work |
 | github-trace | sonnet | PR/issue reading and link following. Routine work |
+| jira-trace | sonnet | Ticket reading and link following. Routine work |
 | crash-analyze | opus | Needs heavy reasoning for the iterative hypothesis-test loop |
 | lab-verify | opus | Needs heavy reasoning for verification judgment and trace interpretation |
 | synthesize | opus | Cross-references multiple stages and ranks hypotheses |
@@ -452,8 +460,10 @@ launches self-improver.
 (Microsoft Learn docs — ARO/Azure layer for doc-search; public remote server,
 no auth: `claude mcp add --transport http mslearn
 https://learn.microsoft.com/api/mcp`), `drgn` (vmcore), `github` (upstream
-PR/issue/commit — github-trace and upstream-adviser), `linux` (read-only RHEL
-node/VM diagnostics, local or over SSH — lab-verify; register with
+PR/issue/commit — github-trace and upstream-adviser), `mcp-atlassian`
+(Jira tickets — jira-trace; register with `READ_ONLY_MODE=true` so all
+write tools stay disabled — that is the safety boundary), `linux` (read-only
+RHEL node/VM diagnostics, local or over SSH — lab-verify; register with
 `LINUX_MCP_TOOLSET=fixed` so `run_script` stays disabled). Not bundled with
 the plugin — paths are environment-specific, so register them yourself
 (`claude mcp add …`); confirm `claude mcp list` shows them `✔ Connected`
