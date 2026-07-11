@@ -1,0 +1,12 @@
+{
+  "name": "janus",
+  "owner": { "name": "nogunix" },
+  "description": "OpenShift research & investigation pipeline — docs, source code, crash forensics, and live verification powered by casket/okp/drgn MCP servers.",
+  "plugins": [
+    {
+      "name": "janus",
+      "source": "./plugins/janus",
+      "description": "OpenShift/RHEL/CNV research & investigation pipeline (crash forensics, upgrade/compat, CVE impact, component behavior): 5 pipeline agents + 2 periodic, driven by the /janus skill, backed by casket/okp/drgn MCP."
+    }
+  ]
+}
