@@ -106,6 +106,57 @@ model in the seat:
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
+## Usage
+
+Invoke `/janus` with a question or an artifact. The lead classifies the
+case, shows you the pipeline it intends to run, fans the stages out on
+approval, and hands you a ranked-hypothesis report at
+`cases/<id>/results/report.md`.
+
+**CVE impact assessment** (needs okp-mcp):
+
+```
+/janus Does CVE-2024-1086 affect OpenShift 4.16 worker nodes?
+```
+
+→ `{ doc-search, source-trace } | synthesize` — errata/KB sweep plus the
+actual code path, cross-referenced into ranked hypotheses. A
+well-supported "not affected, and here is why" is a valid outcome.
+
+**Kernel crash forensics** (needs drgn):
+
+```
+/janus Analyze the vmcore under cases/2026-07-11-node-panic/artifacts/,
+kernel 5.14.0-570.el9. The node panicked during a VM live migration.
+```
+
+→ adds `crash-analyze`: drgn triage (crashed thread, dmesg, task states),
+then up to 5 observe → hypothesize → probe rounds. Every probe and its
+output lands in `cases/<id>/audit/` — the report's claims point at them.
+
+**Upgrade / cross-version compatibility** (casket makes this deep; works
+shallower without it):
+
+```
+/janus What changed between OCP 4.18 and 4.20 that could break VMs
+using SCSI-3 persistent reservations over multipath?
+```
+
+→ version-diff investigation across layers (kernel, RHEL userspace,
+CNV). When a stage surfaces a KubeVirt PR or an `RHEL-NNNNN` ticket it
+cannot open, the lead launches `github-trace` / `jira-trace` follow-ups
+at fan-in. For ARO cases, mslearn covers the Azure layer.
+
+Japanese prompts work the same way — the skill triggers on phrases like
+「vmcoreを解析」「OOM調査」「アップグレード互換性を調査」「CVEの影響評価」.
+
+Every finding in the report carries **Confidence + Basis
+(VERIFIED / REASONED / ASSUMED) + a reference a human can open** — a
+CVE/errata URL, a source permalink, or a drgn audit log. Live-cluster
+verification (`lab-verify`) is only ever *proposed*: it runs on a
+disposable lab, and only after you approve
+`review-queue/APPROVE_<id>.md`.
+
 ## MCP dependencies (environment-specific)
 
 The plugin does not bundle MCP config — server paths are machine-specific.
