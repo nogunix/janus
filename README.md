@@ -1,5 +1,13 @@
 # JANUS — Claude Code plugin
 
+> **Janus**, the Roman god of gates, has two faces looking in opposite
+> directions — and so does this pipeline. One face looks **downstream**,
+> where an OpenShift consultant works: the exact RHEL/OCP builds
+> customers run, their crashes, upgrades, and CVEs. The other looks
+> **upstream**, where the fix belongs: the kernel, Kubernetes, and
+> KubeVirt communities. Dig deep enough into Linux and the two views
+> meet at the same root cause.
+
 An OpenShift / RHEL / CNV **research & investigation pipeline** for
 Claude Code — case types range from kernel crash forensics to
 upgrade/compatibility analysis, CVE impact assessment, and
@@ -8,6 +16,11 @@ the orchestrator: the lead session composes a pipeline of small agent stages
 per case type, gates the dynamic ones, and
 hands a ranked-hypothesis report to a human. It lays evidence and hypotheses on
 the table — the human makes the final call.
+
+Every case feeds both faces: `synthesize` hands the consultant a
+ranked-hypothesis report grounded in the exact builds involved, and when
+the root cause turns out to be everyone's problem, `upstream-adviser`
+drafts the contribution proposal to carry it home.
 
 ## What's in the plugin
 
