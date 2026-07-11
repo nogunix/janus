@@ -38,10 +38,14 @@ Read `cases/<id>/case.yaml` for:
 
 2. Use `list_versions` to confirm availability — and enumerate ALL casket
    phases/mounts where the component (or its counterparts in other layers)
-   exists, not just the first match. When the stack spans layers, explore
-   both Phase B (RHEL SRPMs: kernel, userspace packages) and Phase D
-   (layered products), plus the rhel9 mount where applicable. If a version
-   or component is missing, record the gap.
+   exists, not just the first match. Casket phase ids (2026-07-11 naming):
+   `a` (OCP payload component sources), `a-rpm` (RHEL SRPMs: kernel,
+   userspace packages), `b` (OLM operator sources / redhat-operators),
+   `b-certified` / `b-community` (certified/community operator catalogs —
+   check these when a component isn't in `b`'s default catalog), `b-operand`
+   (layered products: CNV/ACS/MCE/ACM/RHOAI/ODF/Quay). When the stack spans
+   layers, explore both `a-rpm` and `b-operand`, plus the rhel9 mount where
+   applicable. If a version or component is missing, record the gap.
 
 3. For implementation questions:
    - `search_symbol` for definitions
@@ -126,7 +130,7 @@ duration_s: <seconds>
 
 ## Gaps
 - <versions not available in casket, components not found>
-- <casket phases/layers NOT explored, with reason — e.g. "Phase B unexplored (reason: ...)">
+- <casket phases/layers NOT explored, with reason — e.g. "phase a-rpm unexplored (reason: ...)">
 
 ## References
 | # | Source | Reference | URL / Location |
@@ -154,7 +158,7 @@ duration_s: <seconds>
   and bracket the target with the nearest available versions instead of
   stopping.
 - If you skip a casket phase/layer, record it in Gaps as
-  "Phase X unexplored (reason: ...)". An unexplored layer is a **gap**,
+  "phase <id> unexplored (reason: ...)". An unexplored layer is a **gap**,
   never a negative result — negative results are only for things you
   actually searched and did not find.
 - A search timeout is NOT a valid Negative Result on its own. Before
@@ -173,7 +177,7 @@ duration_s: <seconds>
   [case: scsi3pr-multipath F3]
 - The symptom appears in layer X (e.g. a CNV container) → exploring only
   layer X's tree → enumerate every plausible layer first (step 0) and
-  explore Phase B / rhel9 too; the root cause often lives one layer
+  explore phase `a-rpm` / rhel9 too; the root cause often lives one layer
   below the symptom. [case: scsi3pr-multipath F1]
 - A symbol hit looks like the answer → citing the hit without opening
   the file → `read_file` the definition; a grep hit can be a declaration,
@@ -209,16 +213,28 @@ Large source tree navigation (kernel, glibc, gcc, qemu-kvm):
 CNV/KubeVirt multipath investigation (from case scsi3pr-multipath):
 - CNV multipath issues usually span three layers: kernel PR command
   handling, RHEL userspace (multipathd / libmpathpersist / qemu-pr-helper),
-  and the CNV pr-helper container. After resolving Phase D (CNV) sources,
-  ALWAYS also explore Phase B / the rhel9 mount for device-mapper-multipath
-  and qemu-kvm — the layer the symptom appears in is often not the layer
-  the root cause lives in.
+  and the CNV pr-helper container. After resolving `b-operand` (CNV)
+  sources, ALWAYS also explore phase `a-rpm` / the rhel9 mount for
+  device-mapper-multipath and qemu-kvm — the layer the symptom appears in
+  is often not the layer the root cause lives in.
 - The pr-helper container's socket connection is affected by the
   CAP_SYS_PTRACE drop: access via `/proc/1/root` does not work — look for
   the bind-mount pattern instead.
 - libmpathpersist hard-requires the `reservation_key file` setting
   (mpath_persist.c returns MPATH_PR_SYNTAX_ERROR without it) — always
   check whether it is configured.
+
+CNV virt-core downstream delta (from case cnv-downstream-gap, 2026-07-11):
+- The 13 virt-core images (`b-operand`) resolve to the public upstream tag
+  + public commits only — casket does NOT ingest the true downstream build
+  delta for virt-core (a deliberate scope decision: the one public channel
+  for it, `ftp.redhat.com` kubevirt SRPM, stops tracking z-streams after GA
+  for 4.18+). When a virt-core investigation hinges on a downstream-only
+  commit, casket's source is upstream-tag-accurate but may be missing that
+  delta — record it as a Gap and point to errata/Jira or internal access
+  as the fallback, do not report a false negative from the upstream tree.
+- The other ~36 CNV operand images (non virt-core) ARE resolved to their
+  exact public commit — no equivalent gap there.
 
 Kernel SCSI Persistent Reservation investigation (from case scsi3pr-multipath):
 - The kernel PR implementation spans three layers:

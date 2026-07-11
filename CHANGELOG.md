@@ -2,6 +2,20 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.8.1 — 2026-07-11
+
+- **source-trace: adopt casket's 2026-07-11 phase-id rename.** casket-mcp
+  renamed its phase ids from `A/B/C/D` to `a`/`a-rpm`/`b`/`b-operand`, and
+  added two new operator-catalog phases `b-certified`/`b-community`.
+  source-trace's phase-enumeration guidance, Gaps wording, and the CNV
+  multipath reusable pattern now use the new ids.
+- **source-trace: new reusable pattern for CNV virt-core downstream gaps.**
+  Records that casket's `b-operand` virt-core sources track the public
+  upstream tag only (not the true downstream build delta — a deliberate
+  casket scope decision, case cnv-downstream-gap 2026-07-11); the fallback
+  is errata/Jira or internal access, not a false negative from the
+  upstream tree.
+
 ## 0.8.0 — 2026-07-11
 
 - **New conditional stage: jira-trace.** Jira ticket deep-dive (e.g. Red
