@@ -1,7 +1,9 @@
 ---
 name: source-trace
 description: >-
-  Pipeline stage: versioned source code investigation via casket-mcp.
+  Pipeline stage: versioned source code investigation via casket-mcp
+  (an optional, unpublished source-index server — the lead includes this
+  stage only when a `casket` server is connected).
   Traces implementations, diffs versions, reverse-maps crash symbols.
   Writes findings to cases/<id>/findings/source-trace.md.
 tools: Read, Write, Bash, Glob, Grep, SendMessage, mcp__casket__resolve_component, mcp__casket__resolve_repo, mcp__casket__grep, mcp__casket__read_file, mcp__casket__search_symbol, mcp__casket__search_text, mcp__casket__search_refs, mcp__casket__list_versions, mcp__casket__list_components, mcp__casket__list_dir, mcp__casket__diff_file

@@ -6,10 +6,10 @@ description: >-
   forensics (vmcore / panic / Oops / OOM / hung-task / guest crash, via
   drgn), upgrade & cross-version compatibility analysis, CVE/errata impact
   assessment, operator/component behavior investigation, release diffing.
-  Reverse-maps symptoms to source via casket, correlates with
-  CVE/errata/KB via okp, and produces a ranked-hypothesis report handed
-  off to a human review queue. Read-only, sandboxed; never spoofs
-  guardrails. Triggers: "vmcoreを解析", "このpanicの原因", "OOM調査",
+  Correlates symptoms with CVE/errata/KB via okp (plus versioned-source
+  tracing when a source-index server is registered), and produces a
+  ranked-hypothesis report handed off to a human review queue.
+  Read-only, sandboxed; never spoofs guardrails. Triggers: "vmcoreを解析", "このpanicの原因", "OOM調査",
   "アップグレード互換性を調査", "CVEの影響評価", "オペレータの挙動を調査",
   "バージョン間の差分を調査".
 ---
@@ -37,7 +37,7 @@ connects, it does not process.
 | Stage | Role | Output | Tools | Safety | Model |
 |---|---|---|---|---|---|
 | **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure) | findings/doc-search.md | okp-mcp + slack + mslearn | Static | sonnet |
-| **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp | Static | sonnet |
+| **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp (optional, unpublished) | Static | sonnet |
 | **github-trace** | Upstream GitHub PR/issue/commit deep-dive | findings/github-trace.md | github MCP (read-only) | Static | sonnet |
 | **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | mcp-atlassian (read-only) | Static | sonnet |
 | **crash-analyze** | vmcore/coredump analysis | findings/crash-analyze.md | drgn-mcp + gdb | Static | opus |
@@ -50,6 +50,13 @@ findings reference a GitHub PR/issue/commit or a Jira ticket that no
 other stage can open (doc-search has only okp/slack; source-trace only
 casket). Include one up front only when the case question itself names
 an upstream PR/issue or a Jira key.
+
+source-trace is **opportunistic**: casket-mcp is an unpublished,
+environment-specific server, so most installs won't have it. When the
+preflight (step 1) finds no `casket` server connected, drop source-trace
+silently — its absence is the normal state, not an error. Note it once
+as a gap in the report; do not surface setup instructions or treat the
+case as degraded.
 
 ## Periodic agents (outside the pipeline)
 
@@ -456,7 +463,9 @@ launches self-improver.
 
 ## MCP dependencies
 
-`casket` (versioned source), `okp-mcp` (Red Hat docs/CVE/errata/KB), `mslearn`
+`casket` (versioned source — optional and unpublished; source-trace
+activates only when this server happens to be registered, and its absence
+is normal), `okp-mcp` (Red Hat docs/CVE/errata/KB), `mslearn`
 (Microsoft Learn docs — ARO/Azure layer for doc-search; public remote server,
 no auth: `claude mcp add --transport http mslearn
 https://learn.microsoft.com/api/mcp`), `drgn` (vmcore), `github` (upstream

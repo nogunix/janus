@@ -2,6 +2,16 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.8.2 — 2026-07-11
+
+- **source-trace is now positioned as opportunistic.** casket-mcp is an
+  unpublished, environment-specific server, so most installs won't have
+  it. The lead's preflight already dropped unreachable stages; the skill
+  now says explicitly that source-trace's absence is the normal state —
+  drop it silently, note the gap once in the report, and don't surface
+  setup instructions or treat the case as degraded. Public-facing
+  descriptions (plugin.json) no longer name casket as a dependency.
+
 ## 0.8.1 — 2026-07-11
 
 - **source-trace: adopt casket's 2026-07-11 phase-id rename.** casket-mcp
