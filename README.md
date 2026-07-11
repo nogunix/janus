@@ -160,7 +160,8 @@ spec:
 ```
 
 ### mslearn — Microsoft Learn docs for the ARO/Azure layer
-Public remote server, no auth, used by doc-search:
+Public remote server, no auth, used by doc-search. Official server docs:
+<https://github.com/MicrosoftDocs/mcp>.
 ```bash
 claude mcp add --transport http mslearn https://learn.microsoft.com/api/mcp
 ```
@@ -198,8 +199,10 @@ personal access token. Without this server, jira-trace is skipped and
 ticket references stay in the report as gaps.
 
 ### drgn — vmcore static analysis
-Public OSS (walac/drgn-mcp). Run it sandboxed — network-cut, read-only,
-unprivileged — since upstream has no built-in sandboxing:
+Public OSS: <https://github.com/walac/drgn-mcp>, an MCP wrapper around
+the [drgn](https://github.com/osandov/drgn) programmable kernel
+debugger. Run it sandboxed — network-cut, read-only, unprivileged —
+since upstream has no built-in sandboxing:
 ```bash
 git clone https://github.com/walac/drgn-mcp.git
 cd drgn-mcp && python3 -m venv .venv && .venv/bin/pip install -e .
@@ -207,15 +210,18 @@ claude mcp add drgn -s user -- "$(pwd)/.venv/bin/python" -m drgn_mcp.server
 ```
 
 ### github — upstream PR/issue/commit lookup
-Official hosted read-only endpoint — no server to run yourself. Used by
-github-trace and upstream-adviser:
+Official hosted read-only endpoint of
+[github/github-mcp-server](https://github.com/github/github-mcp-server)
+— no server to run yourself. The `/readonly` path serves only read
+tools, which is the safety boundary here. Used by github-trace and
+upstream-adviser:
 ```bash
 claude mcp add --transport http github https://api.githubcopilot.com/mcp/readonly
 ```
 
 ### linux — read-only RHEL node/VM diagnostics
-Public OSS (rhel-lightspeed/linux-mcp-server), local or over SSH. Used by
-lab-verify. Register with `LINUX_MCP_TOOLSET=fixed` (lowercase) so the
+Public OSS: <https://github.com/rhel-lightspeed/linux-mcp-server>,
+local or over SSH. Used by lab-verify. Register with `LINUX_MCP_TOOLSET=fixed` (lowercase) so the
 arbitrary-script `run_script` toolset stays disabled — that's the safety
 boundary that keeps lab-verify read-only:
 ```bash
