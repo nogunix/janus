@@ -366,6 +366,15 @@ contradiction — synthesize and the lead's gates reject it.
 - **No guardrail spoofing.** On refusal, record it → degrade to the safe
   side → hand to the human. Never rewrite/re-send a prompt to bypass a
   classifier.
+- **No secret material in context — enforced by hook.** The plugin ships
+  a PreToolUse hook (`hooks/secret-safety.py`) that deterministically
+  denies bulk secret dumps (`oc/kubectl get secret -o yaml|json`,
+  `oc extract secret`, `aws secretsmanager get-secret-value`) and AWS
+  support-case writes, in every stage and in the lead. Findings and
+  reports are committed to git, so dumped credentials would persist
+  there. Read a specific non-credential key with `-o jsonpath` if truly
+  needed; a hook denial is a guardrail, not an obstacle — never
+  restructure a command to slip past it.
 - **Parallelism cap: 4 stages.** No more than 4 stages run concurrently
   even at full fan-out.
 - **Sandbox**: drgn's `eval_expression` runs arbitrary Python — run it
@@ -478,7 +487,12 @@ read-only endpoint `https://knowledge-mcp.global.api.aws` (no auth);
 `aws-docs` is read-only via `uvx awslabs.aws-documentation-mcp-server`;
 `aws-support` needs AWS credentials + a Business/Enterprise support plan and
 only its read-only `describe_*` tools are granted — JANUS never opens, replies
-to, or resolves a case), `drgn` (vmcore), `github` (upstream
+to, or resolves a case. AWS has designated the
+[Agent Toolkit for AWS](https://github.com/aws/agent-toolkit-for-aws) as the
+awslabs servers' successor: if its managed `aws-mcp` server is registered,
+doc-search prefers its no-auth `search_documentation` / `retrieve_skill`
+over aws-docs — its `call_aws` / `run_script` tools are never granted),
+`drgn` (vmcore), `github` (upstream
 PR/issue/commit — github-trace and upstream-adviser), `mcp-atlassian`
 (Jira tickets — jira-trace; register with `READ_ONLY_MODE=true` so all
 write tools stay disabled — that is the safety boundary), `linux` (read-only

@@ -2,6 +2,34 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.10.0 — 2026-07-12
+
+Patterns adopted from [aws/agent-toolkit-for-aws](https://github.com/aws/agent-toolkit-for-aws):
+
+- **Deterministic secret-safety PreToolUse hook.** The "no secret material
+  in context" and "JANUS never mutates an AWS support case" invariants were
+  prompt-level only; `plugins/janus/hooks/secret-safety.py` now denies them
+  mechanically at the harness level: bulk secret dumps
+  (`oc/kubectl get secret -o yaml|json`, `oc extract secret`,
+  `aws secretsmanager get-secret-value`) and AWS support-case write
+  commands. Scoped `-o jsonpath` single-key reads still pass. Findings and
+  reports are committed to git, so dumped credentials would persist there —
+  this closes the Bash side path that MCP tool grants could not cover.
+- **Repo validator (`scripts/validate.py`).** Stdlib-only, CI-friendly
+  checks for what the team-developer agent previously audited by judgment:
+  marketplace ↔ plugin source paths, plugin.json/.mcp.json/hooks.json
+  schema, SKILL.md and agent frontmatter (kebab-case name matching
+  directory/filename), hook scripts existing, every SKILL.md pipeline
+  stage having an agent definition (and vice versa), and CLAUDE.md
+  @-references resolving.
+- **doc-search recognizes the awslabs servers' successor.** AWS designated
+  the Agent Toolkit for AWS as the successor to awslabs/mcp. When its
+  managed `aws-mcp` server is registered, doc-search prefers its no-auth
+  `search_documentation` / `retrieve_skill` over aws-docs; `call_aws` and
+  `run_script` (live API access, script execution) are deliberately never
+  granted to the static stage. The 0.9.0 awslabs servers keep working —
+  this is a forward-compatibility path, not a migration.
+
 ## 0.9.0 — 2026-07-12
 
 - **doc-search gains the ROSA/AWS layer via three AWS MCP servers.** The AWS

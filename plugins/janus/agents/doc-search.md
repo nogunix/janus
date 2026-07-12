@@ -6,7 +6,7 @@ description: >-
   (mslearn) for ARO/Azure-layer documentation, AWS docs (aws-docs /
   aws-knowledge / aws-support) for the ROSA/AWS layer, and optionally
   Slack for team context. Writes findings to cases/<id>/findings/doc-search.md.
-tools: Read, Write, Bash, Glob, Grep, SendMessage, mcp__okp-mcp__search_portal, mcp__okp-mcp__get_document, mcp__mslearn__microsoft_docs_search, mcp__mslearn__microsoft_docs_fetch, mcp__mslearn__microsoft_code_sample_search, mcp__slack__search_messages, mcp__slack__search_channel_messages, mcp__slack__get_channel_history, mcp__slack__get_channel_id_by_name, mcp__slack__get_thread, mcp__slack__list_joined_channels, mcp__aws-docs__search_documentation, mcp__aws-docs__read_documentation, mcp__aws-docs__read_sections, mcp__aws-docs__recommend, mcp__aws-docs__get_available_services, mcp__aws-knowledge__search_documentation, mcp__aws-knowledge__read_documentation, mcp__aws-knowledge__list_regions, mcp__aws-knowledge__get_regional_availability, mcp__aws-knowledge__retrieve_skill, mcp__aws-support__describe_support_cases, mcp__aws-support__describe_communications, mcp__aws-support__describe_services, mcp__aws-support__describe_severity_levels, mcp__aws-support__describe_create_case_options, mcp__aws-support__describe_supported_languages, mcp__aws-support__describe_attachment
+tools: Read, Write, Bash, Glob, Grep, SendMessage, mcp__okp-mcp__search_portal, mcp__okp-mcp__get_document, mcp__mslearn__microsoft_docs_search, mcp__mslearn__microsoft_docs_fetch, mcp__mslearn__microsoft_code_sample_search, mcp__slack__search_messages, mcp__slack__search_channel_messages, mcp__slack__get_channel_history, mcp__slack__get_channel_id_by_name, mcp__slack__get_thread, mcp__slack__list_joined_channels, mcp__aws-docs__search_documentation, mcp__aws-docs__read_documentation, mcp__aws-docs__read_sections, mcp__aws-docs__recommend, mcp__aws-docs__get_available_services, mcp__aws-knowledge__search_documentation, mcp__aws-knowledge__read_documentation, mcp__aws-knowledge__list_regions, mcp__aws-knowledge__get_regional_availability, mcp__aws-knowledge__retrieve_skill, mcp__aws-support__describe_support_cases, mcp__aws-support__describe_communications, mcp__aws-support__describe_services, mcp__aws-support__describe_severity_levels, mcp__aws-support__describe_create_case_options, mcp__aws-support__describe_supported_languages, mcp__aws-support__describe_attachment, mcp__aws-mcp__search_documentation, mcp__aws-mcp__retrieve_skill
 model: sonnet
 ---
 
@@ -211,6 +211,13 @@ skip its angle silently (same rule as Slack) and note it as a gap.
   references in one index, plus `list_regions` / `get_regional_availability`
   for "is service X in region Y" and `retrieve_skill` for guided runbooks.
   Prefer it for breadth; fall back to aws-docs for a single canonical page.
+- **aws-mcp** (the [Agent Toolkit for AWS](https://github.com/aws/agent-toolkit-for-aws)
+  managed server, successor to the awslabs servers above): if it is
+  registered instead of (or alongside) aws-docs, its `search_documentation`
+  and `retrieve_skill` tools need no AWS credentials and serve the same
+  documentation role — prefer them over aws-docs when both are connected.
+  Its `call_aws` and `run_script` tools are deliberately **not** granted:
+  live AWS API access and script execution have no place in a static stage.
 - **aws-support** (`awslabs.aws-support-mcp-server`, needs AWS credentials +
   a Business/Enterprise support plan): **read-only tools only** —
   `describe_support_cases`, `describe_communications`, `describe_services`,

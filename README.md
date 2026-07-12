@@ -31,9 +31,11 @@ plugins/janus/
   skills/janus/SKILL.md              # /janus — pipeline driver
   skills/deck/                       # report → branded .pptx/PDF
   skills/okp-doc-search/             # okp-mcp research know-how (queries, doc_id rules)
+  hooks/                             # PreToolUse secret-safety hook (deterministic denies)
   agents/                            # 9 agents (patterns inlined into each)
     doc-search  source-trace  github-trace  jira-trace  crash-analyze
     lab-verify  synthesize  self-improver  upstream-adviser
+scripts/validate.py                  # repo consistency checks (CI-friendly, stdlib-only)
 ```
 
 The pipeline: `{ doc-search, source-trace, crash-analyze, [approve] lab-verify } | synthesize`
@@ -63,6 +65,10 @@ git clone https://github.com/nogunix/janus.git ~/janus
 /plugin marketplace add ~/janus     # register the local marketplace
 /plugin install janus@janus         # install the plugin (plugin@marketplace)
 ```
+
+When editing the plugin, run `python3 scripts/validate.py` before
+committing — it checks manifest schema, skill/agent frontmatter,
+hook-script paths, and SKILL.md ↔ agents/ stage sync.
 
 Submitted to Anthropic's community marketplace for review; once approved
 it will also be installable via `/plugin marketplace add
