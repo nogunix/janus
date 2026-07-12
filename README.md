@@ -150,7 +150,8 @@ using SCSI-3 persistent reservations over multipath?
 → version-diff investigation across layers (kernel, RHEL userspace,
 CNV). When a stage surfaces a KubeVirt PR or an `RHEL-NNNNN` ticket it
 cannot open, the lead launches `github-trace` / `jira-trace` follow-ups
-at fan-in. For ARO cases, mslearn covers the Azure layer.
+at fan-in. For ARO cases, mslearn covers the Azure layer; for ROSA cases,
+the AWS MCP servers cover the AWS layer.
 
 Japanese prompts work the same way — the skill triggers on phrases like
 「vmcoreを解析」「OOM調査」「アップグレード互換性を調査」「CVEの影響評価」.
@@ -224,6 +225,30 @@ Public remote server, no auth, used by doc-search. Official server docs:
 ```bash
 claude mcp add --transport http mslearn https://learn.microsoft.com/api/mcp
 ```
+
+### aws-docs / aws-knowledge / aws-support — AWS docs for the ROSA/AWS layer
+The AWS mirror of mslearn, used by doc-search for **ROSA (Red Hat OpenShift
+Service on AWS)** and the AWS services beneath it. All optional, from
+[awslabs/mcp](https://github.com/awslabs/mcp); doc-search uses whichever are
+connected and skips the rest.
+
+- **aws-knowledge** — hosted, read-only, no auth; cross-searches AWS docs /
+  blogs / What's New / API references:
+  ```bash
+  claude mcp add --transport http aws-knowledge https://knowledge-mcp.global.api.aws
+  ```
+- **aws-docs** — read-only, no credentials; runs via `uvx`:
+  ```bash
+  claude mcp add aws-docs -- uvx awslabs.aws-documentation-mcp-server@latest
+  ```
+- **aws-support** — needs AWS credentials + a Business/Enterprise support
+  plan. **Only its read-only `describe_*` tools are granted** to doc-search
+  (the case create / reply / resolve tools are deliberately withheld — JANUS
+  never mutates a support case):
+  ```bash
+  claude mcp add aws-support --env AWS_PROFILE=<profile> --env AWS_REGION=us-east-1 \
+    -- uvx awslabs.aws-support-mcp-server@latest
+  ```
 
 ### slack — optional, bring your own workspace
 doc-search can supplement official docs with your team's Slack

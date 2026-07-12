@@ -36,7 +36,7 @@ connects, it does not process.
 
 | Stage | Role | Output | Tools | Safety | Model |
 |---|---|---|---|---|---|
-| **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure) | findings/doc-search.md | okp-mcp + slack + mslearn | Static | sonnet |
+| **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure, AWS docs for ROSA/AWS) | findings/doc-search.md | okp-mcp + slack + mslearn + aws | Static | sonnet |
 | **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp (optional, unpublished) | Static | sonnet |
 | **github-trace** | Upstream GitHub PR/issue/commit deep-dive | findings/github-trace.md | github MCP (read-only) | Static | sonnet |
 | **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | mcp-atlassian (read-only) | Static | sonnet |
@@ -343,6 +343,8 @@ contradiction — synthesize and the lead's gates reject it.
 | slack | `#channel, YYYY-MM-DD` | `#forum-kubevirt, 2026-06-15` |
 | github | `owner/repo#N` or commit SHA + URL | `kubevirt/kubevirt#14309` |
 | mslearn | Learn URL | `https://learn.microsoft.com/azure/openshift/support-lifecycle` |
+| aws-docs | `docs.aws.amazon.com` URL | `https://docs.aws.amazon.com/rosa/latest/userguide/rosa-sts.html` |
+| aws-support | `AWS support case <id>` | `AWS support case 1234567890` |
 
 ---
 
@@ -468,7 +470,15 @@ activates only when this server happens to be registered, and its absence
 is normal), `okp-mcp` (Red Hat docs/CVE/errata/KB), `mslearn`
 (Microsoft Learn docs — ARO/Azure layer for doc-search; public remote server,
 no auth: `claude mcp add --transport http mslearn
-https://learn.microsoft.com/api/mcp`), `drgn` (vmcore), `github` (upstream
+https://learn.microsoft.com/api/mcp`), `aws-docs` / `aws-knowledge` /
+`aws-support` (AWS docs — ROSA/AWS layer for doc-search, the AWS mirror of
+mslearn; all optional, from
+[awslabs/mcp](https://github.com/awslabs/mcp). `aws-knowledge` is the hosted
+read-only endpoint `https://knowledge-mcp.global.api.aws` (no auth);
+`aws-docs` is read-only via `uvx awslabs.aws-documentation-mcp-server`;
+`aws-support` needs AWS credentials + a Business/Enterprise support plan and
+only its read-only `describe_*` tools are granted — JANUS never opens, replies
+to, or resolves a case), `drgn` (vmcore), `github` (upstream
 PR/issue/commit — github-trace and upstream-adviser), `mcp-atlassian`
 (Jira tickets — jira-trace; register with `READ_ONLY_MODE=true` so all
 write tools stay disabled — that is the safety boundary), `linux` (read-only

@@ -2,6 +2,26 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.9.0 — 2026-07-12
+
+- **doc-search gains the ROSA/AWS layer via three AWS MCP servers.** The AWS
+  mirror of the existing mslearn (ARO/Azure) integration, from
+  [awslabs/mcp](https://github.com/awslabs/mcp): `aws-knowledge` (hosted,
+  read-only, no auth — cross-searches AWS docs/blogs/What's New/API refs),
+  `aws-docs` (read-only, no credentials, via `uvx`), and `aws-support`
+  (needs AWS credentials + a Business/Enterprise plan). doc-search now
+  covers ROSA-the-managed-service questions (supported versions, AWS-SRE
+  responsibility split, AWS quotas/VPC/IAM/EC2 limits) the same way mslearn
+  covers ARO, while OpenShift-the-product questions stay with okp-mcp.
+- **aws-support is granted only its read-only `describe_*` tools.** The
+  case create / reply / resolve / attachment-upload write tools are
+  deliberately withheld from the doc-search agent — JANUS never mutates an
+  AWS support case, keeping the read-only invariant intact.
+- All three servers are **optional and environment-specific** — not bundled
+  with the plugin. doc-search uses whichever are connected and skips the
+  rest silently, noting the gap. Registration commands are documented in the
+  README and the skill's MCP-dependencies section.
+
 ## 0.8.2 — 2026-07-11
 
 - **source-trace is now positioned as opportunistic.** casket-mcp is an
