@@ -176,11 +176,10 @@ duration_s: <seconds>
 - A broad search times out → recording a negative and stopping → reduce
   scope (step 3b): `list_dir` → subsystem dir → scoped search →
   `read_file`. Timeout means "narrow", never "give up".
-  [case: scsi3pr-multipath F3]
 - The symptom appears in layer X (e.g. a CNV container) → exploring only
   layer X's tree → enumerate every plausible layer first (step 0) and
   explore phase `a-rpm` / rhel9 too; the root cause often lives one layer
-  below the symptom. [case: scsi3pr-multipath F1]
+  below the symptom.
 - A symbol hit looks like the answer → citing the hit without opening
   the file → `read_file` the definition; a grep hit can be a declaration,
   a dead branch, or another symbol with the same prefix.
@@ -212,7 +211,7 @@ Large source tree navigation (kernel, glibc, gcc, qemu-kvm):
   `read_file`. This three-step fallback resolves most timeouts. A timeout
   means "reduce scope", never "give up".
 
-CNV/KubeVirt multipath investigation (from case scsi3pr-multipath):
+CNV/KubeVirt multipath investigation:
 - CNV multipath issues usually span three layers: kernel PR command
   handling, RHEL userspace (multipathd / libmpathpersist / qemu-pr-helper),
   and the CNV pr-helper container. After resolving `b-operand` (CNV)
@@ -226,7 +225,7 @@ CNV/KubeVirt multipath investigation (from case scsi3pr-multipath):
   (mpath_persist.c returns MPATH_PR_SYNTAX_ERROR without it) — always
   check whether it is configured.
 
-CNV virt-core downstream delta (from case cnv-downstream-gap, 2026-07-11):
+CNV virt-core downstream delta:
 - The 13 virt-core images (`b-operand`) resolve to the public upstream tag
   + public commits only — casket does NOT ingest the true downstream build
   delta for virt-core (a deliberate scope decision: the one public channel
@@ -238,7 +237,7 @@ CNV virt-core downstream delta (from case cnv-downstream-gap, 2026-07-11):
 - The other ~36 CNV operand images (non virt-core) ARE resolved to their
   exact public commit — no equivalent gap there.
 
-Kernel SCSI Persistent Reservation investigation (from case scsi3pr-multipath):
+Kernel SCSI Persistent Reservation investigation:
 - The kernel PR implementation spans three layers:
   1. SCSI disk layer: `drivers/scsi/sd.c` (sd_pr_command, sd_pr_register,
      sd_pr_ops)
@@ -246,8 +245,7 @@ Kernel SCSI Persistent Reservation investigation (from case scsi3pr-multipath):
      dm_pr_read_keys, dm_pr_ops)
   3. Block layer: `block/blk-core.c` / `block/ioctl.c` (PR ioctl dispatch)
 - RHEL 9.4 → 9.6 added `dm_pr_read_keys` / `dm_pr_read_reservation` to
-  dm.c (scsi3pr-multipath F5): PR IN commands through device-mapper work
-  only on 9.6+.
+  dm.c: PR IN commands through device-mapper work only on 9.6+.
 - When investigating kernel PR changes, diff BOTH sd.c and dm.c. No change
   in sd.c but changes in dm.c → the issue is in the device-mapper layer.
 

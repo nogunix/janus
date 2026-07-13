@@ -62,7 +62,10 @@ Look for recurring patterns:
   (project-local lessons the lead banked with human approval) that
   recur across ≥2 cases — candidates for promotion into the owning
   agent's "Failure patterns" section, in the same
-  `symptom → wrong move → correct move [case: <id>]` format.
+  `symptom → wrong move → correct move` format, written generically
+  (the driving case IDs stay in the janus-lessons entry and the
+  IMPROVE_* report, not in the shipped agent prompt — internal case
+  names are meaningless to a plugin user).
 - Same crash signature appearing in multiple cases.
 - Tracks that consistently find nothing (wasted effort?).
 - Escalation criteria that trigger too often or not enough.
@@ -78,8 +81,10 @@ These are safe to apply without human approval:
   classified by crash type) — the plugin keeps knowledge inside the
   agents that consume it, not in separate docs that go unread.
 - Promotion of a recurring janus-lessons entry (≥2 cases) into the
-  owning agent's "Failure patterns" section, keeping the
-  `symptom → wrong move → correct move [case: <id>]` format. The lesson
+  owning agent's "Failure patterns" section, in the
+  `symptom → wrong move → correct move` format. Write the promoted entry
+  generically: the case-ID provenance lives in the janus-lessons entry
+  and the IMPROVE_* report, not in the shipped agent prompt. The lesson
   itself was already human-approved when banked; note the promotion in
   the IMPROVE_* report and remove the now-redundant project entry only
   with human approval.

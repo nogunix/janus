@@ -128,7 +128,7 @@ duration_s: <seconds>
 
 ## Reusable patterns (inlined)
 
-PR deep-dive that works (from case scsi3pr-multipath):
+PR deep-dive that works:
 - **Track every commit of a multi-commit PR** — each commit often maps to
   one architectural component (e.g. PR #14309: filewatcher,
   multipath-monitor, socket handling, tests). The commit boundaries reveal
