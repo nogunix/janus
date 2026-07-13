@@ -18,9 +18,12 @@ Typical use (see SKILL.md for the full flow):
 
     s = d.add("CUSTOM_4_17_1")
     d.body(s, 2, [("Head", "detail line"), ("Head2", "detail2")])
+    d.prose(s, 3, "Paragraph one.\\n\\nParagraph two.")   # narrative text, no bullets
     d.table(s, 1.0, 2.7, 5.4, 3.0, ("Col A", "Col B"),
             [("a", "1"), ("b", "2")], title="My table")
     d.picture(s, "diagram.png", 1.0, 2.3, width=11.4)
+    d.svg(s, "diagram.svg", 1.0, 2.3, width=5.0, light=True)  # SVG in one call
+    d.refs(s, [("OpenShift Docs", "https://docs.redhat.com/x")])  # call LAST on the slide
 
     d.move_to_end(lambda s: "Thank you" in d.slide_text(s))
     d.save("out.pptx")
@@ -29,6 +32,8 @@ Discovery helpers (run first to learn a template's vocabulary):
     Deck("template.pptx").describe_layouts()
     Deck("template.pptx").describe_slides()
 """
+import os
+import tempfile
 from io import BytesIO
 
 from pptx import Presentation
@@ -188,6 +193,70 @@ class Deck:
             first = False
         return p
 
+    def _no_bullet(self, para):
+        pPr = para._p.get_or_add_pPr()
+        if pPr.find(qn("a:buNone")) is not None:
+            return
+        bu = pPr.makeelement(qn("a:buNone"), {})
+        ref = pPr.find(qn("a:defRPr"))
+        if ref is not None:
+            ref.addprevious(bu)
+        else:
+            pPr.append(bu)
+
+    def prose(self, slide, idx, text, size=12, bold=None, color=None, gap=8):
+        """Fill a placeholder with free paragraphs — no bullet glyphs.
+
+        Blank lines ('\\n\\n') split spaced paragraphs; a single '\\n' stays a
+        line break inside the paragraph. Use instead of body() for narrative
+        text (quotes, official statements): body() renders a blank line as an
+        empty bullet."""
+        color = color or RGB("151515")
+        p = self.ph(slide, idx)
+        tf = p.text_frame
+        tf.clear()
+        tf.word_wrap = True
+        blocks = [b for b in (s.strip("\n") for s in text.split("\n\n")) if b.strip()]
+        for i, block in enumerate(blocks):
+            para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+            if i:
+                para.space_before = Pt(gap)
+            for j, line in enumerate(block.split("\n")):
+                if j:
+                    para.add_line_break()
+                r = para.add_run(); r.text = line
+                self._style(r, size=size, bold=bold, color=color)
+            self._no_bullet(para)
+        return p
+
+    def disclaimer(self, slide, idx, conditions, notes=(), size=12,
+                   note_size=10, gap=6, color=None, note_color=None):
+        """Fill a body placeholder as a disclaimer slide: conditions as
+        bullets, notes as smaller grey non-bulleted ※-lines below."""
+        color = color or RGB("151515")
+        note_color = note_color or RGB("8C8C8C")
+        p = self.ph(slide, idx)
+        tf = p.text_frame
+        tf.clear()
+        tf.word_wrap = True
+        first = True
+        for c in conditions:
+            para = tf.paragraphs[0] if first else tf.add_paragraph()
+            if not first:
+                para.space_before = Pt(gap)
+            r = para.add_run(); r.text = c
+            self._style(r, size=size, color=color)
+            first = False
+        for i, n in enumerate(notes):
+            para = tf.paragraphs[0] if first else tf.add_paragraph()
+            if not first:
+                para.space_before = Pt(gap * 2 if i == 0 else gap)
+            r = para.add_run(); r.text = n if n.startswith("※") else "※ " + n
+            self._style(r, size=note_size, color=note_color)
+            self._no_bullet(para)
+            first = False
+        return p
+
     def fit(self, slide, idx, left, top, width, height):
         """Reposition a placeholder. ALWAYS pass full geometry — setting only
         width/top on an inherited placeholder leaves the others at 0 and the box
@@ -216,6 +285,113 @@ class Deck:
         if height is not None:
             kw["height"] = Inches(height)
         return slide.shapes.add_picture(src, Inches(left), Inches(top), **kw)
+
+    def svg(self, slide, src, left, top, width=None, height=None,
+            px_width=2000, light=False, palette=None, background="white"):
+        """Insert an SVG (file path or '<svg…>' markup) as a picture in one
+        call — renders to PNG via svgtools.render_svg (rsvg-convert/inkscape)
+        instead of the manual SVG → rsvg-convert → picture() dance.
+        light=True remaps the SVG's hex colours to the light template palette
+        first (svgtools.auto_light_map; palette overrides its entries).
+        Needs svgtools.py importable next to this file."""
+        import svgtools
+        text = src if src.lstrip().startswith("<") else open(src, encoding="utf-8").read()
+        if light:
+            text = svgtools.recolor_svg(
+                text, svgtools.auto_light_map(svgtools.svg_colors(text), palette))
+        fd, tmp = tempfile.mkstemp(suffix=".png")
+        os.close(fd)
+        try:
+            svgtools.render_svg(text, tmp, width=px_width, background=background)
+            with open(tmp, "rb") as f:
+                data = f.read()
+        finally:
+            os.unlink(tmp)
+        return self.picture(slide, data, left, top, width=width, height=height)
+
+    # ---------------- reference footnotes ----------------
+    def _text_bottom(self, sh):
+        """Estimate the bottom (inches) of the *rendered* text in a
+        text-frame shape. Placeholder boxes often stretch to the slide
+        bottom while their text stops much higher — using the box bottom
+        would leave no room for footnotes."""
+        tf = sh.text_frame
+        if not tf.text.strip():
+            return 0.0
+        width_in = (sh.width or 0) / 914400.0 or 1.0
+        h = 0.0
+        for para in tf.paragraphs:
+            sizes = [r.font.size.pt for r in para.runs if r.font.size] or [14]
+            size = max(sizes)
+            text = "".join(r.text for r in para.runs)
+            cpl = max(int(width_in * 72 / (size * 0.7)), 8)
+            h += max(1, -(-len(text) // cpl)) * size * 1.5 / 72.0
+            if para.space_before:
+                h += para.space_before.pt / 72.0
+        return (sh.top or 0) / 914400.0 + h
+
+    def content_bottom(self, slide):
+        """Lowest bottom edge (inches) over the slide's content — everything
+        below it is the safe zone for footnotes. Text shapes count with
+        their estimated rendered-text bottom (not the full placeholder box);
+        pictures/tables with their full box."""
+        bottom = 0.0
+        for sh in slide.shapes:
+            if sh.has_text_frame:
+                bottom = max(bottom, self._text_bottom(sh))
+            elif sh.top is not None and sh.height is not None:
+                bottom = max(bottom, (sh.top + sh.height) / 914400.0)
+        return bottom
+
+    def refs(self, slide, items, size=9, color=None, left=0.5, width=None,
+             bottom_margin=0.28, compact_at=3, gap=0.08):
+        """Reference footnote at the slide bottom. Call LAST on the slide:
+        it measures content_bottom() and fits the refs below the content.
+        With compact_at or more items — or when one-line-per-ref doesn't fit
+        above bottom_margin — the refs are joined into a single wrapped
+        paragraph one point smaller, instead of overlapping the body (the
+        2-column full-height-body overlap problem).
+
+        items: strings, or (label, url) pairs joined as "label — url"."""
+        color = color or RGB("8C8C8C")
+        strs = [it if isinstance(it, str) else " — ".join(str(x) for x in it if x)
+                for it in items]
+        if not strs:
+            return None
+        emu = 914400.0
+        slide_w = self.prs.slide_width / emu
+        slide_h = self.prs.slide_height / emu
+        if width is None:
+            # stop short of the bottom-right footer chrome (version/logo)
+            width = max(slide_w - left - 2.9, slide_w * 0.6)
+        floor = self.content_bottom(slide) + gap
+        line_h = size * 1.45 / 72.0
+        if len(strs) >= compact_at or floor + len(strs) * line_h > slide_h - bottom_margin:
+            size = max(size - 1, 7)
+            line_h = size * 1.45 / 72.0
+            joined = "   |   ".join(strs)
+            # over-estimate wrap (0.7 em/char, mixed CJK+ASCII) so the box
+            # grows upward rather than spilling off-slide
+            chars_per_line = max(int(width * 72 / (size * 0.7)), 20)
+            est_h = -(-len(joined) // chars_per_line) * line_h
+            texts = [joined]
+        else:
+            est_h = len(strs) * line_h
+            texts = strs
+        # prefer just above the bottom margin; move up if content intrudes,
+        # but never start so low the refs run off-slide
+        top = min(max(floor, slide_h - bottom_margin - est_h),
+                  slide_h - est_h - 0.02)
+        tb = slide.shapes.add_textbox(Inches(left), Inches(top),
+                                      Inches(width), Inches(est_h + 0.05))
+        tf = tb.text_frame
+        tf.word_wrap = True
+        tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = Pt(0)
+        for i, t in enumerate(texts):
+            para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+            r = para.add_run(); r.text = t
+            self._style(r, size=size, bold=False, color=color)
+        return tb
 
     def table(self, slide, x, y, w, h, header, rows, title=None,
               header_bg="EE0000", header_fg="FFFFFF", zebra="F5F5F5",

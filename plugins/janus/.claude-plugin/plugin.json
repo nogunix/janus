@@ -1,7 +1,7 @@
 {
   "name": "janus",
   "description": "OpenShift/RHEL/CNV research & investigation pipeline for Claude Code — crash forensics, upgrade/compat analysis, CVE impact, component behavior. Seven composable agents — doc-search (okp-mcp + mslearn for ARO/Azure + AWS docs for ROSA/AWS), source-trace (versioned-source index, optional), github-trace (github, conditional), jira-trace (mcp-atlassian, conditional), crash-analyze (drgn/gdb), lab-verify (oc/terraform/linux-mcp), synthesize — connected by a universal finding format, plus periodic self-improver and upstream-adviser. Reusable investigation patterns are inlined into each agent. Working-method discipline built in: evidence-basis labels (VERIFIED/REASONED/ASSUMED), named report-acceptance gates, a causation gate for crash findings, a project-local lessons loop, and a deterministic secret-safety PreToolUse hook.",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "author": {
     "name": "nogunix"
   },

@@ -2,6 +2,35 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.11.0 — 2026-07-13
+
+deck skill improvements from case JANUS-002's IMPROVE feedback
+(`review-queue/IMPROVE_2026-07-13-deck.md`; items 1–5 shipped, item 6 —
+JANUS-report→slide semi-automation — deferred):
+
+- **`d.refs(slide, items)` — overlap-safe reference footnotes** (was a local
+  function in each build script). Call it last on a slide: it estimates the
+  *rendered-text* bottom of the content (not the placeholder box, which often
+  stretches to the slide bottom), places the refs in the free zone above the
+  bottom margin, and with 3+ refs or too little room auto-compacts them into
+  one wrapped `a | b | c` line a point smaller. Default width stays clear of
+  the bottom-right footer chrome. Placement rules are keyword args, not a
+  config file.
+- **`d.prose(slide, idx, text)` — bullet-free narrative paragraphs.**
+  `\n\n` splits spaced paragraphs, single `\n` is an in-paragraph line break;
+  fixes `body()` rendering blank lines as empty ▸ bullets (公式見解 slides).
+- **`d.svg(slide, src, l, t, …)` — one-call SVG embedding** (path or markup),
+  rendered via svgtools/rsvg-convert with optional `light=True` recolor to the
+  template palette; replaces the manual SVG→rsvg-convert→picture() dance. The
+  svgtools CLI also accepts a bare `.svg` file (documented; already worked).
+- **`d.disclaimer(slide, idx, conditions, notes)`** — the standard disclaimer
+  pattern: conditions as bullets, notes as smaller grey non-bulleted ※-lines.
+- **SKILL.md gotchas #6–#8**: `\n\n`-in-`body()` empty bullets → use `prose()`;
+  fixed-top footnotes overlap full-height bodies → use `refs()` last; don't
+  hard-code slide numbers in build-script comments — section names only.
+
+All verified visually against the consulting template (5-slide smoke deck →
+PDF → page render, including the compact-refs and full-height-body cases).
 ## 0.10.0 — 2026-07-12
 
 Patterns adopted from [aws/agent-toolkit-for-aws](https://github.com/aws/agent-toolkit-for-aws):

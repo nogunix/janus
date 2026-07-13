@@ -38,7 +38,8 @@ general, not tied to any one template.
 Quick check: `soffice --version && pdffonts -v 2>&1 | head -1 && python3 -c "import pptx,numpy,PIL"`
 
 All helper scripts live in `scripts/` next to this file. Put `scripts/` on the
-path (`sys.path.insert(0, ".../scripts")`) or copy `decklib.py` next to your build.
+path (`sys.path.insert(0, ".../scripts")`) or copy `decklib.py` (plus
+`svgtools.py`, which `d.svg()` imports) next to your build.
 
 ## Workflow
 
@@ -76,7 +77,7 @@ d.strip_slides(keep=lambda s: "Thank you" in d.slide_text(s), keep_first=True)
 s = d.add("TITLE")
 d.text(s, 0, "My Title", bold=True, size=32)
 d.fit(s, 0, 2.3, 2.2, 9.4, 1.3)                 # see gotcha #1 — always FULL geometry
-# Cover date (gotcha #6): auto-fill from the build date so it never goes stale.
+# Cover date (gotcha #9): auto-fill from the build date so it never goes stale.
 # If the TITLE layout exposes a free DATE/SUBTITLE placeholder, d.text into it;
 # otherwise (common — placeholders all taken) drop a textbox at fixed inches:
 from datetime import date
@@ -88,17 +89,31 @@ d.text(s, 4, "EYEBROW", color=RED, size=12, bold=True)
 d.text(s, 0, "Slide title", bold=True)
 d.body(s, 2, [("Heading", "detail line"), ("Heading 2", "detail 2")])
 d.body(s, 3, [("Right column", "detail")])
+d.prose(s, 3, "Quoted statement…\n\nSecond paragraph.")   # narrative text, no bullets
 d.picture(s, "diagram_light.png", 1.0, 2.3, width=11.4)   # path or raw bytes
 d.table(s, 1.0, 2.7, 5.4, 3.0, ("Task", "Time"),
         [("Build", "5 min"), ("Test", "2 min")], title="Timing")
+d.refs(s, [("OpenShift Docs", "https://docs.redhat.com/…"),
+           "KB 7012345 — https://access.redhat.com/solutions/7012345"])  # call LAST
 
 d.move_to_end(lambda s: "Thank you" in d.slide_text(s))   # if a kept slide must be last
 d.save("OUT.pptx")
 ```
 Key `decklib` calls: `add(layout)`, `text(slide, idx, …)`, `body(slide, idx, pairs)`,
-`table(...)`, `picture(...)`, `add_textbox(slide, l,t,w,h, text, …)`,
-`fit(slide, idx, l,t,w,h)`, `clear`, `strip_slides`,
-`move_to_end`, `master_replace_text`, `save`. `RGB("EE0000")` for colors.
+`prose(slide, idx, text)`, `disclaimer(slide, idx, conditions, notes)`,
+`table(...)`, `picture(...)`, `svg(slide, src, l,t, …)`, `refs(slide, items)`,
+`add_textbox(slide, l,t,w,h, text, …)`, `fit(slide, idx, l,t,w,h)`, `clear`,
+`strip_slides`, `move_to_end`, `master_replace_text`, `save`. `RGB("EE0000")` for colors.
+
+Reference footnotes: `d.refs(slide, items)` — call it **last** on each slide; it
+measures the content below the placeholders' *rendered text* and places the refs
+in the free zone above the bottom margin. With 3+ refs (or too little room) it
+auto-compacts them into one wrapped `a | b | c` line a point smaller, so they
+never overlap a full-height 2-column body. Template-specific placement rules
+(left margin, footer clearance, compact threshold) are the keyword args
+`left/width/bottom_margin/compact_at`.
+Disclaimer slides: `d.disclaimer(slide, idx, conditions=[…], notes=[…])` —
+conditions as bullets, notes as smaller grey ※-lines.
 
 ### 4a. Diagrams authored in HTML/SVG (preferred for new diagrams)
 If the diagrams live as inline `<svg>` in an HTML page, render them to crisp PNGs
@@ -116,6 +131,13 @@ d.picture(s, open("diagrams/arch.png","rb").read(), 0.9, 2.45, width=7.0)
 `--light` maps each SVG hex by luminance+hue (dark fills→white, muted borders→grey,
 accents→red/amber/green, light text→near-black). Needs `rsvg-convert` (or
 `inkscape`). This keeps the diagram **editable in HTML** and re-rendered each build.
+
+For a standalone `.svg` file (or SVG markup string) skip the pipeline entirely —
+one call renders and places it, optionally light-recolored:
+```python
+d.svg(s, "diagram.svg", 0.9, 2.45, width=7.0, light=True)
+```
+(The svgtools CLI also accepts a bare `.svg` file in place of the HTML page.)
 
 ### 4b. Recolor existing raster diagrams to fit a light template (fallback)
 Raster diagrams built for a dark deck look out of place on a light template.
@@ -168,7 +190,18 @@ Do not declare done without viewing the rendered pages.
    slide) and you add fresh slides on the layouts.
 5. **Diagrams are raster.** You can recolor them (step 4) but not re-typeset them;
    if a diagram must change content, it has to be recreated.
-6. **Put a date on the cover, and auto-fill it.** A title slide with no date looks
+6. **`\n\n` inside `body()` text renders as an empty ▸ bullet.** `body()` is for
+   (head, detail) bullet pairs; blank lines inside it become bullet glyphs with
+   no text. For narrative text with paragraph breaks (quotes, official
+   statements, disclaimers) use `d.prose()` — no bullets, spaced paragraphs.
+7. **Reference footnotes overlap a full-height body if placed at a fixed top.**
+   Use `d.refs()` as the LAST call on the slide — it measures the rendered
+   content and compacts/moves the refs into the free bottom zone instead.
+8. **Don't number slides in build-script comments** (`# Slide 7: …`) — every
+   insertion/move renumbers them all by hand and they drift. Comment with
+   section names only (`# Cover`, `# 結論`, `# Closing`); the deck's page
+   numbers come from the template's own numbering, not the script.
+9. **Put a date on the cover, and auto-fill it.** A title slide with no date looks
    unfinished, and a hard-coded date silently goes stale on the next rebuild — fill
    it from `date.today()` at build time. Use a free DATE/SUBTITLE placeholder via
    `d.text` if the layout has one (check `d.describe_layouts()`); if every
@@ -177,7 +210,7 @@ Do not declare done without viewing the rendered pages.
    explicitly instead of `date.today()`.
 
 ## Files
-- `scripts/decklib.py` — the builder library (`Deck`, `RGB`).
+- `scripts/decklib.py` — the builder library (`Deck`, `RGB`). `d.svg()` needs `svgtools.py` importable beside it.
 - `scripts/svgtools.py` — render inline-SVG diagrams from HTML to PNG, light-recolor on hex (`html_to_pngs`, CLI). Needs `rsvg-convert`/`inkscape`.
 - `scripts/recolor_image.py` — dark→light *raster* diagram recolor (`recolor`, `recolor_blob`, CLI).
 - `scripts/inspect_template.py` — dump a template's layouts & sample slides.
