@@ -22,7 +22,7 @@ from pptx.enum.text import PP_ALIGN
 
 # Slide-scoped Deck methods callable from a spec's `do:` list.
 OPS = ("text", "body", "prose", "disclaimer", "fit", "move", "clear",
-       "picture", "svg", "refs", "table", "add_textbox")
+       "picture", "svg", "refs", "table", "add_textbox", "add_code_block")
 COLOR_KEYS = ("color", "head_color", "desc_color", "note_color")
 PATH_KEYS = ("src",)
 ALIGNS = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER,
@@ -49,7 +49,7 @@ class Builder:
         return p if os.path.isabs(p) else os.path.join(self.base, p)
 
     def value(self, key, val):
-        if isinstance(val, str):
+        if isinstance(val, str) and key != "code":  # code is verbatim
             val = val.replace("$today", self.today)
         if key in COLOR_KEYS and isinstance(val, str):
             return RGB(self.colors.get(val.lstrip("$"), val.lstrip("$")))

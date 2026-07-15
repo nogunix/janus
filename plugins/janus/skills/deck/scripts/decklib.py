@@ -33,6 +33,8 @@ Discovery helpers (run first to learn a template's vocabulary):
     Deck("template.pptx").describe_slides()
 """
 import os
+import re
+import sys
 import tempfile
 from io import BytesIO
 
@@ -43,6 +45,80 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 
 PICTURE = 13  # MSO_SHAPE_TYPE.PICTURE
+
+# VS Code Dark+ palette for add_code_block()
+CODE_COLORS = {
+    "key":  "C586C0",  # purple  - keywords (apiVersion, kind, commands)
+    "type": "4EC9B0",  # teal    - type names (ConfigMap)
+    "prop": "9CDCFE",  # blue    - properties / yaml keys
+    "str":  "CE9178",  # orange  - strings
+    "cmt":  "6A9955",  # green   - comments
+    "var":  "B5CEA8",  # ltgreen - env vars / numbers / booleans
+    "note": "DCDCAA",  # yellow  - annotations / CLI flags
+    "txt":  "D4D4D4",  # gray    - default
+}
+
+_YAML_KEYWORDS = {"apiVersion", "kind"}
+_STR_RE = re.compile(r'"(?:[^"\\]|\\.)*"|\'[^\']*\'')
+_VAR_RE = re.compile(r"\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*")
+_LIT_RE = re.compile(r"\b(?:true|false|null|\d+(?:\.\d+)?[%A-Za-z]*)\b")
+_YAML_KEY_RE = re.compile(r"[A-Za-z0-9_./-]+(?=\s*:(?:\s|$))")
+_FLAG_RE = re.compile(r"(?<=\s)--?[A-Za-z][\w-]*")
+
+
+def _highlight(line, lang):
+    """Split one code line into (text, CODE_COLORS-key) runs.
+
+    Deliberately a small regex scanner, not a real lexer — enough for
+    slide-sized yaml / shell snippets to read like an editor."""
+    spans = []
+
+    def mark(s, e, c):
+        if s >= e:
+            return
+        for a, b, _ in spans:
+            if s < b and e > a:
+                return
+        spans.append((s, e, c))
+
+    def mark_all(rx, c):
+        for m in rx.finditer(line):
+            mark(m.start(), m.end(), c)
+
+    mark_all(_STR_RE, "str")
+    marker = "#" if lang != "none" else None
+    if marker:
+        pos = 0
+        while (i := line.find(marker, pos)) != -1:
+            if not any(a <= i < b for a, b, _ in spans):
+                mark(i, len(line), "cmt")
+                break
+            pos = i + 1
+    if lang == "yaml":
+        m = re.match(r"\s*kind:\s*(\S+)", line)
+        if m:
+            mark(m.start(1), m.end(1), "type")
+        for m in _YAML_KEY_RE.finditer(line):
+            mark(m.start(), m.end(),
+                 "key" if m.group(0) in _YAML_KEYWORDS else "prop")
+    elif lang in ("bash", "sh", "shell"):
+        m = re.match(r"\s*(?:\$\s+)?([A-Za-z][\w./-]*)", line)
+        if m:
+            mark(m.start(1), m.end(1), "key")
+        mark_all(_FLAG_RE, "note")
+    mark_all(_VAR_RE, "var")
+    mark_all(_LIT_RE, "var")
+
+    spans.sort()
+    runs, pos = [], 0
+    for s, e, c in spans:
+        if pos < s:
+            runs.append((line[pos:s], "txt"))
+        runs.append((line[s:e], c))
+        pos = e
+    if pos < len(line):
+        runs.append((line[pos:], "txt"))
+    return runs or [(line, "txt")]
 
 
 def RGB(hexstr):
@@ -178,11 +254,22 @@ class Deck:
         return p
 
     def body(self, slide, idx, items, head_sz=14, desc_sz=12, gap=8,
-             head_color=None, desc_color=None):
+             head_color=None, desc_color=None, tight=False):
         """Fill a body placeholder with (head, detail) pairs as level0/level1 bullets.
 
         head is bold (level 0); detail (optional) is an indented level-1 line.
+        tight=True compresses spacing (1pt before/after every paragraph) for
+        dense slides. Overflow rule: keep head<=16pt / detail<=14pt and at
+        most 6 pairs per slide — beyond that, split the slide (a warning is
+        printed, the build still succeeds).
         """
+        if head_sz > 16 or desc_sz > 14 or len(items) > 6:
+            sys.stderr.write(
+                f"decklib: body() overflow risk (head_sz={head_sz}, "
+                f"desc_sz={desc_sz}, {len(items)} pairs) — cap at 16/14pt "
+                "and 6 pairs, or split the slide; verify the rendered PDF\n")
+        if tight:
+            gap = 1
         head_color = head_color or RGB("151515")
         desc_color = desc_color or RGB("595959")
         p = self.ph(slide, idx)
@@ -195,11 +282,15 @@ class Deck:
             para.level = 0
             if not first:
                 para.space_before = Pt(gap)
+            if tight:
+                para.space_after = Pt(1)
             r = para.add_run(); r.text = head
             self._style(r, size=head_sz, bold=True, color=head_color)
             self._para_defsize(para, head_sz)
             if desc:
                 d = tf.add_paragraph(); d.level = 1
+                if tight:
+                    d.space_before = Pt(1); d.space_after = Pt(1)
                 r = d.add_run(); r.text = desc
                 self._style(r, size=desc_sz, bold=False, color=desc_color)
                 self._para_defsize(d, desc_sz)
@@ -286,6 +377,45 @@ class Deck:
         if p is not None:
             p.text_frame.clear()
         return p
+
+    def add_code_block(self, slide, left, top, width, code, height=None,
+                       lang="yaml", size=10, mono_font="Courier New",
+                       bg="1E1E1E", corner=0.05, line_gap=1):
+        """Dark rounded code panel with editor-style syntax colors.
+
+        The code stays real text — editable in pptx, copy-pastable from the
+        PDF. lang: "yaml" | "bash"/"sh" | "none" (plain). height=None
+        auto-sizes from the line count. corner=0.05 keeps the corner radius
+        small (adj 5000 ≈ 5% — the theme default is far too round for code).
+        mono_font "Courier New" maps to Liberation Mono on Linux LibreOffice.
+        """
+        from pptx.enum.shapes import MSO_SHAPE
+        lines = code.rstrip("\n").split("\n")
+        if height is None:
+            height = (len(lines) * (size * 1.35 + 2 * line_gap) / 72.0) + 0.24
+        sh = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE, Inches(left), Inches(top),
+            Inches(width), Inches(height))
+        sh.adjustments[0] = corner
+        sh.fill.solid(); sh.fill.fore_color.rgb = RGB(bg)
+        sh.line.fill.background()
+        sh.shadow.inherit = False
+        tf = sh.text_frame
+        tf.word_wrap = True
+        tf.margin_left = tf.margin_right = Pt(10)
+        tf.margin_top = tf.margin_bottom = Pt(8)
+        for i, line in enumerate(lines):
+            para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+            # theme defaults can center shape text — code must stay left
+            para.alignment = PP_ALIGN.LEFT
+            para.space_before = para.space_after = Pt(line_gap)
+            self._no_bullet(para)
+            self._para_defsize(para, size)
+            for text, ckey in _highlight(line or " ", lang):
+                r = para.add_run(); r.text = text
+                r.font.name = mono_font
+                self._style(r, size=size, color=RGB(CODE_COLORS[ckey]))
+        return sh
 
     # ---------------- pictures & tables ----------------
     def picture(self, slide, src, left, top, width=None, height=None):

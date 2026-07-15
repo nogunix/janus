@@ -82,7 +82,7 @@ slides:
       - text: {idx: 0, text: My Title, bold: true, size: 32}
       - fit: {idx: 0, left: 2.3, top: 2.2, width: 9.4, height: 1.3}
       - add_textbox: {left: 2.3, top: 6.45, width: 5.0, height: 0.45,
-                      text: $today, size: 12, color: grey}    # gotcha #9
+                      text: $today, size: 12, color: grey}    # gotcha #10
 
   - layout: CUSTOM_4_17_1
     do:
@@ -104,13 +104,13 @@ move_to_end: {contains: "Thank you"}
 
 Each `do:` entry is `- <decklib method>: {<its kwargs>}` — ops: `text`,
 `body`, `prose`, `disclaimer`, `fit`, `move`, `clear`, `picture`, `svg`,
-`refs`, `table`, `add_textbox`. The driver enforces the rules you'd
-otherwise have to remember:
+`refs`, `table`, `add_textbox`, `add_code_block`. The driver enforces the
+rules you'd otherwise have to remember:
 - `refs` always runs last on its slide, wherever it's written (gotcha #7).
 - A wrong placeholder `idx` **fails loudly** with the layout's available
   idx list (raw decklib silently no-ops on a missing placeholder).
 - `$today` in any string becomes the build date (`date_format:` to change
-  the format; default `%Y年%-m月%-d日` — gotcha #9).
+  the format; default `%Y年%-m月%-d日` — gotcha #10).
 - Colors are a `colors:` name or a hex string; `template`/`output`/`src`
   paths resolve relative to the spec file. `.json` specs also work.
 
@@ -134,7 +134,7 @@ d.strip_slides(keep=lambda s: "Thank you" in d.slide_text(s), keep_first=True)
 s = d.add("TITLE")
 d.text(s, 0, "My Title", bold=True, size=32)
 d.fit(s, 0, 2.3, 2.2, 9.4, 1.3)                 # see gotcha #1 — always FULL geometry
-# Cover date (gotcha #9): auto-fill from the build date so it never goes stale.
+# Cover date (gotcha #10): auto-fill from the build date so it never goes stale.
 # If the TITLE layout exposes a free DATE/SUBTITLE placeholder, d.text into it;
 # otherwise (common — placeholders all taken) drop a textbox at fixed inches:
 from datetime import date
@@ -171,6 +171,23 @@ never overlap a full-height 2-column body. Template-specific placement rules
 `left/width/bottom_margin/compact_at`.
 Disclaimer slides: `d.disclaimer(slide, idx, conditions=[…], notes=[…])` —
 conditions as bullets, notes as smaller grey ※-lines.
+Code blocks: `d.add_code_block(slide, l, t, w, code, lang="yaml")` — a dark
+(#1E1E1E) rounded panel with a deliberately small corner radius and
+VS Code Dark+ syntax colors (`lang`: `yaml` / `bash` / `none`). The code
+stays real text (editable in pptx, copy-pastable from the PDF), every line
+is forced `PP_ALIGN.LEFT` (theme defaults can center shape text), and
+`height` auto-sizes from the line count. In a spec, YAML's `|` block
+scalar keeps the snippet verbatim:
+```yaml
+      - add_code_block:
+          left: 2.7
+          top: 2.3
+          width: 8.0
+          lang: yaml
+          code: |
+            apiVersion: trustyai.opendatahub.io/v1alpha1
+            kind: TrustyAIService
+```
 
 ### 4a. Diagrams authored in HTML/SVG (preferred for new diagrams)
 If the diagrams live as inline `<svg>` in an HTML page, render them to crisp PNGs
@@ -258,7 +275,14 @@ Do not declare done without viewing the rendered pages.
    insertion/move renumbers them all by hand and they drift. Comment with
    section names only (`# Cover`, `# 結論`, `# Closing`); the deck's page
    numbers come from the template's own numbering, not the script.
-9. **Put a date on the cover, and auto-fill it.** A title slide with no date looks
+9. **Body text overflows into the footer** when it's oversized or overlong —
+   18pt heads with many pairs run past the bottom margin. Build rule: cap
+   `body()` at **16pt head / 14pt detail**, at most **5–6 (head, detail)
+   pairs per slide**, and split into two slides beyond that; `tight=True`
+   compresses spacing (1pt before/after) when a slide is dense. `body()`
+   warns on stderr when you exceed the caps, and the rendered-PDF check
+   (step 6) is what actually catches an overflow — look at the pages.
+10. **Put a date on the cover, and auto-fill it.** A title slide with no date looks
    unfinished, and a hard-coded date silently goes stale on the next rebuild — fill
    it from `date.today()` at build time. Use a free DATE/SUBTITLE placeholder via
    `d.text` if the layout has one (check `d.describe_layouts()`); if every

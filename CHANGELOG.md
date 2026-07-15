@@ -2,6 +2,30 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.14.0 — 2026-07-15
+
+deck: pptx quality items C2–C4 from the JANUS-004 follow-up list (C1 —
+body() run-level sizes — had already shipped in 0.12.0):
+
+- **`d.add_code_block(slide, l, t, w, code, lang=…)` (C2 + C4)** — dark
+  (#1E1E1E) ROUNDED_RECTANGLE code panel with VS Code Dark+ per-run
+  syntax colors (yaml / bash / none), corner radius pinned small
+  (`adjustments[0]=0.05`, adj 5000 ≈ 5% — the theme default is far too
+  round), every line forced `PP_ALIGN.LEFT` (theme defaults can center
+  shape text), auto-height from line count, `Courier New` mono (maps to
+  Liberation Mono on Linux LibreOffice). The code stays real text —
+  editable in pptx, copy-pastable from the PDF. Verified end-to-end:
+  YAML/bash specs → pptx → PDF render with correct colors, JP comments
+  in CJKjp, LiberationMono embedded.
+- **body() overflow rule (C3)** — new gotcha #9: cap 16pt head / 14pt
+  detail, max 5–6 pairs per slide, split beyond that; `body(tight=True)`
+  compresses spacing to 1pt before/after. `body()` now warns on stderr
+  when the caps are exceeded (build still succeeds); the rendered-PDF
+  check remains the real catch.
+- build_deck.py: `add_code_block` exposed as a spec op; `code:` values
+  are verbatim (no `$today` expansion inside snippets). Date gotcha
+  renumbered to #10.
+
 ## 0.13.0 — 2026-07-15
 
 deck: declarative builds — writing a fresh Python build script per deck
