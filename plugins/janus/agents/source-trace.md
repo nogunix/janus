@@ -183,6 +183,11 @@ duration_s: <seconds>
 - A symbol hit looks like the answer → citing the hit without opening
   the file → `read_file` the definition; a grep hit can be a declaration,
   a dead branch, or another symbol with the same prefix.
+- A product ships parallel implementations of a feature (legacy +
+  recommended, e.g. TrustyAI's GuardrailsOrchestrator vs NemoGuardrails)
+  → tracing only the implementation the question happens to name →
+  enumerate the implementations first, trace each relevant one, and
+  label which one every finding applies to.
 
 ## Reusable patterns (inlined)
 
@@ -236,6 +241,16 @@ CNV virt-core downstream delta:
   as the fallback, do not report a false negative from the upstream tree.
 - The other ~36 CNV operand images (non virt-core) ARE resolved to their
   exact public commit — no equivalent gap there.
+
+TrustyAI / guardrails investigation (RHOAI):
+- TrustyAI ships **two** guardrails implementations; always trace both
+  before concluding how guardrailing works in a given release:
+  1. GuardrailsOrchestrator (FMS orchestrator — the legacy path)
+  2. NemoGuardrails (the recommended path, RHOAI 3.4+)
+- Tracing only the orchestrator misses the recommended implementation
+  entirely. Cross-check doc-search's findings for which path the target
+  release documents as recommended, and say which one your finding
+  applies to.
 
 Kernel SCSI Persistent Reservation investigation:
 - The kernel PR implementation spans three layers:

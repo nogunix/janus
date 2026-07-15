@@ -54,6 +54,31 @@ Read `cases/<id>/case.yaml` for:
 
 6. Report negative results explicitly — "searched X, nothing matched" is evidence.
 
+## Pre-deployment constraint check (GPU / model-serving cases)
+
+When the case will deploy GPU instances or large-model serving on a lab
+cluster (a lab-verify stage or an infra handoff follows this stage), run
+this check as an explicit phase and record the results as findings —
+discovering a constraint after the environment is deployed costs hours
+of rebuild:
+
+- **AMI instance-type allowlist**: ROSA Classic worker nodes boot from an
+  AWS Marketplace AMI with its own instance-type allowlist — an instance
+  type appearing in `rosa list instance-types` does NOT prove the AMI
+  permits it (the newest GPU families are the usual gap). Self-managed
+  OCP has no such AMI restriction. State the ROSA-vs-self-managed
+  distinction explicitly in the findings, and search for tracking
+  tickets (e.g. the ROSA Jira project) before concluding an instance
+  type is usable.
+- **AZ availability**: confirm the GPU instance type is offered in the
+  target region/AZ (`aws-knowledge` `get_regional_availability`).
+- **Disk sizing**: node disk must be ≥ 3× the model size — a 63 GB+
+  ModelCar image hits ephemeral-storage pressure on a 200 GB disk;
+  500 GB+ is the safe floor for large models.
+- **Serving image capability**: confirm the serving image supports the
+  model's quantization format (e.g. MXFP4) from image docs/release
+  notes, not assumption.
+
 ## Output
 
 Write to `cases/<id>/findings/doc-search.md`:
@@ -137,6 +162,11 @@ duration_s: <seconds>
   OCPBUGS-NNNNN, CNV-NNNNN) you cannot open → reconstructing its content
   from the ID or a snippet → record the exact key in Findings **and
   Gaps**; the lead launches jira-trace with it.
+- An instance type appears in `rosa list instance-types` → treating that
+  as proof it can be provisioned on ROSA Classic → the Marketplace AMI
+  keeps its own allowlist; verify AMI support (release notes, ROSA Jira)
+  and record the ROSA-Classic-vs-self-managed-OCP distinction in the
+  findings.
 
 ## okp-mcp usage knowledge
 

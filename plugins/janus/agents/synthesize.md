@@ -179,6 +179,15 @@ Write to `cases/<id>/results/report.md`:
 - **A HIGH-confidence negative is a valid deliverable** — "no defect to fix /
   no matching CVE" stated with its evidence is an answer, not a failure. Never
   manufacture a weak positive to satisfy a seeded hypothesis.
+- **Name format-compatibility risks in model/tool-selection hypotheses.**
+  When a hypothesis recommends a model, image, or component that must
+  interoperate with other tooling, state model/component-specific
+  interface risks explicitly as a constraint — e.g. a model's response
+  format (such as gpt-oss's Harmony format) can be incompatible with a
+  downstream parser (such as a guardrails self-check expecting plain
+  yes/no), and that only surfaces in a live test. If no stage verified
+  the integration end-to-end, list it under counter-evidence or gaps,
+  not silently.
 - Every claim needs a verifiable reference (drgn frame/addr, casket file:line,
   okp doc ID). Separate mechanism-confidence from exact-attribution-confidence
   (a crash mechanism can be HIGH while the exact-CVE attribution stays LOW).

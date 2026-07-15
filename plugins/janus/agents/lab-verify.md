@@ -49,6 +49,14 @@ Based on approved backend:
 
 Record the provisioned environment in the lab resource ledger.
 
+**Pre-deploy gate (GPU / model-serving)**: before provisioning GPU nodes
+or deploying model serving, confirm doc-search's pre-deployment
+constraint check covered this environment — AMI instance-type allowlist
+(ROSA Classic vs self-managed OCP), GPU AZ availability, node disk ≥ 3×
+model size, serving-image quantization support. If it didn't, ask the
+lead for that check before burning provisioning time; a constraint
+discovered post-deploy costs hours of rebuild.
+
 ### Phase 3: Verify and trace
 
 - Confirm cluster access: `oc version`, `oc get nodes`
@@ -156,6 +164,19 @@ Lab backends (pick the lightest that answers the question):
 Detecting a leak on a live cluster: cross-validate **pprof snapshot × Prometheus
 time series** — a specific ever-growing stack (pprof) AND a non-decreasing
 `go_goroutines` trend (Prometheus). One without the other is inconclusive.
+
+Model serving on OpenShift AI (KServe / vLLM):
+- **Never guess a serving-image tag** — a guessed vLLM version tag ends in
+  ImagePullBackOff. Before specifying a ServingRuntime image, list what is
+  actually running in the environment and reuse a proven image:
+  `oc get servingruntime -A -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,IMAGE:.spec.containers[0].image'`.
+  The same applies when bumping an image version in IaC: verify the tag
+  exists (registry or a running environment) before committing it.
+- ModelCar disk sizing: ephemeral storage must be ≥ 3× the model size
+  (63 GB+ models fail on a 200 GB node disk; use 500 GB+).
+- A tool that talks to the model endpoint (e.g. NeMo Guardrails
+  `openai_api_base`) must target the vLLM **container port 8080**, not
+  the KServe Service port 80.
 
 Safety: provisioning a lab / any live-target intervention is the **dynamic
 track — requires human APPROVE_* before execution**; kind's local disposable

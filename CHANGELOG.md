@@ -2,6 +2,42 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.12.0 — 2026-07-15
+
+Pipeline knowledge from a GPU / model-serving case (deploy-then-discover
+constraints cost hours of rebuild; written generically — the driving case
+IDs stay in the project-local janus-lessons file):
+
+- **doc-search: pre-deployment constraint check** — a new explicit phase
+  for GPU / model-serving cases: ROSA Classic Marketplace-AMI
+  instance-type allowlist (`rosa list instance-types` listing a type does
+  not prove the AMI permits it — self-managed OCP has no such limit; the
+  distinction must be stated in findings), GPU AZ availability, node disk
+  ≥ 3× model size, serving-image quantization support (e.g. MXFP4). Plus
+  a matching failure pattern.
+- **lab-verify: pre-deploy gate + model-serving patterns** — confirm the
+  doc-search constraint check ran before provisioning GPU/model-serving
+  labs; never guess a serving-image tag (list running images with
+  `oc get servingruntime -A -o custom-columns=...` and reuse a proven
+  one — a guessed vLLM tag ends in ImagePullBackOff, and the same
+  existence check applies when bumping an image in IaC); ModelCar disk
+  ≥ 3× model size; endpoint clients (e.g. NeMo Guardrails
+  `openai_api_base`) target the vLLM container port 8080, not the KServe
+  Service port 80.
+- **source-trace: TrustyAI guardrails dual-path pattern** — always trace
+  both GuardrailsOrchestrator (FMS, legacy) and NemoGuardrails
+  (recommended, RHOAI 3.4+), cross-check doc-search for the recommended
+  path, and label which implementation each finding applies to; plus a
+  generic parallel-implementations failure pattern.
+- **synthesize: format-compatibility risk rule** — model/tool-selection
+  hypotheses must name model-specific response-format interop risks
+  (e.g. a Harmony-format model vs a guardrails self-check yes/no parser)
+  explicitly, and list unverified integrations as gaps.
+- **decklib: `body()` stamps paragraph-level default sizes** — run-level
+  `rPr sz` was already set; `body()` now also writes `pPr/defRPr sz` at
+  both levels so renderers that resolve from the paragraph default can't
+  fall back to the theme size.
+
 ## 0.11.0 — 2026-07-13
 
 deck skill improvements from case JANUS-002's IMPROVE feedback

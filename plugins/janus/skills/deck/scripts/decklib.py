@@ -154,6 +154,17 @@ class Deck:
             run.font.color.rgb = color
         self._set_ea(run)
 
+    def _para_defsize(self, para, size):
+        # Some renderers resolve text inserted outside an explicit run
+        # (autofit recalcs, line breaks, later edits) from the paragraph
+        # default, which otherwise falls back to the theme size.
+        pPr = para._p.get_or_add_pPr()
+        defRPr = pPr.find(qn("a:defRPr"))
+        if defRPr is None:
+            defRPr = pPr.makeelement(qn("a:defRPr"), {})
+            pPr.append(defRPr)
+        defRPr.set("sz", str(int(size * 100)))
+
     def text(self, slide, idx, s, size=None, bold=None, color=None):
         """Set a single-line placeholder's text."""
         p = self.ph(slide, idx)
@@ -186,10 +197,12 @@ class Deck:
                 para.space_before = Pt(gap)
             r = para.add_run(); r.text = head
             self._style(r, size=head_sz, bold=True, color=head_color)
+            self._para_defsize(para, head_sz)
             if desc:
                 d = tf.add_paragraph(); d.level = 1
                 r = d.add_run(); r.text = desc
                 self._style(r, size=desc_sz, bold=False, color=desc_color)
+                self._para_defsize(d, desc_sz)
             first = False
         return p
 
