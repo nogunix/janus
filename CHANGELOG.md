@@ -2,6 +2,29 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.13.0 — 2026-07-15
+
+deck: declarative builds — writing a fresh Python build script per deck
+was the remaining per-deck toil:
+
+- **`scripts/build_deck.py`** — build a pptx from a YAML/JSON deck spec
+  (`python3 scripts/build_deck.py deck.yaml`). Each slide is
+  `layout:` + a `do:` list of `- <decklib method>: {kwargs}` entries
+  (text/body/prose/disclaimer/fit/move/clear/picture/svg/refs/table/
+  add_textbox); top-level keys cover template, output, named colors,
+  `master_replace`, `keep_slides`, `move_to_end`. Iterating on a deck is
+  now editing data, not rewriting code; the Python API stays as the
+  escape hatch for what the ops can't express.
+- The driver **enforces the gotchas instead of instructing them**:
+  `refs` is reordered to run last on its slide (gotcha #7); a wrong
+  placeholder `idx` fails loudly with the layout's available idx list
+  (raw decklib silently no-ops); `$today` expands to the build date
+  (gotcha #9); colors resolve from a named palette or hex; paths resolve
+  relative to the spec file.
+- SKILL.md: the spec build is the default step 3 (verified end-to-end:
+  build → topdf → render, JP fonts intact); the direct-decklib path moved
+  to 3b. New prerequisite: `pyyaml`.
+
 ## 0.12.0 — 2026-07-15
 
 Pipeline knowledge from a GPU / model-serving case (deploy-then-discover

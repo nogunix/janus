@@ -31,7 +31,7 @@ general, not tied to any one template.
 - "Convert this pptx to PDF" (this skill also fixes Japanese→Chinese font fallback).
 
 ## Prerequisites (install if missing)
-- `python-pptx`, `numpy`, `pillow` (pip)
+- `python-pptx`, `numpy`, `pillow`, `pyyaml` (pip)
 - `libreoffice-impress` (provides `soffice`) — for pptx→pdf
 - `poppler-utils` (`pdffonts`, `pdftoppm`) and ImageMagick `montage` — for QA
 - `librsvg2-tools` (`rsvg-convert`) or `inkscape` — only if rendering HTML/SVG diagrams (step 4a)
@@ -61,7 +61,64 @@ a title+body or 2-column layout; section breaks → a divider layout; tables →
 a table layout; closing → a "thank you" layout). Reuse one content layout for
 several slides — that's normal and keeps it consistent.
 
-### 3. Build with `decklib`
+### 3. Build from a declarative spec (default — no per-deck Python)
+
+Write the deck as data; `build_deck.py` makes the decklib calls:
+
+```bash
+python3 scripts/build_deck.py deck.yaml          # -o OUT.pptx overrides output
+```
+
+```yaml
+template: TEMPLATE.pptx
+output: OUT.pptx
+colors: {red: EE0000, grey: "595959"}
+master_replace: {"v0.0-TODO": "My Lab"}
+keep_slides: {contains: ["Thank you"], keep_first: true}  # "all" = keep template slides; omit = drop all samples
+
+slides:
+  - layout: TITLE                                # names from inspect_template.py
+    do:
+      - text: {idx: 0, text: My Title, bold: true, size: 32}
+      - fit: {idx: 0, left: 2.3, top: 2.2, width: 9.4, height: 1.3}
+      - add_textbox: {left: 2.3, top: 6.45, width: 5.0, height: 0.45,
+                      text: $today, size: 12, color: grey}    # gotcha #9
+
+  - layout: CUSTOM_4_17_1
+    do:
+      - text: {idx: 4, text: EYEBROW, color: red, size: 12, bold: true}
+      - text: {idx: 0, text: Slide title, bold: true}
+      - body: {idx: 2, items: [[Heading, detail line], Heading-only]}
+      - prose: {idx: 3, text: "Quoted statement…\n\nSecond paragraph."}
+      - picture: {src: diagram_light.png, left: 1.0, top: 2.3, width: 11.4}
+      - svg: {src: diagram.svg, left: 7.0, top: 2.45, width: 5.0, light: true}
+      - table: {x: 1.0, y: 4.7, w: 5.4, h: 1.6, header: [Task, Time],
+                rows: [[Build, 5 min], [Test, 2 min]], title: Timing}
+      - refs:
+          items:
+            - [OpenShift Docs, "https://docs.redhat.com/…"]
+            - "KB 7012345 — https://access.redhat.com/solutions/7012345"
+
+move_to_end: {contains: "Thank you"}
+```
+
+Each `do:` entry is `- <decklib method>: {<its kwargs>}` — ops: `text`,
+`body`, `prose`, `disclaimer`, `fit`, `move`, `clear`, `picture`, `svg`,
+`refs`, `table`, `add_textbox`. The driver enforces the rules you'd
+otherwise have to remember:
+- `refs` always runs last on its slide, wherever it's written (gotcha #7).
+- A wrong placeholder `idx` **fails loudly** with the layout's available
+  idx list (raw decklib silently no-ops on a missing placeholder).
+- `$today` in any string becomes the build date (`date_format:` to change
+  the format; default `%Y年%-m月%-d日` — gotcha #9).
+- Colors are a `colors:` name or a hex string; `template`/`output`/`src`
+  paths resolve relative to the spec file. `.json` specs also work.
+
+Iterate by editing the YAML and re-running — the same spec reproduces the
+same deck. Fall back to the Python API (3b) only for things the ops can't
+express (custom shapes, conditional content, loops).
+
+### 3b. Build with `decklib` directly (escape hatch)
 ```python
 import sys; sys.path.insert(0, "scripts")
 from decklib import Deck, RGB
@@ -210,6 +267,7 @@ Do not declare done without viewing the rendered pages.
    explicitly instead of `date.today()`.
 
 ## Files
+- `scripts/build_deck.py` — declarative driver: YAML/JSON deck spec → pptx (step 3). Needs `decklib.py` beside it.
 - `scripts/decklib.py` — the builder library (`Deck`, `RGB`). `d.svg()` needs `svgtools.py` importable beside it.
 - `scripts/svgtools.py` — render inline-SVG diagrams from HTML to PNG, light-recolor on hex (`html_to_pngs`, CLI). Needs `rsvg-convert`/`inkscape`.
 - `scripts/recolor_image.py` — dark→light *raster* diagram recolor (`recolor`, `recolor_blob`, CLI).
