@@ -29,49 +29,36 @@ small agent stages investigate in parallel, and the human holds every
 gate that matters:
 
 ```mermaid
-flowchart TB
-    human(["Human<br/>approves pipeline & dynamic stages,<br/>makes the final call"])
+flowchart TD
+    human(["Human"]) -->|"question / artifact"| intake
 
-    subgraph lead["Lead session — /janus (Claude Code as orchestrator)"]
-        direction TB
-        intake["1&nbsp;· Intake<br/>classify case → case.yaml"]
-        fanout["2&nbsp;· Fan-out<br/>launch stages in parallel"]
-        fanin["3&nbsp;· Fan-in<br/>gap-driven follow-ups"]
-        qc["4&nbsp;· Quality check<br/>six named acceptance gates"]
+    intake["1&nbsp;· Intake — classify the case, write case.yaml"] --> fanout
+    fanout["2&nbsp;· Fan-out — launch stages in parallel"]
+
+    subgraph stages["Static stages — each writes cases/&lt;id&gt;/findings/&lt;stage&gt;.md"]
+        ds["doc-search<br/>okp · mslearn · aws"]
+        st["source-trace<br/>casket (optional)"]
+        ca["crash-analyze<br/>drgn · gdb"]
     end
 
-    subgraph stages["Static stages (parallel background agents)"]
-        ds["doc-search<br/>okp-mcp · mslearn · aws · slack"]
-        st["source-trace<br/>casket-mcp — optional"]
-        ca["crash-analyze<br/>drgn-mcp · gdb"]
-    end
+    lv["lab-verify — DYNAMIC<br/>disposable lab, never production"]
 
-    subgraph followup["Conditional follow-ups (launched at fan-in)"]
-        gt["github-trace<br/>github MCP — read-only"]
-        jt["jira-trace<br/>mcp-atlassian — read-only"]
-    end
-
-    lv["lab-verify — DYNAMIC<br/>disposable lab only, never production"]
-
-    syn["synthesize<br/>cross-reference all findings"]
-
-    findings[("cases/&lt;id&gt;/findings/*.md<br/>universal inter-stage format")]
-    report[("results/report.md<br/>ranked hypotheses ·<br/>Confidence + Basis + references")]
-    verdict[("verdict.md<br/>human ground truth")]
-
-    human -->|"question / artifact"| intake
-    intake --> fanout
     fanout --> ds & st & ca
-    fanout -.->|"only after human approves<br/>review-queue/APPROVE_&lt;id&gt;.md"| lv
-    ds & st & ca & lv --> findings
-    findings --> fanin
-    fanin -.->|"PR / Jira key surfaced<br/>by another stage"| gt & jt
-    gt & jt --> findings
-    fanin --> syn
-    syn --> report
-    report --> qc
-    qc -->|"handoff"| human
-    human --> verdict
+    fanout -.->|"only after the human approves<br/>APPROVE_&lt;id&gt;.md"| lv
+
+    ds & st & ca --> fanin
+    lv -.-> fanin
+    fanin["3&nbsp;· Fan-in — read findings, spot gaps"]
+
+    follow["github-trace · jira-trace<br/>(conditional, read-only)"]
+    fanin -.->|"a stage surfaced a<br/>PR / Jira key"| follow
+    follow -.->|"findings/&lt;stage&gt;.md"| fanin
+
+    fanin --> syn["synthesize — cross-reference all findings"]
+    syn --> report[("results/report.md<br/>ranked hypotheses · Confidence + Basis + refs")]
+    report --> qc["4&nbsp;· Quality check<br/>chain verify · urlcheck · six named gates"]
+    qc -.->|"send-back, by gate name"| syn
+    qc -->|"handoff"| human2(["Human — final call, writes verdict.md"])
 ```
 
 And how JANUS improves itself — two periodic agents sit outside the
