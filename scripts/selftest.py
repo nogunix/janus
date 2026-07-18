@@ -89,9 +89,31 @@ def test_urlcheck():
     check(
         404 in urlcheck.DEAD_ERRORS
         and 410 in urlcheck.DEAD_ERRORS
-        and 403 in urlcheck.REACHABLE_ERRORS,
-        "dead vs reachable classification constants",
+        and 403 in urlcheck.GATED_ERRORS,
+        "dead vs gated classification constants",
     )
+    check(
+        urlcheck._is_login("https://sso.redhat.com/auth/realms/x")
+        and urlcheck._is_login("https://access.redhat.com/oauth/authorize")
+        and not urlcheck._is_login("https://access.redhat.com/errata/RHSA-2024:2394/"),
+        "_is_login flags SSO host and /auth path, not a plain portal URL",
+    )
+
+    # check() classification without network: monkeypatch _request.
+    orig = urlcheck._request
+    try:
+        urlcheck._request = lambda u, m: (200, "https://sso.redhat.com/auth/realms/x")
+        status, _ = urlcheck.check("https://access.redhat.com/errata/RHSA-2099:9999-x/")
+        check(status == "gated", "a 200 that redirects into SSO is gated, not a clean live")
+
+        import urllib.error
+        def _dead(u, m):
+            raise urllib.error.HTTPError(u, 404, "Not Found", {}, None)
+        urlcheck._request = _dead
+        status, _ = urlcheck.check("https://access.redhat.com/errata/RHSA-2099:9999/")
+        check(status == "dead", "a canonical fabricated errata (404) is dead")
+    finally:
+        urlcheck._request = orig
 
 
 def main():
