@@ -1,5 +1,7 @@
 # JANUS — Claude Code plugin
 
+[![CI](https://github.com/nogunix/janus/actions/workflows/ci.yml/badge.svg)](https://github.com/nogunix/janus/actions/workflows/ci.yml)
+
 > **Janus**, the Roman god of gates, has two faces looking in opposite
 > directions — and so does this pipeline. One face looks **downstream**,
 > where an OpenShift consultant works: the exact RHEL/OCP builds
