@@ -163,30 +163,72 @@ model in the seat:
   named gates (references, public URLs, no speculation language, basis
   integrity, completeness, verbatim artifact names) and sends failures
   back to synthesize by gate name; a HIGH hypothesis needs at least one
-  VERIFIED finding behind it. The URL gate is backed by a mechanical
-  liveness check (`scripts/urlcheck.py`): every reference URL is
-  curl-checked before handoff, so a fabricated citation dies as a 404,
-  not as a footnote nobody clicked.
+  VERIFIED finding behind it. Two of these checks are mechanical —
+  reference liveness and the evidence chain (see **Integrity checks**
+  below).
 - **Causation gate** — crash-analyze may not record a crash cause
   without "X causes Y because Z" where X and Y are observations from
   this vmcore; correlation without a mechanism caps at MEDIUM.
 - **Failure-pattern catalogs** — agents carry
   `symptom → wrong move → correct move` entries seeded from real cases
   (e.g. a search timeout means "reduce scope", never "report negative").
-- **Tamper-evident evidence chain** — every case carries an append-only
-  hash ledger (`cases/<id>/chain.jsonl`, blockchain-style: each record
-  links the previous record's hash). A PostToolUse hook seals every
-  write into the evidence set (`case.yaml`, findings, report, audit
-  logs, verdict) automatically, and the lead verifies the chain before
-  synthesis and again before handoff — so the audit trail behind a
-  report's claims cannot be silently rewritten after the fact, and the
-  human verdicts that self-improver's metrics stand on stay ground
-  truth.
 - **Lessons loop** — project-specific lessons are banked (with human
   approval) in `.claude/skills/janus-lessons/SKILL.md`, which plugin
   updates never overwrite; the lead injects relevant entries into stage
   briefs, and recurring ones get promoted into the plugin's own
   catalogs via the self-improver review queue.
+
+### Integrity checks (mechanical, before any human-level gate)
+
+Two stdlib-only scripts turn "trust the report" into "check the report."
+Both run at handoff; a failure sends the report back rather than shipping
+it.
+
+**Evidence chain — `scripts/chain.py`.** Each case carries an
+append-only hash ledger, `cases/<id>/chain.jsonl`. Every record holds
+the sha256 of one evidence file plus the previous record's hash — the
+same linked-hash idea as a blockchain. It makes edits **visible, never
+impossible**: a legitimate revision (a report sent back to synthesize,
+an updated finding) appends a new record and the ledger keeps the full
+history; an edit that bypasses sealing breaks verification.
+
+```
+$ python3 scripts/chain.py verify cases/<id>
+FAIL: TAMPER: results/report.md changed after last seal
+```
+
+Sealing is mostly automatic — a PostToolUse hook
+(`hooks/evidence-chain.py`) seals every write into the evidence set
+(`case.yaml`, findings, report, audit logs, verdict) — and the lead
+also seals explicitly before synthesis and at close (covering
+shell-written files the hook can't see). Deleting a record to cover
+tracks fails too: the broken hash link exposes the gap. The upshot is
+that the audit trail behind a claim can't be quietly rewritten after
+the fact, and the human verdicts self-improver's metrics stand on stay
+ground truth.
+
+**Reference liveness — `scripts/urlcheck.py`.** Backs gate G2-URL by
+curl-checking every reference URL in the report. A fabricated citation
+(the classic LLM failure) dies as a 404 instead of a footnote nobody
+clicked:
+
+```
+$ python3 scripts/urlcheck.py cases/<id>/results/report.md
+FAIL: https://access.redhat.com/errata/RHSA-2099:9999/ (404)
+```
+
+The check is deliberately honest about what it can't prove. A portal
+that 302-redirects a missing path into an SSO login flow (returns 200)
+is classified **gated**, not live — existence unconfirmable without
+authenticating, so it's flagged for a human rather than passed or
+failed. 401/403/429 fold into the same class. A fully-unreachable
+network downgrades to a notice and passes, so air-gapped okp-mcp
+installs stay usable.
+
+Both scripts have offline self-tests (`scripts/selftest.py`) exercising
+tamper detection, ledger-edit detection, and the gated-vs-dead URL
+split; `.github/workflows/ci.yml` runs them with `validate.py` on every
+push and PR.
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
