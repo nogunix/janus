@@ -22,6 +22,75 @@ ranked-hypothesis report grounded in the exact builds involved, and when
 the root cause turns out to be everyone's problem, `upstream-adviser`
 drafts the contribution proposal to carry it home.
 
+## Architecture
+
+How a case flows through the team — the lead session orchestrates,
+small agent stages investigate in parallel, and the human holds every
+gate that matters:
+
+```mermaid
+flowchart TB
+    human(["Human<br/>approves pipeline & dynamic stages,<br/>makes the final call"])
+
+    subgraph lead["Lead session — /janus (Claude Code as orchestrator)"]
+        direction TB
+        intake["1&nbsp;· Intake<br/>classify case → case.yaml"]
+        fanout["2&nbsp;· Fan-out<br/>launch stages in parallel"]
+        fanin["3&nbsp;· Fan-in<br/>gap-driven follow-ups"]
+        qc["4&nbsp;· Quality check<br/>six named acceptance gates"]
+    end
+
+    subgraph stages["Static stages (parallel background agents)"]
+        ds["doc-search<br/>okp-mcp · mslearn · aws · slack"]
+        st["source-trace<br/>casket-mcp — optional"]
+        ca["crash-analyze<br/>drgn-mcp · gdb"]
+    end
+
+    subgraph followup["Conditional follow-ups (launched at fan-in)"]
+        gt["github-trace<br/>github MCP — read-only"]
+        jt["jira-trace<br/>mcp-atlassian — read-only"]
+    end
+
+    lv["lab-verify — DYNAMIC<br/>disposable lab only, never production"]
+
+    syn["synthesize<br/>cross-reference all findings"]
+
+    findings[("cases/&lt;id&gt;/findings/*.md<br/>universal inter-stage format")]
+    report[("results/report.md<br/>ranked hypotheses ·<br/>Confidence + Basis + references")]
+    verdict[("verdict.md<br/>human ground truth")]
+
+    human -->|"question / artifact"| intake
+    intake --> fanout
+    fanout --> ds & st & ca
+    fanout -.->|"only after human approves<br/>review-queue/APPROVE_&lt;id&gt;.md"| lv
+    ds & st & ca & lv --> findings
+    findings --> fanin
+    fanin -.->|"PR / Jira key surfaced<br/>by another stage"| gt & jt
+    gt & jt --> findings
+    fanin --> syn
+    syn --> report
+    report --> qc
+    qc -->|"handoff"| human
+    human --> verdict
+```
+
+And how JANUS improves itself — two periodic agents sit outside the
+pipeline and feed a human-gated review queue:
+
+```mermaid
+flowchart LR
+    case["Completed case"] -->|"new failure pattern,<br/>human-approved"| lessons
+    lessons[("janus-lessons<br/>project-local staging")] -->|"injected into<br/>stage briefs"| next["Next case"]
+
+    verdicts[("verdict.md × 10<br/>or weekly")] --> si["self-improver<br/>metrics: hit rate, escalation<br/>precision/recall, calibration"]
+    lessons -->|"recurs across ≥2 cases"| si
+    report[("results/report.md<br/>high-confidence upstream defect")] --> ua["upstream-adviser<br/>advisory only — never<br/>opens issues/PRs itself"]
+
+    si -->|"IMPROVE_&lt;date&gt;.md"| rq[("review-queue/")]
+    ua -->|"contribution drafts"| rq
+    rq -->|"human approves"| plugin["Plugin agent catalogs<br/>failure & reusable patterns,<br/>process changes"]
+```
+
 ## What's in the plugin
 
 ```
@@ -29,9 +98,11 @@ drafts the contribution proposal to carry it home.
 plugins/janus/
   .claude-plugin/plugin.json         # plugin manifest
   skills/janus/SKILL.md              # /janus — pipeline driver
+  skills/janus/scripts/chain.py      # per-case evidence hash ledger (seal/verify)
+  skills/janus/scripts/urlcheck.py   # reference-URL liveness check (backs gate G2-URL)
   skills/deck/                       # report → branded .pptx/PDF
   skills/okp-doc-search/             # okp-mcp research know-how (queries, doc_id rules)
-  hooks/                             # PreToolUse secret-safety hook (deterministic denies)
+  hooks/                             # secret-safety (PreToolUse denies) + evidence-chain (PostToolUse auto-seal)
   agents/                            # 9 agents (patterns inlined into each)
     doc-search  source-trace  github-trace  jira-trace  crash-analyze
     lab-verify  synthesize  self-improver  upstream-adviser
@@ -103,13 +174,25 @@ model in the seat:
   named gates (references, public URLs, no speculation language, basis
   integrity, completeness, verbatim artifact names) and sends failures
   back to synthesize by gate name; a HIGH hypothesis needs at least one
-  VERIFIED finding behind it.
+  VERIFIED finding behind it. The URL gate is backed by a mechanical
+  liveness check (`scripts/urlcheck.py`): every reference URL is
+  curl-checked before handoff, so a fabricated citation dies as a 404,
+  not as a footnote nobody clicked.
 - **Causation gate** — crash-analyze may not record a crash cause
   without "X causes Y because Z" where X and Y are observations from
   this vmcore; correlation without a mechanism caps at MEDIUM.
 - **Failure-pattern catalogs** — agents carry
   `symptom → wrong move → correct move` entries seeded from real cases
   (e.g. a search timeout means "reduce scope", never "report negative").
+- **Tamper-evident evidence chain** — every case carries an append-only
+  hash ledger (`cases/<id>/chain.jsonl`, blockchain-style: each record
+  links the previous record's hash). A PostToolUse hook seals every
+  write into the evidence set (`case.yaml`, findings, report, audit
+  logs, verdict) automatically, and the lead verifies the chain before
+  synthesis and again before handoff — so the audit trail behind a
+  report's claims cannot be silently rewritten after the fact, and the
+  human verdicts that self-improver's metrics stand on stay ground
+  truth.
 - **Lessons loop** — project-specific lessons are banked (with human
   approval) in `.claude/skills/janus-lessons/SKILL.md`, which plugin
   updates never overwrite; the lead injects relevant entries into stage

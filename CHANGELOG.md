@@ -2,6 +2,38 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.15.0 — 2026-07-18
+
+pipeline: tamper-evident evidence chain — blockchain-style integrity
+checking for case evidence:
+
+- **`skills/janus/scripts/chain.py`** (stdlib-only) — per-case
+  append-only hash ledger `cases/<id>/chain.jsonl`: each record holds a
+  sealed file's sha256 plus the previous record's hash, so post-hoc
+  edits to evidence are detectable (visible, never impossible —
+  legitimate revisions append new records). `seal` / `verify` CLI;
+  flock-serialized appends survive parallel stage writes;
+  `artifacts/` (vmcore binaries) stays outside the chain as it stays
+  outside git.
+- **`hooks/evidence-chain.py`** (PostToolUse, fail-open) — auto-seals
+  every Write/Edit into the evidence set (`case.yaml`,
+  `findings/*.md`, `results/*.md`, `audit/*`, `verdict.md`); sealing
+  never depends on agent diligence (the "make the signal external"
+  principle).
+- SKILL.md wiring: step 6 verifies+seals the chain before synthesize
+  reads findings; step 7 runs `verify` as a mechanical pre-check before
+  the named gates (FAIL → `NEEDS_HUMAN_<id>.md`, never quietly
+  repaired); verdict.md is sealed after the human writes it, anchoring
+  self-improver's ground-truth metrics. New "Evidence chain" section +
+  case-tree entry.
+- **`skills/janus/scripts/urlcheck.py`** (stdlib-only) — mechanical
+  reference-URL liveness check backing gate G2-URL, run as a step-7
+  pre-check on `results/report.md`: 404/410 or an unresolvable host is
+  a provably fabricated citation (send-back under G2-URL); 401/403/429
+  count as reachable (login-walled), 5xx/timeouts warn without
+  blocking, and a fully-unreachable network downgrades to a notice —
+  air-gapped okp-mcp installs stay usable.
+
 ## 0.14.0 — 2026-07-15
 
 deck: pptx quality items C2–C4 from the JANUS-004 follow-up list (C1 —
