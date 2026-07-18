@@ -2,6 +2,25 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.15.1 — 2026-07-18
+
+urlcheck: close a false-live gap found by a tamper/fabrication test case
+against a real completed investigation.
+
+- **`urlcheck.py` login-redirect detection** — access.redhat.com
+  302-redirects some non-existent/gated paths into the SSO login flow,
+  which returns 200; following that redirect made a dead reference look
+  live. `check()` now inspects the final URL after redirects and
+  classifies a landing on a login/SSO host (or `/auth|/oauth|/saml|…`
+  path) as **gated** — existence not content-confirmed, reported
+  separately, never counted as a clean live URL and never a hard FAIL.
+  401/403/429 fold into the same `gated` class. Canonical fabricated
+  errata IDs (e.g. `RHSA-2099:9999/` → 404) still FAIL as before; the
+  real 18-URL report regresses clean at 18/18 live.
+- **selftest.py** — added offline unit tests for `_is_login` and for
+  `check()`'s gated-vs-dead classification (monkeypatched `_request`,
+  no network), alongside the existing chain tamper/ledger-edit tests.
+
 ## 0.15.0 — 2026-07-18
 
 pipeline: tamper-evident evidence chain — blockchain-style integrity
