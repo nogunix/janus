@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repo consistency checks
+        run: python3 scripts/validate.py
+      - name: Plugin script self-tests
+        run: python3 scripts/selftest.py

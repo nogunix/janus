@@ -107,6 +107,8 @@ plugins/janus/
     doc-search  source-trace  github-trace  jira-trace  crash-analyze
     lab-verify  synthesize  self-improver  upstream-adviser
 scripts/validate.py                  # repo consistency checks (CI-friendly, stdlib-only)
+scripts/selftest.py                  # offline self-tests for chain.py / urlcheck.py
+.github/workflows/ci.yml             # runs both on every push / PR
 ```
 
 The pipeline: `{ doc-search, source-trace, crash-analyze, [approve] lab-verify } | synthesize`
