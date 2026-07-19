@@ -8,6 +8,7 @@ urlcheck.py's URL extraction and classification constants. No network,
 no MCP servers; stdlib-only, like validate.py. Exit 1 on any failure.
 """
 
+import errno
 import importlib.util
 import json
 import sys
@@ -226,6 +227,19 @@ def test_urlcheck():
         urlcheck._request = _dead
         status, _ = urlcheck.check("https://access.redhat.com/errata/RHSA-2099:9999/")
         check(status == "dead", "a canonical fabricated errata (404) is dead")
+
+        def _reset(u, m):
+            raise ConnectionResetError(errno.ECONNRESET, "Connection reset by peer")
+        urlcheck._request = _reset
+        status, _ = urlcheck.check("https://issues.redhat.com/browse/OCPBUGS-4077")
+        check(status == "warn", "a connection reset from a live host warns, not FAILs")
+
+        def _refused(u, m):
+            raise urllib.error.URLError(
+                ConnectionRefusedError(errno.ECONNREFUSED, "Connection refused"))
+        urlcheck._request = _refused
+        status, _ = urlcheck.check("https://nothing.example/x")
+        check(status == "unreachable", "a connection refused stays a hard FAIL")
     finally:
         urlcheck._request = orig
 
