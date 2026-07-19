@@ -97,6 +97,9 @@ Write to `cases/<id>/results/report.md`:
 - [drgn] <finding with ref>
 - [lab] <finding with ref>
 
+> <the decisive sentence(s), copied verbatim from the finding>
+> — findings/<stage>.md
+
 **Counter-evidence:**
 - <if any>
 
@@ -146,6 +149,21 @@ Write to `cases/<id>/results/report.md`:
   config"); the reader must be able to grep the report for the exact name.
 - If no finding names a concrete artifact, write "none" under Affected
   Artifacts — do not drop the section.
+- **Quote the decisive evidence verbatim (G7-QUOTE).** For each
+  hypothesis, carry the load-bearing sentence(s) from the findings as a
+  markdown blockquote whose last line attributes the source file:
+
+  ```markdown
+  > VM live migration fails on OCP 4.18.41 with SIGSEGV in qemu-kvm
+  > — findings/crash-analyze.md
+  ```
+
+  Copy the quoted text exactly as it stands in the finding (line breaks
+  may reflow) — never fix grammar, tighten wording, soften a verb, or
+  merge two sentences inside a quote. The lead runs `quotecheck.py`,
+  which FAILs any quote that does not appear verbatim in the cited
+  file: a mutated quote is a mutated fact. Your own analysis belongs
+  outside the blockquote.
 - **References must be URLs a human can open** whenever a public URL exists.
   If a finding already carries a URL, copy it verbatim. Otherwise construct
   it only from these deterministic patterns:
