@@ -2,6 +2,33 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.19.0 — 2026-07-20
+
+guardrails: close two AI-runaway gaps the existing checks left open,
+raised in review — an AI that generates settings without confirming
+they aren't deprecated, and reliance on GitHub URLs that resolve but may
+be inaccurate. Both were guidance living in agent prose; this makes them
+named send-back gates the lead enforces.
+
+- **`C1/currency`** — a report that recommends a configuration, feature,
+  flag, or API with no lifecycle check against the target version is
+  sent back to doc-search. doc-search gains a **Currency / deprecation
+  check** phase (parallel to the pre-deploy constraint check): any
+  setting the report would recommend must be confirmed against official
+  release notes / lifecycle docs (deprecated / removed / superseded)
+  before it becomes a finding; an unconfirmable one rides as ASSUMED,
+  never HIGH. Trusted-doc-path principle — only official sources
+  ground a recommendation.
+- **`C1/source-of-truth`** — a load-bearing source-content claim resting
+  only on a GitHub URL while a `casket` server is connected is sent back
+  to source-trace for corroboration against the own-server source index.
+  github-trace's rule is strengthened: a resolving GitHub URL is not an
+  accurate one (wrong line, build divergence, plausible-but-wrong page),
+  so a source-content claim is at most REASONED-about-upstream on GitHub
+  alone and must be casket-corroborated before a HIGH downstream
+  conclusion. Own-server-source-of-truth principle, complementing
+  urlcheck.py (which catches only dead URLs, not inaccurate live ones).
+
 ## 0.18.0 — 2026-07-19
 
 pipeline: catch version-provenance drift mechanically — a fact observed

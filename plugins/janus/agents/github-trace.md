@@ -120,6 +120,17 @@ duration_s: <seconds>
 - GitHub shows upstream truth only. Never claim a fix is in a RHEL/OCP
   build from tags alone — that is source-trace's (casket's) call. Record
   it as a gap instead.
+- **A GitHub URL that resolves is not a GitHub URL that is accurate.** A
+  live blob/PR permalink can still point at the wrong line, a file whose
+  content differs in the shipped build, or a page that reads plausibly
+  but does not say what the claim needs. So a **source-content** claim
+  (what the code does, that a behavior/fix is present) is at most
+  REASONED-about-upstream on GitHub evidence alone. When a `casket`
+  server is connected, flag such claims in Gaps for source-trace to
+  corroborate against the own-server source index before they can carry
+  a HIGH downstream conclusion — the lead enforces this at the
+  **C1/source-of-truth** gate. Label a GitHub-only source claim
+  upstream-scope, never downstream.
 - When a PR/issue references a Jira ticket (RHEL-NNNNN, OCPBUGS-NNNNN…)
   that bears on the case, record the exact key in Gaps — the lead can
   launch jira-trace with it.

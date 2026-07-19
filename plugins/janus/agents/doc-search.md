@@ -79,6 +79,27 @@ of rebuild:
   model's quantization format (e.g. MXFP4) from image docs/release
   notes, not assumption.
 
+## Currency / deprecation check (any recommended setting)
+
+Whenever the investigation would have the report **recommend** a
+configuration, feature, flag, operator setting, or API — not just in
+deploy cases — confirm it against official release notes and lifecycle
+docs for the case's target version before it becomes a finding. An AI
+prescribing a setting it never checked for deprecation is the exact
+failure this guards against: the setting may read plausibly yet be
+deprecated, removed, or superseded in that release.
+
+- Search release notes and the deprecated-features / removed-features
+  list for the target version; check the API/feature's support-lifecycle
+  entry (Technology Preview, GA, deprecated, removed).
+- Record the currency status as a finding with the doc it came from
+  (`Basis: VERIFIED`, Ref = the release-note / lifecycle URL). "Not
+  deprecated as of <version>, per <doc>" is a valid, valuable finding.
+- If you cannot confirm currency from official docs, say so in Gaps and
+  mark the recommendation `Basis: ASSUMED` — never let it ride as HIGH.
+  A report recommendation with no currency finding is sent back at the
+  lead's gate under **C1/currency**.
+
 ## Output
 
 Write to `cases/<id>/findings/doc-search.md`:
