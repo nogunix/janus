@@ -107,6 +107,22 @@ Required fields: `id`, `received_at`, `mode` (`artifact` | `theme`),
 composition (below). Real binaries (vmcore/vmlinux) are never committed to
 git — only `case.yaml` and the directory structure are tracked.
 
+Optional but recommended when the case is version-specific:
+`version_scope` — the product version(s) the investigation is about,
+grouped by product. It is the anchor `versioncheck.py` (Step 7) uses to
+flag findings and report claims that drift onto a neighbouring version.
+A scope entry matches its own z-streams (`4.16` covers `4.16.55`):
+
+```yaml
+version_scope:
+  OCP: ["4.16"]
+  RHEL: ["9.4"]
+```
+
+Absent it, versioncheck still hard-fails an unpinned source citation but
+skips the scope/attribution warnings — so declare it whenever the case
+turns on one version rather than a whole family.
+
 ---
 
 ## Pipeline composition
@@ -272,7 +288,7 @@ as gaps.
 
 ### 7. Quality check (the lead's own job) — named gates
 
-Mechanical pre-checks before any content gate (all three scripts live
+Mechanical pre-checks before any content gate (all four scripts live
 in `scripts/` next to this file):
 
 1. `python3 <skill-dir>/scripts/chain.py verify cases/<id>` — a FAIL
@@ -295,9 +311,19 @@ in `scripts/` next to this file):
    quoting the mismatch. A "no attributed quotes" warning means
    synthesize skipped the quote convention — also a **C2/quote-absent**
    send-back for any report that makes evidence-backed claims.
+4. `python3 <skill-dir>/scripts/versioncheck.py cases/<id>` — version
+   provenance across findings and the report. A FAIL is a source
+   location cited with no version pin anywhere in its Ref (no NVR,
+   casket path, or commit) — which version was read is unrecoverable:
+   send back **under C2/version**, quoting the Ref. Everything else is a
+   warning the lead judges against **C2/version**: a Detail/Ref pair
+   crossed *within one product family* (Detail says 4.16, Ref pins
+   4.18), or — when `version_scope` is declared — a finding or report
+   version in that family but off-scope (a neighbouring version drifted
+   in). Warnings never block; they feed the judgment call below.
 
 Read `results/report.md` and check it against these two judgment gates
-(the three mechanical pre-checks above already cover the rest). **A
+(the four mechanical pre-checks above already cover the rest). **A
 failed gate = send the report back to synthesize, naming the sub-code
 and quoting the offending line** — the lead never patches the report
 itself. The sub-codes are the send-back vocabulary: they keep the
@@ -307,7 +333,7 @@ lead's read of the report into two passes.
 | Gate | The one question | Sub-codes (send-back vocabulary) |
 |---|---|---|
 | **C1 — GROUNDING** | Is every claim anchored to evidence at the right strength? | `C1/ref` — a claim with no reference · `C1/url` — a resolvable-pattern ID (CVE/RHSA/KB/PR) with no public URL; dead URLs are caught mechanically by urlcheck.py · `C1/basis` — a HIGH hypothesis without ≥1 VERIFIED or 2+ independent REASONED findings from different stages, or an unlabeled citation · `C1/spec` — an unsupported "likely / probably / should" claim |
-| **C2 — COMPLETENESS & FIDELITY** | Is the report structurally complete, and are identifiers and quotes reproduced exactly? | `C2/section` — an empty Objectives Assessment or Execution Metadata cell · `C2/artifact` — a paraphrased concrete identifier (file, resource, symbol, version) · `C2/quote-absent` — an evidence-backed report with no attributed verbatim quotes; mutated quotes and fabricated attributions are caught mechanically by quotecheck.py and sent back as `C2/quote-mismatch` |
+| **C2 — COMPLETENESS & FIDELITY** | Is the report structurally complete, and are identifiers and quotes reproduced exactly? | `C2/section` — an empty Objectives Assessment or Execution Metadata cell · `C2/artifact` — a paraphrased concrete identifier (file, resource, symbol, version) · `C2/quote-absent` — an evidence-backed report with no attributed verbatim quotes; mutated quotes and fabricated attributions are caught mechanically by quotecheck.py and sent back as `C2/quote-mismatch` · `C2/version` — a fact attributed to the wrong product version: an unpinned source citation (FAIL) or a crossed / off-scope version that versioncheck.py flagged and the read confirms |
 
 Both gates pass → `review-queue/DONE_<id>.md`
 The same sub-code fails twice on one report → stop the loop:

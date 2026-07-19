@@ -58,7 +58,7 @@ flowchart TD
 
     fanin --> syn["synthesize — cross-reference all findings"]
     syn --> report[("results/report.md<br/>ranked hypotheses · Confidence + Basis + refs")]
-    report --> qc["4&nbsp;· Quality check<br/>chain verify · urlcheck · quotecheck · two judgment gates (C1/C2)"]
+    report --> qc["4&nbsp;· Quality check<br/>chain verify · urlcheck · quotecheck · versioncheck · two judgment gates (C1/C2)"]
     qc -.->|"send-back, by sub-code"| syn
     qc -->|"handoff"| human2(["Human — final call, writes verdict.md"])
 ```
@@ -90,6 +90,7 @@ plugins/janus/
   skills/janus/scripts/chain.py      # per-case evidence hash ledger (seal/verify/lock)
   skills/janus/scripts/urlcheck.py   # reference-URL liveness check (backs gate C1/url)
   skills/janus/scripts/quotecheck.py # verbatim-quote fidelity check (backs gate C2/quote)
+  skills/janus/scripts/versioncheck.py # version-provenance check (backs gate C2/version)
   skills/deck/                       # report → branded .pptx/PDF
   skills/okp-doc-search/             # okp-mcp research know-how (queries, doc_id rules)
   hooks/                             # secret-safety + evidence-lock (PreToolUse denies) + evidence-chain (PostToolUse auto-seal)
@@ -97,7 +98,7 @@ plugins/janus/
     doc-search  source-trace  github-trace  jira-trace  crash-analyze
     lab-verify  synthesize  self-improver  upstream-adviser
 scripts/validate.py                  # repo consistency checks (CI-friendly, stdlib-only)
-scripts/selftest.py                  # offline self-tests for chain.py / urlcheck.py / quotecheck.py / hooks
+scripts/selftest.py                  # offline self-tests for chain.py / urlcheck.py / quotecheck.py / versioncheck.py / hooks
 .github/workflows/ci.yml             # runs both on every push / PR
 ```
 
@@ -185,7 +186,7 @@ model in the seat:
 
 ### Integrity checks (mechanical, before any human-level gate)
 
-Three stdlib-only scripts turn "trust the report" into "check the
+Four stdlib-only scripts turn "trust the report" into "check the
 report." All run at handoff; a failure sends the report back rather
 than shipping it.
 
@@ -253,11 +254,29 @@ failed. 401/403/429 fold into the same class. A fully-unreachable
 network downgrades to a notice and passes, so air-gapped okp-mcp
 installs stay usable.
 
-All three scripts and the lock hook have offline self-tests
+**Version provenance — `scripts/versioncheck.py`.** The drift the quote
+check can't see: a fact observed at one product version reworded into a
+claim about another. Backs gate C2/version. The one hard FAIL is a
+source location cited with no version anywhere in its Ref (no NVR,
+casket path, or commit) — which version was read is unrecoverable. The
+rest are warnings the lead judges: a Detail/Ref pair crossed *within one
+product family* (Detail says 4.16, Ref pins 4.18), or — against the
+`version_scope` a case may declare — a finding or report version in that
+family but off-scope. Family-anchoring keeps kernel `5.14`, image tags,
+and RPM releases from drowning the OCP-minor signal:
+
+```
+$ python3 scripts/versioncheck.py cases/<id>
+FAIL: findings/source-trace.md F2: source location cited with no version pin
+warning: results/report.md: version 4.19 asserted but backed by no finding
+```
+
+All four scripts and the lock hook have offline self-tests
 (`scripts/selftest.py`) exercising tamper detection, ledger-edit
-detection, lock/deny/unlock, quote-mutation detection, and the
-gated-vs-dead URL split; `.github/workflows/ci.yml` runs them with
-`validate.py` on every push and PR.
+detection, lock/deny/unlock, quote-mutation detection, the
+gated-vs-dead URL split, and version-provenance drift;
+`.github/workflows/ci.yml` runs them with `validate.py` on every push
+and PR.
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
