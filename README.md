@@ -58,8 +58,8 @@ flowchart TD
 
     fanin --> syn["synthesize — cross-reference all findings"]
     syn --> report[("results/report.md<br/>ranked hypotheses · Confidence + Basis + refs")]
-    report --> qc["4&nbsp;· Quality check<br/>chain verify · urlcheck · quotecheck · seven named gates"]
-    qc -.->|"send-back, by gate name"| syn
+    report --> qc["4&nbsp;· Quality check<br/>chain verify · urlcheck · quotecheck · two judgment gates (C1/C2)"]
+    qc -.->|"send-back, by sub-code"| syn
     qc -->|"handoff"| human2(["Human — final call, writes verdict.md"])
 ```
 
@@ -88,8 +88,8 @@ plugins/janus/
   .claude-plugin/plugin.json         # plugin manifest
   skills/janus/SKILL.md              # /janus — pipeline driver
   skills/janus/scripts/chain.py      # per-case evidence hash ledger (seal/verify/lock)
-  skills/janus/scripts/urlcheck.py   # reference-URL liveness check (backs gate G2-URL)
-  skills/janus/scripts/quotecheck.py # verbatim-quote fidelity check (backs gate G7-QUOTE)
+  skills/janus/scripts/urlcheck.py   # reference-URL liveness check (backs gate C1/url)
+  skills/janus/scripts/quotecheck.py # verbatim-quote fidelity check (backs gate C2/quote)
   skills/deck/                       # report → branded .pptx/PDF
   skills/okp-doc-search/             # okp-mcp research know-how (queries, doc_id rules)
   hooks/                             # secret-safety + evidence-lock (PreToolUse denies) + evidence-chain (PostToolUse auto-seal)
@@ -162,11 +162,13 @@ model in the seat:
   `Basis: VERIFIED | REASONED | ASSUMED` (tool output observed vs.
   inferred from reading vs. carried in) alongside its confidence, and a
   label is only promoted by new evidence.
-- **Named acceptance gates** — the lead checks each report against
-  seven named gates (references, public URLs, no speculation language,
-  basis integrity, completeness, verbatim artifact names, verbatim
-  evidence quotes) and sends failures back to synthesize by gate name;
-  a HIGH hypothesis needs at least one VERIFIED finding behind it.
+- **Named acceptance gates** — the lead checks each report against two
+  judgment gates: **C1 GROUNDING** (references, public URLs, no
+  speculation language, basis integrity) and **C2 COMPLETENESS &
+  FIDELITY** (completeness, verbatim artifact names, verbatim evidence
+  quotes). Failures go back to synthesize by sub-code (`C1/basis`,
+  `C2/quote-absent`, …); a HIGH hypothesis needs at least one VERIFIED
+  finding behind it.
   Three of these checks are mechanical — reference liveness, quote
   fidelity, and the evidence chain (see **Integrity checks** below).
 - **Causation gate** — crash-analyze may not record a crash cause
@@ -226,14 +228,14 @@ softens into "may reproduce", a version number drifts. The report is a
 legitimately new file, so no hash ledger notices. Instead, the report
 carries its load-bearing facts as attributed verbatim quotes
 (`> …` / `> — findings/<stage>.md`), and quotecheck verifies each one
-appears word-for-word in the file it cites — backing gate G7-QUOTE:
+appears word-for-word in the file it cites — backing gate C2/quote:
 
 ```
 $ python3 scripts/quotecheck.py cases/<id>/results/report.md
 FAIL: report.md:12: quote not found verbatim in findings/doc-search.md: "…"
 ```
 
-**Reference liveness — `scripts/urlcheck.py`.** Backs gate G2-URL by
+**Reference liveness — `scripts/urlcheck.py`.** Backs gate C1/url by
 curl-checking every reference URL in the report. A fabricated citation
 (the classic LLM failure) dies as a 404 instead of a footnote nobody
 clicked:

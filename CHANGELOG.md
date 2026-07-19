@@ -2,6 +2,34 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.17.0 — 2026-07-19
+
+pipeline: consolidate the seven step-7 acceptance gates into two
+judgment gates. Prompted by the "add as little process as you can"
+lens from *Project management at Big Tech* (Pragmatic Engineer) — where
+a mechanical check already exists, the human's read of the report
+should not repeat it.
+
+- **Step 7 gates G1–G7 → C1/C2** — the lead's read of `report.md`
+  collapses from seven passes to two: **C1 GROUNDING** (is every claim
+  anchored to evidence at the right strength?) absorbs the old
+  G1-REF/G2-URL/G3-SPECULATION/G4-BASIS; **C2 COMPLETENESS & FIDELITY**
+  (is the report structurally complete and are identifiers/quotes
+  reproduced exactly?) absorbs G5-COMPLETE/G6-ARTIFACTS/G7-QUOTE.
+  Failure coverage is unchanged — every old trigger survives either as
+  a mechanical pre-check (urlcheck/quotecheck) or as a named send-back
+  sub-code (`C1/ref`, `C1/url`, `C1/basis`, `C1/spec`, `C2/section`,
+  `C2/artifact`, `C2/quote-absent`, `C2/quote-mismatch`). The send-back
+  vocabulary keeps the diagnostic granularity of the old seven gates;
+  only the reviewer's entry points shrink.
+- **Loop-stop granularity moved to the sub-code** — "same gate fails
+  twice → NEEDS_HUMAN" is now "same *sub-code* fails twice", preserving
+  the old behavior (a specific unresolved defect recurring) under the
+  coarser gates rather than stopping on any C1 repeat.
+- **Companion updates** — `synthesize.md` (G7-QUOTE→C2/quote,
+  G4-BASIS→C1/basis), `urlcheck.py`/`quotecheck.py` docstrings and
+  send-back messages, and README gate prose all track the new codes.
+
 ## 0.16.1 — 2026-07-19
 
 urlcheck: a second false-live/false-dead gap, the mirror of 0.15.1 —

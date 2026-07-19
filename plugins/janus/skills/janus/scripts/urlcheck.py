@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mechanical URL liveness check for report references (backs gate G2-URL).
+"""Mechanical URL liveness check for report references (backs gate C1/url).
 
 A curl-level check only: does each public URL in the given markdown
 file(s) resolve to something other than 404/410? A dead or
@@ -152,7 +152,7 @@ def main(argv):
         return 0
     if failures:
         print(f"{failures}/{len(urls)} references point at nothing — "
-              "send back to synthesize under G2-URL")
+              "send back to synthesize under C1/url")
         return 1
     live = len(urls) - gated
     tail = f" ({gated} gated — verify by hand)" if gated else ""

@@ -282,7 +282,7 @@ in `scripts/` next to this file):
 2. `python3 <skill-dir>/scripts/urlcheck.py cases/<id>/results/report.md`
    — curl-level liveness for every reference URL. A FAIL (404/410 or
    unresolvable host) is a provably dead citation: send the report back
-   to synthesize **under G2-URL**, quoting the dead URL. 401/403/429
+   to synthesize **under C1/url**, quoting the dead URL. 401/403/429
    count as reachable (login-walled is normal for access.redhat.com);
    warnings (5xx/timeout) don't block. If the network itself is down
    the script says so and passes — offline installs are normal.
@@ -291,27 +291,26 @@ in `scripts/` next to this file):
    `> — findings/<stage>.md`) must appear verbatim
    (whitespace-normalized) in the file it cites. A FAIL is a fact that
    mutated between findings and report, or a fabricated attribution:
-   send the report back to synthesize **under G7-QUOTE**, quoting the
-   mismatch. A "no attributed quotes" warning means synthesize skipped
-   the quote convention — also a G7-QUOTE send-back for any report
-   that makes evidence-backed claims.
+   send the report back to synthesize **under C2/quote-mismatch**,
+   quoting the mismatch. A "no attributed quotes" warning means
+   synthesize skipped the quote convention — also a **C2/quote-absent**
+   send-back for any report that makes evidence-backed claims.
 
-Read `results/report.md` and check it against these gates. **A failed
-gate = send the report back to synthesize, naming the gate and quoting
-the offending line** — the lead never patches the report itself.
+Read `results/report.md` and check it against these two judgment gates
+(the three mechanical pre-checks above already cover the rest). **A
+failed gate = send the report back to synthesize, naming the sub-code
+and quoting the offending line** — the lead never patches the report
+itself. The sub-codes are the send-back vocabulary: they keep the
+diagnostic granularity of the old seven gates while collapsing the
+lead's read of the report into two passes.
 
-| Gate | Check | Send-back trigger |
+| Gate | The one question | Sub-codes (send-back vocabulary) |
 |---|---|---|
-| **G1-REF** | Every claim cites a verifiable reference | a claim with no ref |
-| **G2-URL** | References carry public URLs where a deterministic pattern exists | bare CVE/RHSA/KB/PR ID |
-| **G3-SPECULATION** | No unsupported "likely / probably / should" language | hedged claim with no evidence behind it |
-| **G4-BASIS** | Findings cited keep their Basis labels; no HIGH hypothesis without ≥1 VERIFIED finding or 2+ independent REASONED findings from different stages | unlabeled citation, or inflated confidence |
-| **G5-COMPLETE** | Objectives Assessment and Execution Metadata fully filled | an empty cell |
-| **G6-ARTIFACTS** | Concrete identifiers (file, resource, symbol, version) appear verbatim | a paraphrased artifact name |
-| **G7-QUOTE** | Load-bearing evidence is quoted verbatim from findings with attribution, and every quote matches its cited file (quotecheck.py) | a mutated quote, a fabricated attribution, or a report with no attributed quotes |
+| **C1 — GROUNDING** | Is every claim anchored to evidence at the right strength? | `C1/ref` — a claim with no reference · `C1/url` — a resolvable-pattern ID (CVE/RHSA/KB/PR) with no public URL; dead URLs are caught mechanically by urlcheck.py · `C1/basis` — a HIGH hypothesis without ≥1 VERIFIED or 2+ independent REASONED findings from different stages, or an unlabeled citation · `C1/spec` — an unsupported "likely / probably / should" claim |
+| **C2 — COMPLETENESS & FIDELITY** | Is the report structurally complete, and are identifiers and quotes reproduced exactly? | `C2/section` — an empty Objectives Assessment or Execution Metadata cell · `C2/artifact` — a paraphrased concrete identifier (file, resource, symbol, version) · `C2/quote-absent` — an evidence-backed report with no attributed verbatim quotes; mutated quotes and fabricated attributions are caught mechanically by quotecheck.py and sent back as `C2/quote-mismatch` |
 
-All gates pass → `review-queue/DONE_<id>.md`
-The same gate fails twice on one report → stop the loop:
+Both gates pass → `review-queue/DONE_<id>.md`
+The same sub-code fails twice on one report → stop the loop:
 `review-queue/NEEDS_HUMAN_<id>.md` with both versions noted.
 
 ### What the lead does NOT do

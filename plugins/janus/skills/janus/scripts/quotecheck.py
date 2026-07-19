@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verbatim-quote fidelity check for the report (backs gate G7-QUOTE).
+"""Verbatim-quote fidelity check for the report (backs gate C2/quote).
 
 The telephone-game failure: the findings survive intact on disk while
 the fact mutates as synthesize copies it into the report — "reproduced"
@@ -18,8 +18,8 @@ evidence file —
 Whitespace-normalized, the quoted text must appear verbatim in the
 cited file. A mismatch is a mutated fact; an attribution to a missing
 file is a fabricated citation; both FAIL (exit 1) → send back under
-G7-QUOTE. A report with no attributed quotes gets a warning, not a
-FAIL — whether quotes were required is the content gates' call.
+C2/quote-mismatch. A report with no attributed quotes gets a warning,
+not a FAIL (that residue is the lead's C2/quote-absent judgment call).
 
 Usage: python3 quotecheck.py cases/<id>/results/report.md
 Stdlib-only, offline, like chain.py.
@@ -122,7 +122,7 @@ def main(argv):
     if problems:
         print(
             f"{len(problems)} quote(s) diverge from the findings they cite — "
-            "send back to synthesize under G7-QUOTE"
+            "send back to synthesize under C2/quote-mismatch"
         )
         return 1
     if ok:
