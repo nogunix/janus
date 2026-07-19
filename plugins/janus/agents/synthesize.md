@@ -149,7 +149,7 @@ Write to `cases/<id>/results/report.md`:
   config"); the reader must be able to grep the report for the exact name.
 - If no finding names a concrete artifact, write "none" under Affected
   Artifacts — do not drop the section.
-- **Quote the decisive evidence verbatim (G7-QUOTE).** For each
+- **Quote the decisive evidence verbatim (C2/quote).** For each
   hypothesis, carry the load-bearing sentence(s) from the findings as a
   markdown blockquote whose last line attributes the source file:
 
@@ -181,7 +181,7 @@ Write to `cases/<id>/results/report.md`:
 - **Carry each finding's Basis label with it and never promote it** —
   citing a REASONED finding does not make it VERIFIED, and paraphrasing
   an ASSUMED premise as established fact is the report-level failure the
-  lead's G4-BASIS gate rejects. If a stage omitted Basis labels, infer
+  lead's C1/basis gate rejects. If a stage omitted Basis labels, infer
   the conservative label from its refs (audit-log ref → VERIFIED,
   snippet-only → REASONED) and note that you did so.
 - The report must be self-contained — a reader needs only this file.
