@@ -258,7 +258,13 @@ synthesize runs:
 First close the evidence chain over the inputs synthesize will read:
 `chain.py verify` then `chain.py seal` on the case dir (see **Evidence
 chain** below — verify first, so a sealed file changed outside tracked
-tools is noticed before it is re-sealed).
+tools is noticed before it is re-sealed). Then freeze the fact base:
+`chain.py lock cases/<id>` drops the write bits on `case.yaml`,
+`findings/*.md` and `audit/*`, and a PreToolUse hook
+(`hooks/evidence-lock.py`) denies tracked writes to locked files — from
+here on the facts can be read, never rewritten. A genuinely needed
+revision goes through the lead: `chain.py unlock cases/<id> <file>`,
+edit, re-seal, `lock` again.
 
 Instruct it to read all of `findings/*.md` and write `results/report.md`.
 synthesize works with whatever findings exist — it reports missing ones
@@ -266,8 +272,8 @@ as gaps.
 
 ### 7. Quality check (the lead's own job) — named gates
 
-Mechanical pre-checks before any content gate (both scripts live in
-`scripts/` next to this file):
+Mechanical pre-checks before any content gate (all three scripts live
+in `scripts/` next to this file):
 
 1. `python3 <skill-dir>/scripts/chain.py verify cases/<id>` — a FAIL
    means evidence changed after it was sealed; do not hand off. Record
@@ -280,6 +286,15 @@ Mechanical pre-checks before any content gate (both scripts live in
    count as reachable (login-walled is normal for access.redhat.com);
    warnings (5xx/timeout) don't block. If the network itself is down
    the script says so and passes — offline installs are normal.
+3. `python3 <skill-dir>/scripts/quotecheck.py cases/<id>/results/report.md`
+   — every attributed blockquote in the report (`> …` ending in
+   `> — findings/<stage>.md`) must appear verbatim
+   (whitespace-normalized) in the file it cites. A FAIL is a fact that
+   mutated between findings and report, or a fabricated attribution:
+   send the report back to synthesize **under G7-QUOTE**, quoting the
+   mismatch. A "no attributed quotes" warning means synthesize skipped
+   the quote convention — also a G7-QUOTE send-back for any report
+   that makes evidence-backed claims.
 
 Read `results/report.md` and check it against these gates. **A failed
 gate = send the report back to synthesize, naming the gate and quoting
@@ -293,6 +308,7 @@ the offending line** — the lead never patches the report itself.
 | **G4-BASIS** | Findings cited keep their Basis labels; no HIGH hypothesis without ≥1 VERIFIED finding or 2+ independent REASONED findings from different stages | unlabeled citation, or inflated confidence |
 | **G5-COMPLETE** | Objectives Assessment and Execution Metadata fully filled | an empty cell |
 | **G6-ARTIFACTS** | Concrete identifiers (file, resource, symbol, version) appear verbatim | a paraphrased artifact name |
+| **G7-QUOTE** | Load-bearing evidence is quoted verbatim from findings with attribution, and every quote matches its cited file (quotecheck.py) | a mutated quote, a fabricated attribution, or a report with no attributed quotes |
 
 All gates pass → `review-queue/DONE_<id>.md`
 The same gate fails twice on one report → stop the loop:
@@ -392,7 +408,14 @@ set (`case.yaml`, `findings/*.md`, `results/*.md`, `audit/*`,
   a FAIL means a sealed file changed outside tracked tools (e.g. a
   shell redirect), so record the mismatch in `cases/<id>/audit/` before
   re-sealing. The plain `seal` picks up shell-written audit logs the
-  hook cannot see.
+  hook cannot see. Then `lock` — the chain detects rewrites after the
+  fact; the lock prevents the accident in the first place by dropping
+  the write bits on the fact base (`case.yaml`, `findings/*.md`,
+  `audit/*`), with `hooks/evidence-lock.py` (PreToolUse) denying
+  tracked writes to locked files. `unlock` is the lead's explicit
+  escape hatch for a legitimate revision (unlock → edit → re-seal →
+  lock). New files (a follow-up stage's findings, a new audit log) are
+  unaffected — lock freezes files, not directories.
 - **Step 7 (before the named gates)**: `verify` — a FAIL blocks
   handoff (`NEEDS_HUMAN_<id>.md`).
 - **At verdict**: `seal` after the human writes `verdict.md` — the

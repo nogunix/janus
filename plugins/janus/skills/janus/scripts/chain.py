@@ -17,9 +17,19 @@ Sealing happens two ways:
 - `chain.py seal` covers files written outside tracked tools (shell
   redirects into audit/, the human's hand-written verdict.md).
 
+The chain detects rewrites after the fact; `lock` prevents the accident
+in the first place. At fan-in the lead locks the fact base synthesize
+reads (case.yaml, findings/*.md, audit/*) by dropping the files' write
+bits — hooks/evidence-lock.py (PreToolUse) then denies tracked writes
+with an explanation instead of a bare permission error. `unlock` is the
+lead's explicit escape hatch for a legitimate revision
+(unlock → edit → re-seal → lock).
+
 Usage:
-  python3 chain.py seal <case-dir> [file ...]  # no files: all default targets
-  python3 chain.py verify <case-dir>           # exit 1 on tamper / broken link
+  python3 chain.py seal <case-dir> [file ...]    # no files: all default targets
+  python3 chain.py verify <case-dir>             # exit 1 on tamper / broken link
+  python3 chain.py lock <case-dir> [file ...]    # no files: the fact base
+  python3 chain.py unlock <case-dir> [file ...]  # restore owner write
 
 Stdlib-only, like scripts/validate.py.
 """
@@ -27,6 +37,7 @@ Stdlib-only, like scripts/validate.py.
 import fcntl
 import hashlib
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,6 +47,10 @@ GENESIS = "0" * 64
 # The case evidence set. artifacts/ (vmcore binaries, never committed)
 # is deliberately excluded.
 DEFAULT_GLOBS = ("case.yaml", "verdict.md", "findings/*.md", "results/*.md", "audit/*")
+# What `lock` freezes by default: the fact base synthesize reads.
+# results/ and verdict.md stay out — they are still being written after
+# the fan-in lock (send-back revisions, the human's verdict).
+LOCK_GLOBS = ("case.yaml", "findings/*.md", "audit/*")
 
 
 class ChainError(Exception):
@@ -121,6 +136,50 @@ def seal(case_dir, paths=None, actor="lead"):
     return sealed
 
 
+def _case_files(case_dir, paths, globs):
+    """Resolve paths (or globs) to (path, rel) pairs inside the case dir."""
+    case_dir = Path(case_dir).resolve()
+    if paths:
+        targets = [Path(p).resolve() for p in paths]
+    else:
+        targets = []
+        for pattern in globs:
+            targets.extend(case_dir.glob(pattern))
+    out = []
+    for target in sorted(set(targets)):
+        if not target.is_file():
+            continue
+        try:
+            rel = str(target.relative_to(case_dir))
+        except ValueError:
+            continue  # outside the case dir — not ours
+        if rel != CHAIN_NAME:
+            out.append((target, rel))
+    return out
+
+
+def lock(case_dir, paths=None):
+    """Drop all write bits on the fact base; returns newly locked rel-paths."""
+    locked = []
+    for target, rel in _case_files(case_dir, paths, LOCK_GLOBS):
+        mode = target.stat().st_mode
+        if mode & 0o222:
+            os.chmod(target, mode & ~0o222)
+            locked.append(rel)
+    return locked
+
+
+def unlock(case_dir, paths=None):
+    """Restore owner write; returns newly unlocked rel-paths."""
+    unlocked = []
+    for target, rel in _case_files(case_dir, paths, LOCK_GLOBS):
+        mode = target.stat().st_mode
+        if not mode & 0o200:
+            os.chmod(target, mode | 0o200)
+            unlocked.append(rel)
+    return unlocked
+
+
 def verify(case_dir):
     """Returns (problems, warnings). Any problem = tamper / broken ledger."""
     case_dir = Path(case_dir).resolve()
@@ -162,9 +221,12 @@ def verify(case_dir):
 
 
 def main(argv):
-    if len(argv) < 3 or argv[1] not in ("seal", "verify"):
+    if len(argv) < 3 or argv[1] not in ("seal", "verify", "lock", "unlock"):
         print(__doc__.strip().splitlines()[0])
-        print("usage: chain.py seal <case-dir> [file ...] | chain.py verify <case-dir>")
+        print(
+            "usage: chain.py seal|lock|unlock <case-dir> [file ...] "
+            "| chain.py verify <case-dir>"
+        )
         return 2
     cmd, case_dir = argv[1], Path(argv[2])
     if not case_dir.is_dir():
@@ -177,6 +239,13 @@ def main(argv):
                 print(f"sealed: {rel}")
             if not sealed:
                 print("chain up to date — nothing new to seal")
+            return 0
+        if cmd in ("lock", "unlock"):
+            changed = (lock if cmd == "lock" else unlock)(case_dir, argv[3:] or None)
+            for rel in changed:
+                print(f"{cmd}ed: {rel}")
+            if not changed:
+                print(f"nothing to {cmd}")
             return 0
         problems, warnings = verify(case_dir)
         for w in warnings:

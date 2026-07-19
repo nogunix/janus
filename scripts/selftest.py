@@ -2,9 +2,10 @@
 """Offline self-tests for the plugin's bundled scripts (CI-friendly).
 
 Covers chain.py (seal → verify → revision → tamper detection →
-ledger-edit detection) and urlcheck.py's URL extraction and
-classification constants. No network, no MCP servers; stdlib-only,
-like validate.py. Exit 1 on any failure.
+ledger-edit detection, plus lock/unlock), the evidence-lock hook's deny
+logic, quotecheck.py's quote extraction and verbatim matching, and
+urlcheck.py's URL extraction and classification constants. No network,
+no MCP servers; stdlib-only, like validate.py. Exit 1 on any failure.
 """
 
 import importlib.util
@@ -13,13 +14,15 @@ import sys
 import tempfile
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "plugins/janus/skills/janus/scripts"
+PLUGIN = Path(__file__).resolve().parent.parent / "plugins/janus"
+SCRIPTS = PLUGIN / "skills/janus/scripts"
+HOOKS = PLUGIN / "hooks"
 
 failures = []
 
 
-def load(name):
-    spec = importlib.util.spec_from_file_location(name, SCRIPTS / f"{name}.py")
+def load(name, directory=SCRIPTS):
+    spec = importlib.util.spec_from_file_location(name, directory / f"{name}.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -76,6 +79,117 @@ def test_chain():
         )
 
 
+def test_lock():
+    chain = load("chain")
+    lock_hook = load("evidence-lock", HOOKS)
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "2026-01-01-selftest"
+        (case / "findings").mkdir(parents=True)
+        (case / "results").mkdir()
+        (case / "case.yaml").write_text("id: selftest\n")
+        finding = case / "findings" / "doc-search.md"
+        finding.write_text("F1\n")
+        chain.seal(case)
+
+        check(
+            lock_hook.locked_reason("Write", str(finding)) is None,
+            "hook allows writes to unlocked evidence",
+        )
+
+        locked = chain.lock(case)
+        check(
+            sorted(locked) == ["case.yaml", "findings/doc-search.md"],
+            "lock covers the fact base (case.yaml + findings)",
+        )
+        check(
+            not finding.stat().st_mode & 0o222,
+            "lock drops all write bits",
+        )
+        check(
+            lock_hook.locked_reason("Write", str(finding)) is not None
+            and lock_hook.locked_reason("Edit", str(finding)) is not None,
+            "hook denies Write/Edit to locked evidence",
+        )
+        check(
+            lock_hook.locked_reason("Write", str(case / "results" / "report.md"))
+            is None,
+            "hook allows writing the (not yet existing) report",
+        )
+        check(
+            lock_hook.locked_reason("Read", str(finding)) is None,
+            "hook ignores non-write tools",
+        )
+
+        problems, _ = chain.verify(case)
+        check(not problems, "verify still passes on a locked case")
+
+        unlocked = chain.unlock(case)
+        check(
+            sorted(unlocked) == ["case.yaml", "findings/doc-search.md"]
+            and finding.stat().st_mode & 0o200
+            and lock_hook.locked_reason("Write", str(finding)) is None,
+            "unlock restores owner write and the hook allows again",
+        )
+
+
+def test_quotecheck():
+    quotecheck = load("quotecheck")
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "2026-01-01-selftest"
+        (case / "findings").mkdir(parents=True)
+        (case / "results").mkdir()
+        (case / "findings" / "doc-search.md").write_text(
+            "### F1: probe timeout\n"
+            "- **Detail**: The VM fails on OCP 4.18.41 because the\n"
+            "  livenessProbe times out after 30s.\n"
+        )
+        report = case / "results" / "report.md"
+
+        report.write_text(
+            "# Report\n\n"
+            "> The VM fails on OCP 4.18.41 because the livenessProbe\n"
+            "> times out after 30s.\n"
+            "> — findings/doc-search.md\n\n"
+            "Analysis follows.\n\n"
+            "> just a stylistic blockquote, no attribution\n"
+        )
+        quotes = quotecheck.extract_quotes(report.read_text())
+        check(
+            len(quotes) == 1 and quotes[0][0] == "findings/doc-search.md",
+            "extract_quotes takes attributed blockquotes, skips plain ones",
+        )
+        problems, warnings, ok = quotecheck.run(report)
+        check(
+            not problems and not warnings and ok == 1,
+            "a verbatim quote (reflowed across lines) passes",
+        )
+
+        report.write_text(
+            "> The VM may fail on OCP 4.18 because the livenessProbe\n"
+            "> times out.\n"
+            "> — findings/doc-search.md\n"
+        )
+        problems, _, _ = quotecheck.run(report)
+        check(
+            any("not found verbatim" in p for p in problems),
+            "a mutated quote is detected",
+        )
+
+        report.write_text("> anything\n> — findings/nonexistent.md\n")
+        problems, _, _ = quotecheck.run(report)
+        check(
+            any("does not exist" in p for p in problems),
+            "an attribution to a missing findings file is detected",
+        )
+
+        report.write_text("# Report\n\nNo quotes at all.\n")
+        problems, warnings, _ = quotecheck.run(report)
+        check(
+            not problems and any("no attributed quotes" in w for w in warnings),
+            "a report without quotes warns instead of failing",
+        )
+
+
 def test_urlcheck():
     urlcheck = load("urlcheck")
     urls = urlcheck.extract_urls(
@@ -118,6 +232,8 @@ def test_urlcheck():
 
 def main():
     test_chain()
+    test_lock()
+    test_quotecheck()
     test_urlcheck()
     if failures:
         print(f"{len(failures)} self-test(s) failed")

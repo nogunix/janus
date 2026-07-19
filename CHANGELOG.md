@@ -2,6 +2,31 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.16.0 — 2026-07-19
+
+Keep facts from mutating mid-collaboration, on both paths: a stage
+accidentally overwriting another stage's findings file, and the
+telephone-game drift where synthesize subtly rewrites a fact while
+copying it into the report.
+
+- **Fan-in write-lock** — `chain.py lock|unlock`: at step 6 the lead
+  drops the write bits on the fact base (`case.yaml`, `findings/*.md`,
+  `audit/*`). New PreToolUse hook `hooks/evidence-lock.py` denies
+  tracked Write/Edit calls against locked files with an explanation
+  (instead of a bare permission error an agent might chmod around).
+  The chain detects rewrites after the fact; the lock prevents the
+  accident. `unlock` is the lead's explicit escape hatch
+  (unlock → edit → re-seal → lock). Fail-open, stdlib-only.
+- **`quotecheck.py` + gate G7-QUOTE** — the report carries its
+  load-bearing facts as attributed verbatim blockquotes
+  (`> …` / `> — findings/<stage>.md`); the script verifies each quote
+  appears word-for-word (whitespace-normalized) in the file it cites.
+  A mutated quote or fabricated attribution FAILs → send-back under
+  the new G7-QUOTE gate (step 7 mechanical pre-check #3). synthesize's
+  template and rules now require the quote convention.
+- **selftest.py** — lock/deny/unlock round-trip and quotecheck
+  extraction/mutation/missing-file/no-quotes cases (24 checks total).
+
 ## 0.15.1 — 2026-07-18
 
 urlcheck: close a false-live gap found by a tamper/fabrication test case
