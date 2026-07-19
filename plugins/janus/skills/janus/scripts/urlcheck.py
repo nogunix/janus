@@ -14,7 +14,9 @@ Classification:
               and fabricated paths behind login, so existence is NOT
               content-confirmed; flagged for a human, never a clean live
               and never a hard FAIL
-  warning     5xx, timeouts (server trouble is not fabrication)
+  warning     5xx, timeouts, or a connection *reset* by a host that did
+              resolve and accept the TCP connection (anti-automation, not
+              fabrication — the host is provably live)
   FAIL        404/410, or unresolvable host / connection refused
 
 Exit 1 on any FAIL — except when *every* URL is unreachable, which
@@ -26,6 +28,7 @@ Usage: python3 urlcheck.py <file.md> [file.md ...]
 Stdlib-only, like chain.py.
 """
 
+import errno
 import re
 import socket
 import sys
@@ -96,6 +99,15 @@ def check(url):
             return ("warn", "timeout")
         except Exception as e:
             reason = getattr(e, "reason", e)
+            # A connection *reset* proves the host resolved and completed
+            # the TCP handshake before dropping us — i.e. it is live and
+            # merely refusing this client (anti-automation, as
+            # issues.redhat.com does). That is not a dead citation, so it
+            # is a non-blocking warning, unlike an unresolvable host or a
+            # connection *refused* (which stay hard FAILs below).
+            if isinstance(reason, ConnectionResetError) or \
+                    getattr(reason, "errno", None) == errno.ECONNRESET:
+                return ("warn", "connection reset (host live; anti-automation)")
             return ("unreachable", str(reason))
     return ("warn", "405 on HEAD and GET")
 

@@ -2,6 +2,24 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.16.1 — 2026-07-19
+
+urlcheck: a second false-live/false-dead gap, the mirror of 0.15.1 —
+this time a live host wrongly reported dead.
+
+- **`urlcheck.py` connection-reset classification** — `issues.redhat.com`
+  resets automated clients (anti-automation), which `check()` was
+  lumping into the catch-all `unreachable` → hard **G2-URL FAIL**, so
+  any report citing an OCPBUGS-/RHEL- Jira URL risked a spurious
+  send-back (and pressure to drop a valid citation). A connection
+  *reset* proves the host resolved and completed the TCP handshake — it
+  is provably live — so it is now a non-blocking `warn`, alongside
+  5xx/timeout. Unresolvable-host and connection-*refused* stay hard
+  FAILs. Found by case 2026-07-19-strace-eacces-svc (OCPBUGS-4077
+  reported dead while returning HTTP 200 by hand). Fail-open, stdlib-only.
+- **selftest.py** — two cases added: a reset from a live host warns (not
+  FAILs); a connection refused stays a hard FAIL.
+
 ## 0.16.0 — 2026-07-19
 
 Keep facts from mutating mid-collaboration, on both paths: a stage
