@@ -2,6 +2,35 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.18.0 — 2026-07-19
+
+pipeline: catch version-provenance drift mechanically — a fact observed
+at one product version reworded into a claim about another. The gap the
+existing integrity checks left open: the hash chain sees file edits, the
+quote check sees mutated verbatim quotes, but neither catches a finding
+or report that silently attributes a fact to the wrong OCP/RHEL/CNV
+version. Staged rollout — anchor + one precise hard-FAIL now, per-finding
+`Applies-to` fields deferred until warnings show they're needed.
+
+- **`scripts/versioncheck.py`** (stdlib-only, offline, like the other
+  three) walks a case's findings and report. **One hard FAIL**: a source
+  location cited with no version anywhere in its Ref (no NVR, casket
+  path, or commit sha) — which version was read is unrecoverable. Sent
+  back **under the new `C2/version` sub-code**. Everything else is a
+  warning the lead judges: a Detail/Ref pair crossed *within one product
+  family* (Detail says 4.16, Ref pins 4.18), or a finding/report version
+  in a scoped family but off-scope.
+- **`version_scope` in `case.yaml`** (optional) — the version(s) a case
+  turns on, grouped by product (`OCP: ["4.16"]`); a z-stream matches its
+  minor (`4.16` covers `4.16.55`). It anchors the scope/attribution
+  warnings; absent it, only the unpinned-citation FAIL runs.
+- **Family-anchoring keeps the signal clean** — version tokens are
+  grouped by major component, so kernel `5.14`, image tags (`427.105.1`),
+  and RPM releases never get compared against an OCP minor. 4-octet IPs
+  are excluded from token extraction outright.
+- Wired into Step 7 as the fourth mechanical pre-check; `C2/version`
+  added to the C2 gate's send-back vocabulary; self-tests extended.
+
 ## 0.17.0 — 2026-07-19
 
 pipeline: consolidate the seven step-7 acceptance gates into two

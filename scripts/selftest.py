@@ -244,11 +244,69 @@ def test_urlcheck():
         urlcheck._request = orig
 
 
+def test_versioncheck():
+    version = load("versioncheck")
+
+    # Helpers: IP octets excluded, z-stream/prefix scope matching, family.
+    check(
+        version.versions("on 4.16.55 vs 4.18, ip 10.0.0.1, tag 427.105.1")
+        == {"4.16.55", "4.18", "427.105.1"},
+        "versions() strips 4-octet IPs, keeps dotted version tokens",
+    )
+    check(
+        version._in_scope("4.16.55", {"4.16"}) and version._in_scope("4.16", {"4.16.55"})
+        and not version._in_scope("4.18", {"4.16"}),
+        "_in_scope matches a z-stream to its minor, rejects a sibling minor",
+    )
+    check(
+        version._pinned("kernel-5.14.0-427.el9_4 kernel.spec:6317")
+        and version._pinned("hyperkube@4.16.41 x.go:1")
+        and version._pinned("comp@deadbeef1 x.go:1")
+        and not version._pinned("pkg/kubelet/eviction/eviction.go:414"),
+        "_pinned accepts an NVR/path/sha, rejects a bare file:line",
+    )
+
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "2026-01-01-vc"
+        (case / "findings").mkdir(parents=True)
+        (case / "results").mkdir(parents=True)
+        (case / "case.yaml").write_text(
+            "id: vc\nversion_scope:\n  OCP: [\"4.16\"]\n")
+        (case / "findings" / "source-trace.md").write_text(
+            "### F1: pinned, in-scope z-stream\n"
+            "- **Detail**: fix in OCP 4.16 before 4.16.55.\n"
+            "- **Ref**: hyperkube@4.16.41 pkg/kubelet/eviction/eviction.go:414\n\n"
+            "### F2: unpinned source read\n"
+            "- **Detail**: bug here.\n"
+            "- **Ref**: pkg/kubelet/eviction/eviction.go:414\n\n"
+            "### F3: crossed within family\n"
+            "- **Detail**: on OCP 4.16 the operator differs.\n"
+            "- **Ref**: cluster-network-operator@4.18.9 pkg/network/render.go:88\n")
+        (case / "results" / "report.md").write_text(
+            "# Report\nSeen on OCP 4.19 and also 4.16. Kernel 5.14.0 base.\n")
+
+        problems, warnings, notes, ok = version.run(case)
+        check(len(problems) == 1 and "F2" in problems[0],
+              "the unpinned source citation is the one hard FAIL")
+        check(not notes, "a declared version_scope suppresses the skip note")
+        joined = " | ".join(warnings)
+        check("F3" in joined and "crossed" in joined,
+              "a within-family Detail/Ref cross (4.16 vs 4.18) warns")
+        check("4.18.9 not in version_scope" in joined,
+              "an off-scope finding version in a scoped family warns")
+        check("4.19 asserted" in joined,
+              "a report version off-scope in a scoped family, backed by no "
+              "finding, warns")
+        check("4.16.41" not in joined and "5.14.0" not in joined,
+              "an in-scope z-stream and a different-family kernel do not warn")
+
+
 def main():
     test_chain()
     test_lock()
     test_quotecheck()
     test_urlcheck()
+    test_versioncheck()
     if failures:
         print(f"{len(failures)} self-test(s) failed")
         return 1
