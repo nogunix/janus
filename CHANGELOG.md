@@ -2,6 +2,27 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.19.1 — 2026-07-20
+
+source-trace: two guardrails from case osc-112-lab-verify, where a
+finding was marked VERIFIED off a source comment that was itself wrong,
+and a proposal carried line numbers that had drifted between the casket
+snapshot and upstream HEAD.
+
+- **Basis semantics** sharpened: a code comment or doc string is the
+  author's *intent*, not the code's *behavior*, and can be wrong — a
+  claim resting on a comment is REASONED at most; a VERIFIED behavioral
+  claim needs the executable code path itself (or an execution result),
+  never a comment asserting it.
+- **Line numbers are pinned to the casket snapshot, not HEAD**: casket
+  indexes a specific commit whose file structure and line numbers can
+  differ from current upstream HEAD. State the casket ref (SHA/NVR) on
+  any `file:line` citation, and flag a load-bearing line number for
+  github-trace to confirm against HEAD before it ships in a report.
+
+Both are also captured as transferable `janus-lessons` entries (the
+project-local ledger copied into stage briefs at fan-out).
+
 ## 0.19.0 — 2026-07-20
 
 guardrails: close two AI-runaway gaps the existing checks left open,
