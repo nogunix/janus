@@ -149,13 +149,22 @@ duration_s: <seconds>
   access, so if the ref exists only in an internal build repo the link can
   404; still record it, it is correct for every public repo. When INDEX.tsv
   has no entry, write the local ref and mark "no public URL".
+- **Line numbers are pinned to the casket snapshot, not HEAD.** casket
+  indexes a specific commit whose file structure and line numbers can
+  differ from current upstream HEAD. State the casket ref (SHA/NVR) on
+  any `file:line` citation, and when a line number is load-bearing, flag
+  it for github-trace to confirm against HEAD before it ships in a report.
 - Do not speculate about root causes — report what the source shows.
 - **Basis semantics for this stage**: VERIFIED = you `read_file`d /
   `diff_file`d / `grep`ped the code and saw it (a cross-version
   byte-identical diff is a VERIFIED negative). REASONED = inferred from
   file names, directory structure, or a symbol hit you did not open.
   ASSUMED = carried in from the question. Never claim behavior of code
-  you did not read.
+  you did not read. A code comment or doc string is the author's
+  *intent*, not the code's *behavior*, and can be wrong: a claim resting
+  on a comment is REASONED at most — a VERIFIED behavioral claim needs
+  the executable code path itself (or an execution result), never a
+  comment asserting it.
 - If a version is not in casket, record which versions ARE available —
   and bracket the target with the nearest available versions instead of
   stopping.
