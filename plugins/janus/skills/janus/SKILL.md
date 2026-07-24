@@ -196,6 +196,12 @@ Brief for each stage:
 - On failure: write `status: partial` or `failed` in the YAML frontmatter and notify
 - Any janus-lessons entries relevant to this case and stage (see
   Learning loop below) — copied in, not referenced by path
+- For OpenShift-domain symptoms (cluster/operator/node/upgrade), the
+  relevant `ocp-triage-heuristics` sections — copied into the briefs of
+  investigation-planner, lab-verify, live-tracer, doc-search and
+  synthesize (see Reference assets below). Preserve the 🔍/⚠️ tags:
+  ⚠️ remediations are report-only recommendations, never executed
+  autonomously
 
 **Copy this stage contract verbatim into every stage brief** (do not
 paraphrase or trim — agent definitions can be skimmed; the brief is
@@ -572,6 +578,29 @@ overwritten by plugin updates.
   across ≥2 cases, it proposes moving it into the owning agent's own
   patterns via `review-queue/IMPROVE_*` — project lessons are the
   staging area for plugin knowledge.
+
+## Reference assets: ocp-triage-heuristics (plugin-bundled)
+
+Distilled OpenShift SRE decision knowledge — layered triage, failure-mode
+classification, the operator status-triple, node lifecycle, and upgrade
+gates — ships with the plugin at
+`skills/ocp-triage-heuristics/SKILL.md`. Unlike janus-lessons (project-
+local, writable, grows from case failures under human approval), this is a
+read-only fixed reference distilled once from the community `openshift-ops`
+plugin and re-scoped to JANUS's read-only discipline.
+
+- **Scope**: every item is tagged 🔍 DIAGNOSTIC (read-only, autonomous-safe
+  on an approved lab, never production) or ⚠️ REMEDIATION (mutates state —
+  JANUS never runs these; they exist only so a report can recommend a fix
+  to a human). The write-boundary is absolute: propose, never perform.
+- **At fan-out**: for OpenShift-domain cases, copy the relevant sections
+  into the stage briefs (as with janus-lessons — copied in, not
+  referenced by path). Consumers: investigation-planner (triage +
+  failure-mode decomposition), lab-verify / live-tracer (🔍 chains as
+  read-only verification steps), doc-search / synthesize (failure-mode
+  vocabulary for CVE/errata/KB correlation), and the upgrade-compatibility
+  case type (pre-upgrade gates + stuck-upgrade chain map onto its
+  investment/verify gates).
 
 ## Retrospective (management control)
 
