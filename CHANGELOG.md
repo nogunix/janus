@@ -2,6 +2,27 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.20.0 — 2026-07-25
+
+knowledge: bundle a read-only OpenShift triage reference, distilled from
+the community `openshift-ops` plugin (4 skills) and re-scoped to JANUS's
+read-only / approval-gated discipline. Every item is tagged 🔍 DIAGNOSTIC
+(autonomous-safe on an approved lab) or ⚠️ REMEDIATION (report-only —
+JANUS never mutates cluster state autonomously).
+
+- **New plugin-bundled skill** `skills/ocp-triage-heuristics/SKILL.md` —
+  layered triage, app failure-mode chains, operator status-triple + OLM
+  lifecycle, node lifecycle, and upgrade gates.
+- **Wired into fan-out** — relevant sections are copied into the briefs
+  of investigation-planner, lab-verify, live-tracer, doc-search and
+  synthesize, and into the upgrade-compat case type; 🔍/⚠️ tags are
+  preserved through the copy.
+- **Documented as a plugin-bundled reference**, distinct from the
+  writable, project-local `janus-lessons` loop.
+
+Source: `openshift-ops`, marketplace ecosystem-claude-plugins
+(redhat-community-ai-tools/claude-plugins), Apache-2.0, author Eran Cohen.
+
 ## 0.19.1 — 2026-07-20
 
 source-trace: two guardrails from case osc-112-lab-verify, where a
