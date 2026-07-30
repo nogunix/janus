@@ -170,9 +170,15 @@ duration_s: <seconds>
   snippet and moving on → open the document with `get_document` and
   re-read the **title** to confirm the doc is about what you think;
   until then the finding stays REASONED.
-- No hits on a topic from the last few months → recording a Negative
-  Result → record a **corpus gap** instead (okp-mcp is an offline
-  snapshot); a negative on a recent topic is unprovable here.
+- No hits on a recent topic → recording a Negative Result → check the
+  `Issued` / `Updated` dates on hits you *did* get to locate the snapshot
+  cutoff; past it, record a **corpus gap** (a negative beyond the cutoff is
+  unprovable here), before it, the negative stands.
+- `get_document` returns "Document not found" → concluding the document is
+  not indexed → that one message covers four causes; work them in order
+  (suffix form, missing query, non-matching query, then genuinely absent).
+  Errata and CVE doc_ids in particular take a trailing slash and **no**
+  `/index.html`.
 - A hit matches the symptom but names a different major version →
   citing it as evidence anyway → state the version scope and downgrade:
   a RHEL 8 / OCP 4.16 article is context for RHEL 9 / 4.20, not proof.
@@ -192,30 +198,52 @@ duration_s: <seconds>
 ## okp-mcp usage knowledge
 
 ### Corpus limitation: offline snapshot
-okp-mcp is an offline knowledge portal. Content from the last few months
-(recent CVEs, errata, new features, latest versions) is likely absent.
-Treat "no match" on very recent topics as a corpus gap, not proof of
-absence, and say so in the findings.
+okp-mcp is an offline knowledge portal, but **do not assume it is stale** —
+how far behind it runs depends on when it was last rebuilt (observed
+2026-07-30: errata and solutions from within the preceding two weeks).
+Establish the cutoff from the `Issued` / `Updated` dates on your own hits
+rather than pre-emptively excusing a miss. Past that cutoff, treat "no
+match" as a corpus gap, not proof of absence, and say so in the findings.
 
 ### get_document mechanics
-- `doc_id` is a Solr path that **must end in `/index.html`** — without it
-  you get "Document not found":
+- `doc_id` is a Solr path. Rule: **take the path of the result URL exactly
+  as returned, and append `/index.html` only if it does not already end in
+  `/`.**
   - solutions: `/solutions/{number}/index.html`
+  - articles: `/articles/{number}/index.html`
   - documentation: `/documentation/en-us/{product}/{version}/html-single/{guide}/index/index.html`
+  - errata: `/errata/{RHSA-YYYY:NNNNN}/` — trailing slash, **no**
+    `/index.html`. Appending it breaks the lookup; so does dropping the slash.
+  - CVE: `/security/cve/{CVE-ID}/` — same trailing-slash form.
 - docs.redhat.com URL → doc_id: drop the domain, `/en/` → `/en-us/`,
   `/html/` → `/html-single/`, replace the page-specific slug with `index`,
   append `/index.html`.
-- search_portal result URL → doc_id: take the path part, append `/index.html`.
-- `query` is **required** and selects which passages return (caps: ~10,000
-  chars total, up to 3 passages × 1,000 chars). Phrase it as the specific
-  thing you want to know; vary it to pull different sections of the same doc.
-- Not every solution is indexed — get_document can fail on a valid article.
+- A full `access.redhat.com` URL is accepted as doc_id (the domain is
+  stripped) — but only when its path already satisfies the rule above.
+- `query` is **required in practice**: omitting it returns
+  `Document not found: <doc_id>` for a doc_id that resolves fine *with* a
+  query — there is no "pass a query" notice. A query sharing no terms with
+  the document fails identically (retrieval is lexical), so query with words
+  the document actually contains, not with a paraphrase of the question.
+- The query also selects which passages return (caps: ~10,000 chars total,
+  up to 3 passages × 1,000 chars). Vary it to pull different sections of the
+  same doc.
+- **"Document not found" is ambiguous** — work the causes in order before
+  concluding a document is unindexed: (1) suffix form (try `…/` ↔
+  `…/index.html`), (2) missing query, (3) query with no lexical overlap —
+  retry with vocabulary from the search_portal snippet, (4) genuinely not in
+  the corpus → fall back to search_portal.
 
 ### Working from a URL
 - `access.redhat.com/solutions/NNNN`: call get_document with
   `/solutions/NNNN/index.html` first — searching the bare solution number
   in search_portal often misses. If the document is not indexed, extract
   keywords from the URL slug and title and run search_portal with them.
+- `access.redhat.com/errata/RHSA-YYYY:NNNNN` and
+  `access.redhat.com/security/cve/CVE-YYYY-NNNN`: call get_document with the
+  trailing slash and **no** `/index.html`. Errata are indexed by advisory ID,
+  but searching that ID in search_portal misses the way bare solution
+  numbers do — get_document is the reliable path.
 - docs.redhat.com returns 403 Forbidden to direct web fetches — always go
   through get_document / search_portal.
 - URL **anchors** (`#section-name`) are the best keyword source: expand the

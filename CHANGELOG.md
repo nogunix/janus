@@ -2,6 +2,27 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.20.2 — 2026-07-30
+
+doc-search: propagate the 0.20.1 okp-mcp corrections into the agent that
+actually runs. 0.20.1 fixed `skills/okp-doc-search/SKILL.md` only, but the
+same guidance is inlined in `agents/doc-search.md` — the copy the pipeline
+stage reads — so the wrong `/index.html` rule and the "query is required"
+half-truth were still in force at run time.
+
+- **`agents/doc-search.md` okp-mcp usage knowledge** now carries the
+  trailing-slash rule (errata / CVE take a bare `/`, appending
+  `/index.html` breaks them), the articles and CVE doc_id rows, the URL-as-
+  doc_id nuance, and the lexical-query requirement.
+- **Two new failure patterns** in the same agent: "Document not found"
+  covers four causes and must be worked in order; a recent-topic negative
+  is judged against the cutoff derived from `Issued`/`Updated` dates on
+  real hits, not assumed to be a corpus gap.
+
+Reminder for future edits: okp-mcp mechanics live in **two** places by
+design (skill + inlined agent knowledge). Fixing one without the other
+leaves the pipeline on the old text.
+
 ## 0.20.1 — 2026-07-30
 
 okp-doc-search: correct three factual errors in the `get_document`
