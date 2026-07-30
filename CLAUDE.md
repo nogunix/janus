@@ -117,6 +117,13 @@ stay usable. Preserve that property when touching them.
 
 ## Conventions
 
+- **Reusable knowledge is inlined into agents on purpose** — okp-mcp
+  mechanics, for instance, live both in `skills/okp-doc-search/SKILL.md`
+  and in `agents/doc-search.md`, and the pipeline stage reads the *agent*.
+  Fixing only the skill does not reach the pipeline (that was 0.20.1 →
+  0.20.2). `validate.py` now treats the skill's doc_id table as the source
+  of truth and fails when the agent lacks a format from it, plus rejects a
+  list of retired okp-mcp claims across all agents and skills.
 - **`validate.py` enforces SKILL.md ↔ `agents/` sync**: a stage named in
   SKILL.md must have `agents/<stage>.md`, and every agent file must be
   mentioned in SKILL.md. Adding or removing a stage is a multi-file change

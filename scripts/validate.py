@@ -131,6 +131,51 @@ def validate_pipeline_stage_sync(plugin_dir: Path) -> None:
             error(f"agents/{agent}.md is never mentioned in SKILL.md")
 
 
+def validate_okp_doc_id_sync(plugin_dir: Path) -> None:
+    """okp-mcp mechanics live in two places by design: the okp-doc-search
+    skill and the copy inlined in agents/doc-search.md, which is what the
+    pipeline stage actually reads. 0.20.1 fixed the skill alone and left the
+    stage on the old rules, so treat the skill's doc_id table as the source
+    of truth and require every format in it to appear in the agent too."""
+    skill_md = plugin_dir / "skills" / "okp-doc-search" / "SKILL.md"
+    agent_md = plugin_dir / "agents" / "doc-search.md"
+    if not skill_md.exists() or not agent_md.exists():
+        return
+    agent_text = agent_md.read_text()
+
+    # Rows of the doc_id table: | <type> | `<format>` | `<example>` |
+    formats = re.findall(
+        r"^\|[^|]+\|\s*`(/[^`]+)`\s*\|", skill_md.read_text(), re.M
+    )
+    if not formats:
+        error(f"No doc_id formats parsed from {rel(skill_md)}")
+    for fmt in formats:
+        # Anchor the match: a bare substring test would accept the agent
+        # carrying '/errata/{RHSA-YYYY:NNNNN}/index.html', which is the
+        # regression this check exists to catch.
+        if not re.search(re.escape(fmt) + r"(?![\w/.-])", agent_text):
+            error(
+                f"doc_id format '{fmt}' documented in {rel(skill_md)} is "
+                f"missing from {rel(agent_md)} — the pipeline stage reads the "
+                f"agent, so both must carry it"
+            )
+
+    # Claims disproved against a live corpus on 2026-07-30 (see CHANGELOG
+    # 0.20.1/0.20.2). Re-introducing any of them silently breaks retrieval.
+    retired = {
+        "must end in `/index.html`": "errata and CVE doc_ids end in a bare '/'",
+        "Pass a query to": 'a query-less call returns "Document not found", not a nudge',
+        "not a URL. Passing a URL fails": "a URL works when its path is already the doc_id",
+    }
+    for md in sorted(plugin_dir.glob("agents/*.md")) + sorted(
+        plugin_dir.glob("skills/*/SKILL.md")
+    ):
+        text = md.read_text()
+        for phrase, why in retired.items():
+            if phrase in text:
+                error(f"{rel(md)} repeats a retired okp-mcp claim ({why}): {phrase!r}")
+
+
 def main() -> int:
     print(f"Validating marketplace: .claude-plugin/marketplace.json")
     marketplace = load_json(
@@ -162,6 +207,7 @@ def main() -> int:
 
         validate_hooks(plugin_dir)
         validate_pipeline_stage_sync(plugin_dir)
+        validate_okp_doc_id_sync(plugin_dir)
 
     claude_md = REPO_ROOT / ".claude" / "CLAUDE.md"
     if claude_md.exists():
