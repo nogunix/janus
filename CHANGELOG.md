@@ -2,6 +2,36 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.20.1 — 2026-07-30
+
+okp-doc-search: correct three factual errors in the `get_document`
+mechanics section, all re-verified against a live okp-mcp corpus.
+
+- **`/index.html` is not universal.** Errata (`/errata/RHSA-YYYY:NNNNN/`)
+  and CVE (`/security/cve/CVE-YYYY-NNNN/`) doc_ids end in a bare slash;
+  appending `/index.html` to an erratum returns "Document not found". The
+  rule is now stated as: use the result URL's path as-is, appending
+  `/index.html` only when it does not already end in `/`. Errata, CVE and
+  articles rows added to the doc_id table.
+- **A missing `query` does not produce a nudge** — it returns
+  `Document not found: <doc_id>` for a doc_id that resolves fine with a
+  query. So does a query sharing no terms with the document, since
+  retrieval is lexical.
+- **A URL is accepted as doc_id** (the domain is stripped), but only when
+  the remaining path already matches the doc_id form — previously
+  documented as always failing.
+- New "Document not found is ambiguous" recovery order: suffix form →
+  missing query → non-matching query → genuinely unindexed.
+- **Corpus-staleness principle re-scoped** — "content from the last few
+  months is likely absent" was pessimistic (the corpus carried
+  two-week-old errata when checked); the skill now says to derive the
+  cutoff from the `Issued`/`Updated` dates on actual hits.
+
+The rest of the skill was spot-checked at the same time and left as is:
+the docs.redhat.com → doc_id conversion example resolves, docs.redhat.com
+still 403s direct fetches, and both "whole URL as query" and "bare
+solution number" do miss as documented.
+
 ## 0.20.0 — 2026-07-25
 
 knowledge: bundle a read-only OpenShift triage reference, distilled from
