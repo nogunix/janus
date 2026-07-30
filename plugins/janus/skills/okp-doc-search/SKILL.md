@@ -32,10 +32,13 @@ URL into findable content.
 3. **Retrieved facts beat recall.** Prefer what the tools return over what
    you remember; cite the source with its URL, e.g.
    `[Failed login doesn't replicate across IPA servers](https://access.redhat.com/solutions/3500801)`.
-4. **The corpus is an offline snapshot.** Content from the last few months
-   (recent CVEs, errata, new features, latest versions) is likely absent.
-   Treat "no match" on very recent topics as a corpus gap, not proof of
-   absence, and say so explicitly.
+4. **The corpus is an offline snapshot — but do not assume it is stale.**
+   How far behind it runs depends on when it was last rebuilt; observed
+   2026-07-30, it carried errata and solutions from within the preceding
+   two weeks. Establish the cutoff from the `Issued` / `Updated` dates on
+   your own hits rather than pre-emptively excusing a miss. Past that
+   cutoff, treat "no match" as a corpus gap, not proof of absence, and say
+   so explicitly.
 
 ## search_portal best practices
 
@@ -56,15 +59,27 @@ Observed hit rates by query pattern:
 
 ## get_document mechanics
 
-`doc_id` is a **Solr internal path**, not a URL. Passing a URL fails.
+`doc_id` is a **Solr internal path**. A full `access.redhat.com` URL is
+accepted — the domain is stripped — but only if the remaining path is
+already the exact doc_id, so URLs are not a shortcut around the rules below.
 
 | Type | doc_id format | Example |
 |---|---|---|
-| solutions | `/solutions/{number}/index.html` | `/solutions/7115923/index.html` |
-| documentation | `/documentation/en-us/{product}/{version}/html-single/{guide}/index/index.html` | `/documentation/en-us/openshift_container_platform/4.18/html-single/hosted_control_planes/index/index.html` |
+| solutions | `/solutions/{number}/index.html` | `/solutions/6509691/index.html` |
+| articles | `/articles/{number}/index.html` | `/articles/3009361/index.html` |
+| documentation | `/documentation/en-us/{product}/{version}/html-single/{guide}/index/index.html` | `/documentation/en-us/openshift_container_platform/4.18/html-single/release_notes/index/index.html` |
+| errata | `/errata/{RHSA-YYYY:NNNNN}/` | `/errata/RHSA-2026:34927/` |
+| CVE | `/security/cve/{CVE-ID}/` | `/security/cve/CVE-2024-1086/` |
 
-Universal rule: the path **must end in `/index.html`** — without it you get
-"Document not found".
+Universal rule — **take the path of the result URL exactly as returned, and
+append `/index.html` only if it does not already end in `/`**:
+
+- solutions / articles / documentation URLs have no trailing slash → append
+  `/index.html`. Without it: "Document not found".
+- errata and CVE URLs already end in `/` → **leave them alone. Appending
+  `/index.html` to an erratum breaks it** ("Document not found"); so does
+  dropping the trailing slash. (CVE happens to tolerate both forms; errata
+  does not, so follow the rule rather than relying on that.)
 
 Converting a docs.redhat.com URL to a doc_id:
 
@@ -81,13 +96,19 @@ https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/
 ```
 
 Converting a search_portal result URL (to drill into a hit): take the path
-part of the returned `access.redhat.com/documentation/...` URL and append
-`/index.html`.
+part of the returned `access.redhat.com/...` URL and apply the trailing-slash
+rule above.
 
 Constraints:
 
-- `query` is **required** — without it you only get a "Pass a query to
-  get_document" notice.
+- `query` is **required in practice** — omitting it returns
+  `Document not found: <doc_id>` for a doc_id that resolves perfectly well
+  *with* a query. There is no "pass a query" nudge.
+- **A query that shares no terms with the document fails the same way.**
+  `/errata/RHSA-2026:34927/` + "Which CVEs are fixed?" → "Document not
+  found"; the same doc_id + "kernel" → full content. Retrieval is lexical,
+  so query with words the document actually contains (product, package,
+  command, section title), not with your paraphrase of the question.
 - Output is capped: max ~10,000 chars, up to 3 relevant passages ×
   1,000 chars. You never get the full document.
 - **The query selects which passages return.** Phrase it as the specific
@@ -95,6 +116,18 @@ Constraints:
   different sections of the same document.
 - Not every solution is indexed — get_document can fail on a valid,
   existing article.
+
+### "Document not found" is ambiguous — work the causes in order
+
+One message covers four different failures. Before concluding a document is
+unindexed:
+
+1. **Suffix form** — check the trailing-slash rule for that document type,
+   and try the other form (`…/` ↔ `…/index.html`).
+2. **Missing query** — pass one.
+3. **Non-matching query** — retry with literal vocabulary from the search_portal
+   snippet for that hit.
+4. Only then treat it as **not in the corpus**, and fall back to search_portal.
 
 ## Working from a URL
 
@@ -105,6 +138,12 @@ Constraints:
 2. If not indexed: fetch the URL with WebFetch (if available) to get the
    title and summary, then search_portal with those keywords to recover
    the content. Without WebFetch, extract keywords from the URL slug.
+
+**`access.redhat.com/errata/RHSA-YYYY:NNNNN` and
+`access.redhat.com/security/cve/CVE-YYYY-NNNN`:** go straight to
+get_document with the trailing slash and **no** `/index.html`. Errata are
+indexed by advisory ID, but searching that ID in search_portal misses the
+way bare solution numbers do — get_document is the reliable path.
 
 **`docs.redhat.com`:** returns **403 Forbidden** to direct web fetches —
 always go through get_document / search_portal.
