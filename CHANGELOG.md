@@ -2,6 +2,55 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.21.0 — 2026-08-02
+
+iac-author: a new static stage that builds the lab's Infrastructure-as-Code
+with the `terraform` and `ansible` MCP servers, and hands it to lab-verify
+to execute. The split is the point — authoring a `.tf` touches no
+infrastructure, so it runs autonomously in the fan-out; *applying* it stays
+entirely inside lab-verify's `review-queue/APPROVE_<id>.md` gate.
+
+- **`agents/iac-author.md`** (sonnet, static). Looks every provider
+  argument, version pin and module up in the registry rather than
+  recalling it — a remembered argument name is the most common reason
+  generated IaC fails at apply time, after the human has approved and
+  started paying. Runs the pre-deploy constraint check *before* writing
+  values (instance-type allowlist, GPU AZ availability, node disk ≥ 3×
+  model size, image tags that actually exist), and writes `fmt`-ed,
+  `validate`-d, `ansible-lint`-clean code into `cases/<id>/iac/`. An
+  unconfirmed value is left un-defaulted with a `TODO(iac-author)` at the
+  line, never filled with a plausible guess.
+- **Static validation only**: `terraform fmt` / `init -backend=false` /
+  `validate`, `ansible-lint`, `ansible-playbook --syntax-check`.
+  `terraform plan` is forbidden in this stage alongside `apply` — plan
+  needs real credentials and reads live state, which makes it a
+  live-target read, not a syntax check.
+- **lab-verify consumes `cases/<id>/iac/`** and is the only stage that
+  executes it, as explicit Bash commands teed into `audit/` — so the
+  command string is what the evidence chain hashes. It refuses to apply
+  code whose `findings/iac-author.md` says `status: failed`, and the lead
+  will not launch it before that file exists (approval covers applying
+  the code; there is nothing to apply yet).
+- **The tool-grant boundary is now mechanical.** `validate.py` gained
+  `validate_tool_grants()`, which fails the build if any agent grants
+  `mcp__ansible__ansible_navigator` (runs playbooks, and auto-retries with
+  `--ee false` on a container error — changing execution semantics without
+  the agent deciding to), `mcp__ansible__ade_setup_environment` (runs the
+  host package manager), or either server as a wildcard. `mcp__terraform__*`
+  is barred specifically because that server's read-only registry tool set
+  gains `create_run` / `apply_run` the moment a user enables its enterprise
+  tools with a token — a wildcard would inherit them silently. Grants are
+  enumerated instead.
+- **No Terraform state in context**, in both agents and the SKILL safety
+  list: `terraform.tfstate` routinely holds plaintext credentials and
+  findings are committed to git, so a single value comes from
+  `terraform output <name>`. `cases/<id>/iac/` stays outside the evidence
+  chain, as `artifacts/` does.
+- Finding `Type` gained `constraint`; the reference table gained
+  `terraform` and `iac` rows; `tracks: [iac]` composes
+  `iac-author | synthesize` when reproducible IaC is the deliverable
+  rather than a lab run.
+
 ## 0.20.2 — 2026-07-30
 
 doc-search: propagate the 0.20.1 okp-mcp corrections into the agent that

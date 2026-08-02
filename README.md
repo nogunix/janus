@@ -41,14 +41,16 @@ flowchart TD
         ds["doc-search<br/>okp · mslearn · aws"]
         st["source-trace<br/>casket (optional)"]
         ca["crash-analyze<br/>drgn · gdb"]
+        ia["iac-author<br/>terraform · ansible<br/>writes IaC, runs nothing"]
     end
 
     lv["lab-verify — DYNAMIC<br/>disposable lab, never production"]
 
-    fanout --> ds & st & ca
+    fanout --> ds & st & ca & ia
+    ia -->|"cases/&lt;id&gt;/iac/"| lv
     fanout -.->|"only after the human approves<br/>APPROVE_&lt;id&gt;.md"| lv
 
-    ds & st & ca --> fanin
+    ds & st & ca & ia --> fanin
     lv -.-> fanin
     fanin["3&nbsp;· Fan-in — read findings, spot gaps"]
 
@@ -94,16 +96,16 @@ plugins/janus/
   skills/deck/                       # report → branded .pptx/PDF
   skills/okp-doc-search/             # okp-mcp research know-how (queries, doc_id rules)
   hooks/                             # secret-safety + evidence-lock (PreToolUse denies) + evidence-chain (PostToolUse auto-seal)
-  agents/                            # 9 agents (patterns inlined into each)
+  agents/                            # 10 agents (patterns inlined into each)
     doc-search  source-trace  github-trace  jira-trace  crash-analyze
-    lab-verify  synthesize  self-improver  upstream-adviser
+    iac-author  lab-verify  synthesize  self-improver  upstream-adviser
 scripts/validate.py                  # repo consistency checks (CI-friendly, stdlib-only)
 scripts/selftest.py                  # offline self-tests for chain.py / urlcheck.py / quotecheck.py / versioncheck.py / hooks
 .github/workflows/ci.yml             # runs both on every push / PR
 ```
 
-The pipeline: `{ doc-search, source-trace, crash-analyze, [approve] lab-verify } | synthesize`
-— seven composable stages connected by a universal `findings/*.md` format
+The pipeline: `{ doc-search, source-trace, crash-analyze, iac-author | [approve] lab-verify } | synthesize`
+— eight composable stages connected by a universal `findings/*.md` format
 (github-trace and jira-trace join conditionally when another stage surfaces
 an upstream PR/issue or a Jira ticket), plus two periodic agents. Reusable investigation patterns (drgn triage, CVE tracing,
 refuting an a-priori hypothesis, goroutine-leak repro, etc.) are **inlined into
@@ -143,7 +145,7 @@ latest release.
 Restart Claude Code so the skills and agents load, then verify:
 
 - `/plugin` — `janus` shows as installed and enabled
-- `/janus` appears in the skill list; the nine `janus:*` agents appear in
+- `/janus` appears in the skill list; the ten `janus:*` agents appear in
   the Agent tool list
 
 Day-to-day maintenance:
@@ -324,12 +326,38 @@ the AWS MCP servers cover the AWS layer.
 Japanese prompts work the same way — the skill triggers on phrases like
 「vmcoreを解析」「OOM調査」「アップグレード互換性を調査」「CVEの影響評価」.
 
+**Reproducible lab as Infrastructure-as-Code** (needs terraform / ansible):
+
+```
+/janus Build the ARO 4.16 lab needed to reproduce this multipath
+hypothesis — Terraform + Ansible, ready for review.
+```
+
+→ adds `iac-author`: it looks every provider argument and version pin up
+in the Terraform registry rather than recalling it, checks the sharp-edged
+values before writing them (instance-type allowlist, GPU AZ availability,
+node disk ≥ 3× model size, image tags that actually exist), and writes
+`fmt`-ed, `validate`-d, `ansible-lint`-clean code into `cases/<id>/iac/`
+with documented variables and no credentials. Anything it could not
+confirm is left un-defaulted with a `TODO(iac-author)` at the exact line —
+a hole you can see beats a plausible guess that survives review.
+
 Every finding in the report carries **Confidence + Basis
 (VERIFIED / REASONED / ASSUMED) + a reference a human can open** — a
 CVE/errata URL, a source permalink, or a drgn audit log. Live-cluster
 verification (`lab-verify`) is only ever *proposed*: it runs on a
 disposable lab, and only after you approve
 `review-queue/APPROVE_<id>.md`.
+
+Authoring that IaC and *applying* it are deliberately different stages.
+`iac-author` is static and autonomous, because writing a `.tf` changes no
+infrastructure; `lab-verify` is the only stage that runs it, behind the
+approval gate, as explicit shell commands recorded in `cases/<id>/audit/`.
+The ansible MCP's executing tools (`ansible_navigator`,
+`ade_setup_environment`) are granted to **no** agent, and the terraform
+grants are enumerated rather than wildcarded so that enabling that
+server's enterprise tools can never quietly hand an agent `apply_run`.
+`scripts/validate.py` fails the build if either rule is broken.
 
 ## MCP dependencies (environment-specific)
 
@@ -480,6 +508,39 @@ boundary that keeps lab-verify read-only:
 pip install git+https://github.com/rhel-lightspeed/linux-mcp-server.git
 claude mcp add linux -s user --env LINUX_MCP_TOOLSET=fixed -- linux-mcp-server
 ```
+
+### terraform — provider/module/policy lookup for IaC authoring
+HashiCorp's official
+[terraform-mcp-server](https://github.com/hashicorp/terraform-mcp-server),
+used by iac-author to write HCL against the current registry schema
+instead of from memory. Its default tool set is read-only registry
+lookup:
+```bash
+podman run -d -p 8090:8080 --name terraform-mcp \
+  hashicorp/terraform-mcp-server:latest
+claude mcp add --transport http terraform http://localhost:8090/mcp
+```
+Only the enumerated registry tools are granted. Enabling the server's
+enterprise tools with a Terraform token adds `create_run` / `apply_run`,
+which apply real infrastructure — JANUS never grants
+`mcp__terraform__*` as a wildcard for exactly that reason.
+
+### ansible — scaffolding, lint, and best practices for IaC authoring
+The [ansible-dev-tools](https://github.com/ansible/ansible-dev-tools) MCP
+server, used by iac-author:
+```bash
+pip install ansible-dev-tools
+adt mcp --sse --port 8081        # see the ansible-dev-tools docs for current flags
+claude mcp add --transport sse ansible http://localhost:8081/sse
+```
+**Only the authoring subset is granted** — `ansible_lint`,
+`ansible_content_best_practices`, `zen_of_ansible`,
+`create_ansible_projects`, `define_and_build_execution_env`,
+`adt_check_env`, `ade_environment_info`. Two of this server's tools are
+deliberately granted to no agent: `ansible_navigator` runs playbooks
+against real targets, and `ade_setup_environment` runs the host package
+manager. Playbook execution belongs to lab-verify, post-approval, as an
+explicit `ansible-playbook` command in the audit trail.
 
 ## Safety
 

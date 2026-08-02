@@ -51,7 +51,7 @@ python3 plugins/janus/skills/janus/scripts/versioncheck.py cases/<id>
 top-level docs actually ship.
 
 This matters constantly: `.claude/agents/` holds ~20 agent files from the
-local install and full-history branch, while **only the 9 files in
+local install and full-history branch, while **only the 10 files in
 `plugins/janus/agents/` are the plugin**. Editing `.claude/agents/*.md`
 changes nothing that ships. Same for `.claude/skills/janus-lessons/` —
 that is deliberately project-local (plugin updates must never overwrite
@@ -65,7 +65,8 @@ each agent in `plugins/janus/agents/` is one **stage**. Stages never call
 each other — they are connected only by files on disk.
 
 ```
-{ doc-search, source-trace, crash-analyze, [human-approved] lab-verify } | synthesize
+{ doc-search, source-trace, crash-analyze,
+  iac-author | [human-approved] lab-verify } | synthesize
 ```
 
 - **`cases/<id>/findings/<stage>.md` is the data plane.** Every stage
@@ -80,6 +81,16 @@ each other — they are connected only by files on disk.
   environment-specific, so most installs lack it. Its absence is the
   normal state: drop the stage silently, do not treat the case as
   degraded.
+- **iac-author and lab-verify are one lab split at the execution
+  boundary.** Authoring IaC changes no infrastructure, so iac-author is
+  static and autonomous; applying it is the whole of lab-verify, behind
+  the approval gate, via explicit Bash so the command lands in `audit/`
+  and the evidence chain. Agent tool grants for the terraform/ansible MCP
+  servers are **enumerated, never wildcarded**, and the two executing
+  ansible tools (`ansible_navigator`, `ade_setup_environment`) are granted
+  to no agent — `validate.py`'s `validate_tool_grants()` fails the build
+  otherwise. `mcp__terraform__*` is barred because that server gains
+  `create_run`/`apply_run` once a user enables its enterprise tools.
 - **self-improver and upstream-adviser sit outside the pipeline**, feeding
   human-gated proposals into `review-queue/`. Both are advisory —
   upstream-adviser never opens an issue or PR itself.
