@@ -131,6 +131,47 @@ def validate_pipeline_stage_sync(plugin_dir: Path) -> None:
             error(f"agents/{agent}.md is never mentioned in SKILL.md")
 
 
+# Tool grants that would let an agent provision infrastructure from inside
+# the pipeline, bypassing the review-queue/APPROVE_<id>.md gate. Keyed by
+# the exact string that must not appear in any agent's `tools:` frontmatter.
+FORBIDDEN_TOOL_GRANTS = {
+    "mcp__ansible__ansible_navigator": (
+        "executes playbooks against real targets (and auto-retries with "
+        "--ee false on a container error); lab-verify runs ansible-playbook "
+        "via Bash instead, so the invocation lands in audit/ and the chain"
+    ),
+    "mcp__ansible__ade_setup_environment": (
+        "runs the host package manager (dnf/apt/brew) on the local machine"
+    ),
+    "mcp__ansible__*": (
+        "a wildcard silently grants ansible_navigator and "
+        "ade_setup_environment; enumerate the authoring subset instead"
+    ),
+    "mcp__terraform__*": (
+        "a wildcard silently grants create_run/apply_run the moment a user "
+        "enables the server's enterprise tools with a Terraform token; "
+        "enumerate the read-only registry tools instead"
+    ),
+}
+
+
+def validate_tool_grants(plugin_dir: Path) -> None:
+    """No agent may hold a tool that provisions infrastructure.
+
+    The IaC split (0.21.0) is only real if it is mechanical: iac-author
+    authors, lab-verify executes behind the approval gate. A grant that
+    lets any agent apply IaC directly collapses that boundary silently,
+    so it fails the build rather than relying on prompt discipline."""
+    for agent_md in sorted(plugin_dir.glob("agents/*.md")):
+        fm = parse_frontmatter(agent_md)
+        if fm is None:
+            continue
+        granted = {t.strip() for t in fm.get("tools", "").split(",")}
+        for tool, why in FORBIDDEN_TOOL_GRANTS.items():
+            if tool in granted:
+                error(f"{rel(agent_md)} grants '{tool}' — {why}")
+
+
 def validate_okp_doc_id_sync(plugin_dir: Path) -> None:
     """okp-mcp mechanics live in two places by design: the okp-doc-search
     skill and the copy inlined in agents/doc-search.md, which is what the
@@ -207,6 +248,7 @@ def main() -> int:
 
         validate_hooks(plugin_dir)
         validate_pipeline_stage_sync(plugin_dir)
+        validate_tool_grants(plugin_dir)
         validate_okp_doc_id_sync(plugin_dir)
 
     claude_md = REPO_ROOT / ".claude" / "CLAUDE.md"

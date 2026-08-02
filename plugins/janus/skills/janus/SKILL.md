@@ -29,7 +29,7 @@ text streams (`findings/`). Compose small tools. The shell (lead) only
 connects, it does not process.
 
 ```
-{ doc-search, source-trace, crash-analyze, [approve] lab-verify } | synthesize
+{ doc-search, source-trace, crash-analyze, iac-author | [approve] lab-verify } | synthesize
 ```
 
 ## Pipeline stages
@@ -41,7 +41,8 @@ connects, it does not process.
 | **github-trace** | Upstream GitHub PR/issue/commit deep-dive | findings/github-trace.md | github MCP (read-only) | Static | sonnet |
 | **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | mcp-atlassian (read-only) | Static | sonnet |
 | **crash-analyze** | vmcore/coredump analysis | findings/crash-analyze.md | drgn-mcp + gdb | Static | opus |
-| **lab-verify** | Live cluster verification | findings/lab-verify.md | oc, terraform, bpftrace, linux-mcp | Dynamic | opus |
+| **iac-author** | Authors + statically validates the lab's IaC | findings/iac-author.md + `iac/` | terraform-mcp + ansible-mcp (authoring subset) | Static | sonnet |
+| **lab-verify** | Live cluster verification | findings/lab-verify.md | oc, terraform CLI, bpftrace, linux-mcp | Dynamic | opus |
 | **synthesize** | All findings → report | results/report.md | Read only | Static | opus |
 
 github-trace and jira-trace are normally **conditional follow-up
@@ -57,6 +58,30 @@ preflight (step 1) finds no `casket` server connected, drop source-trace
 silently — its absence is the normal state, not an error. Note it once
 as a gap in the report; do not surface setup instructions or treat the
 case as degraded.
+
+iac-author and lab-verify are **one lab, split at the execution
+boundary**. Writing a `.tf` or a `.yml` touches nothing, so iac-author is
+static and runs in the normal fan-out with no approval; *applying* that
+code is the whole of lab-verify and stays behind
+`review-queue/APPROVE_<id>.md`. This is also why they are written
+`iac-author | [approve] lab-verify` — a serial pipe inside the fan-out:
+when both are composed, lab-verify must not start Phase 2 until
+`cases/<id>/iac/` and `findings/iac-author.md` exist. iac-author is
+worth composing on its own (`tracks: [iac]`) when the deliverable is
+reproducible, customer-presentable IaC rather than a lab run.
+
+**The executing ansible-MCP tools are never granted, to any stage.**
+`mcp__ansible__ansible_navigator` runs playbooks against real targets and
+`mcp__ansible__ade_setup_environment` runs the host package manager —
+both would provision from inside an agent, bypassing the approval gate,
+and navigator additionally auto-retries with `--ee false` on a container
+error. lab-verify executes IaC as explicit Bash commands instead, so the
+invocation lands verbatim in `audit/` and in the evidence chain. For the
+same reason the terraform grants are **enumerated, never
+`mcp__terraform__*`**: the server exposes read-only registry tools today,
+but gains `create_run` / `apply_run` the moment a user enables its
+enterprise tools with a token, and a wildcard would inherit them
+silently. `scripts/validate.py` enforces both rules.
 
 ## Periodic agents (outside the pipeline)
 
@@ -82,11 +107,14 @@ cases/<id>/
   case.yaml
   artifacts/
   audit/
+  iac/               ← iac-author writes, lab-verify executes (outside the
+                       evidence chain, like artifacts/ — it holds tfstate)
   findings/          ← the pipeline's data plane
     doc-search.md
     source-trace.md
     github-trace.md  ← usually a conditional follow-up
     crash-analyze.md
+    iac-author.md
     lab-verify.md
   results/
     report.md        ← synthesize's final output
@@ -133,7 +161,8 @@ The `tracks` field in `case.yaml` determines which stages run.
 |---|---|
 | `[documentation, source]` | `{ doc-search, source-trace } \| synthesize` |
 | `[documentation, source, debug]` | `{ doc-search, source-trace, crash-analyze } \| synthesize` |
-| `[documentation, source, debug, sno\|vm]` | `{ doc-search, source-trace, crash-analyze, [approve] lab-verify } \| synthesize` |
+| `[documentation, source, debug, sno\|vm]` | `{ doc-search, source-trace, crash-analyze, iac-author \| [approve] lab-verify } \| synthesize` |
+| `[iac]` | `iac-author \| synthesize` — reproducible IaC as the deliverable, no lab run |
 | `[source]` | `source-trace \| synthesize` |
 | `[debug]` | `crash-analyze \| synthesize` |
 | `[documentation, source, github]` | `{ doc-search, source-trace, github-trace } \| synthesize` |
@@ -166,11 +195,15 @@ Then check each composed stage's required MCP server with
 `claude mcp list` (`✔ Connected` — a tool being advertised is not the
 server being reachable): doc-search → okp-mcp, source-trace → casket,
 github-trace → github, jira-trace → mcp-atlassian, crash-analyze →
-drgn, lab-verify → linux.
+drgn, iac-author → terraform and/or ansible, lab-verify → linux.
 A stage whose server is not connected is **dropped from the composition
 and recorded as a gap** (note it in the step-2 presentation; synthesize
 reports it under Investigation Gaps) — never launched to fail at
-runtime.
+runtime. iac-author is the one exception to the all-or-nothing rule: it
+runs with **either** `terraform` or `ansible` connected, in reduced
+scope, recording the missing half as a gap; drop it only when neither is
+there. Without `terraform` its version pins are REASONED at best, and it
+must label them so.
 
 ### 2. Present the pipeline to the human
 
@@ -229,6 +262,19 @@ If the pipeline has a dynamic stage:
 1. Generate `review-queue/APPROVE_<id>.md` and present it to the human
 2. Approved → launch lab-verify
 3. Rejected → skip. This is passed to synthesize as a gap (no file in findings/)
+
+When iac-author is also composed, it is lab-verify's input, so:
+
+- Put the concrete plan into `APPROVE_<id>.md` — the backend, the pinned
+  versions, the node topology, the estimated cost — by quoting
+  iac-author's "What this builds" table. Approving a named, reviewable
+  set of resources beats approving "a lab".
+- **Do not launch lab-verify before `cases/<id>/findings/iac-author.md`
+  exists**, even with approval in hand. The approval covers applying that
+  code; there is nothing to apply yet. Human approval is never a reason
+  to skip an input dependency.
+- iac-author `status: failed`, or unresolved `TODO(iac-author)` markers →
+  do not launch lab-verify. Send it back or record the gap.
 
 ### 5. Fan in (collect) — and gap-driven follow-up
 
@@ -351,6 +397,7 @@ The same sub-code fails twice on one report → stop the loop:
 - Search documentation (that's doc-search's job)
 - Chase GitHub PRs/issues (that's github-trace's job)
 - Analyze crashes (that's crash-analyze's job)
+- Write IaC (that's iac-author's job)
 - Build labs (that's lab-verify's job)
 - Write findings (each stage's own job)
 - Write the report (that's synthesize's job)
@@ -381,7 +428,7 @@ duration_s: <seconds>
 ### F<N>: <one-line title>
 - **Confidence**: HIGH | MEDIUM | LOW
 - **Basis**: VERIFIED | REASONED | ASSUMED
-- **Type**: known-issue | implementation | version-change | crash-cause | behavior | negative
+- **Type**: known-issue | implementation | version-change | crash-cause | behavior | constraint | negative
 - **Detail**: <2-5 sentences>
 - **Ref**: <verifiable reference>
 ```
@@ -408,6 +455,8 @@ contradiction — synthesize and the lead's gates reject it.
 | source | `component@NVR file:line` | `hyperkube@4.18.41 pkg/…/eviction.go:414` |
 | drgn | script + output path | `audit/drgn-1.py → audit/drgn-1.log` |
 | lab | command + cluster ver | `oc get pods (OCP 4.18.45) → audit/lab-1.log` |
+| terraform | `namespace/provider@version resource` or `module@version` | `hashicorp/azurerm@4.14.0 azurerm_redhat_openshift_cluster` |
+| iac | file + static-check output | `iac/terraform/main.tf → audit/iac-1.log` |
 | slack | `#channel, YYYY-MM-DD` | `#forum-kubevirt, 2026-06-15` |
 | github | `owner/repo#N` or commit SHA + URL | `kubevirt/kubevirt#14309` |
 | mslearn | Learn URL | `https://learn.microsoft.com/azure/openshift/support-lifecycle` |
@@ -463,8 +512,9 @@ outside git.
 ## Safety (invariant)
 
 - **Static stages are autonomous.** Dead-artifact analysis
-  (vmcore/coredump), doc search, and source tracing all run without human
-  approval.
+  (vmcore/coredump), doc search, source tracing, and IaC *authoring* all
+  run without human approval — writing infrastructure code changes no
+  infrastructure.
 - **Dynamic stages require human approval.** Live-target intervention (lab
   provisioning, strace/eBPF, gdb-attach) — the entirety of lab-verify —
   needs prior approval, obtained via `review-queue/APPROVE_<id>.md`.
@@ -487,6 +537,14 @@ outside git.
   there. Read a specific non-credential key with `-o jsonpath` if truly
   needed; a hook denial is a guardrail, not an obstacle — never
   restructure a command to slip past it.
+- **No Terraform state in context.** `terraform.tfstate` /
+  `*.tfstate.backup` routinely hold credentials in plaintext, and
+  findings are committed to git. No stage reads or quotes them; a single
+  value comes from `terraform output <name>`. `cases/<id>/iac/` therefore
+  stays outside the evidence chain, as `artifacts/` does.
+- **Provisioning happens in one place.** Only lab-verify applies IaC,
+  only after approval, and only through explicit Bash commands recorded
+  in `audit/` — never through an MCP tool that wraps the invocation.
 - **Parallelism cap: 4 stages.** No more than 4 stages run concurrently
   even at full fan-out.
 - **Sandbox**: drgn's `eval_expression` runs arbitrary Python — run it
@@ -505,6 +563,7 @@ outside git.
 | github-trace | `cases/<id>/findings/github-trace.md` |
 | jira-trace | `cases/<id>/findings/jira-trace.md` |
 | crash-analyze | `cases/<id>/findings/crash-analyze.md` |
+| iac-author | `cases/<id>/findings/iac-author.md` (+ `cases/<id>/iac/`) |
 | lab-verify | `cases/<id>/findings/lab-verify.md` |
 | synthesize | `cases/<id>/results/report.md` |
 
@@ -525,6 +584,7 @@ nothing.
 | github-trace | sonnet | PR/issue reading and link following. Routine work |
 | jira-trace | sonnet | Ticket reading and link following. Routine work |
 | crash-analyze | opus | Needs heavy reasoning for the iterative hypothesis-test loop |
+| iac-author | sonnet | Registry lookup and templating against a documented schema. The judgment — is this the right lab, is the cost worth it — sits with lab-verify and the human |
 | lab-verify | opus | Needs heavy reasoning for verification judgment and trace interpretation |
 | synthesize | opus | Cross-references multiple stages and ranks hypotheses |
 
@@ -632,7 +692,18 @@ PR/issue/commit — github-trace and upstream-adviser), `mcp-atlassian`
 (Jira tickets — jira-trace; register with `READ_ONLY_MODE=true` so all
 write tools stay disabled — that is the safety boundary), `linux` (read-only
 RHEL node/VM diagnostics, local or over SSH — lab-verify; register with
-`LINUX_MCP_TOOLSET=fixed` so `run_script` stays disabled). Not bundled with
+`LINUX_MCP_TOOLSET=fixed` so `run_script` stays disabled), `terraform`
+(the HashiCorp [terraform-mcp-server](https://github.com/hashicorp/terraform-mcp-server)
+— registry lookup of providers, modules and Sentinel policies for
+iac-author. Its default tool set is read-only; only the enumerated
+registry tools are granted, because enabling its enterprise tools with a
+Terraform token adds `create_run` / `apply_run`, which apply real
+infrastructure), `ansible`
+([ansible-dev-tools](https://github.com/ansible/ansible-dev-tools) MCP —
+scaffolding, `ansible-lint`, best-practice and execution-environment
+guidance for iac-author. **Only the authoring subset is granted**:
+`ansible_navigator` executes playbooks and `ade_setup_environment` runs
+the host package manager, so neither is in any agent's tool list). Not bundled with
 the plugin — paths are environment-specific, so register them yourself
 (`claude mcp add …`); confirm `claude mcp list` shows them `✔ Connected`
 before relying on them (a tool being advertised ≠ the server being

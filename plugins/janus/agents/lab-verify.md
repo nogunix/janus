@@ -25,6 +25,13 @@ Read `cases/<id>/case.yaml` for:
 Read `cases/<id>/findings/*.md` for:
 - Hypotheses from other stages to verify on a live cluster
 
+Read `cases/<id>/iac/` and `cases/<id>/findings/iac-author.md` for:
+- The Terraform/Ansible that provisions this lab, if iac-author ran. It
+  is already `fmt`-ed, `validate`-d and linted; you are the first stage
+  allowed to *execute* it, and only after approval. If
+  `findings/iac-author.md` says `status: failed`, do not apply the code —
+  report it as a Gap and stop.
+
 Read/update `labs/ledger.yaml` for:
 - Lab environment inventory (ownership, status, backend, cluster version)
 - Create the file if it does not exist
@@ -44,18 +51,45 @@ Read/update `labs/ledger.yaml` for:
 Based on approved backend:
 - **kind**: `KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster` (local, disposable).
 - **ROSA**: `rosa create cluster` or reuse existing. `oc login`.
-- **ARO/VM**: provision via Terraform/Ansible (IaC).
+- **ARO/VM**: apply the IaC in `cases/<id>/iac/` (Terraform/Ansible).
 - **DEMO**: Order from demo.redhat.com, download kubeconfig.
 
 Record the provisioned environment in the lab resource ledger.
 
+**Executing the IaC.** Run it as explicit shell commands — `terraform
+plan` (review it before applying), `terraform apply`,
+`ansible-playbook` — from `cases/<id>/iac/`, teed into
+`cases/<id>/audit/`. Do this via Bash and not through an MCP wrapper:
+the command string in the audit log *is* the record of what was done to
+the environment, and it is what the evidence chain hashes. The ansible
+MCP's `ansible_navigator` is deliberately not in your tool list for this
+reason — it hides the invocation behind a tool call and silently retries
+with `--ee false` on a container error, changing execution semantics
+without you deciding to. Never reach for it.
+
+If the plan differs materially from what was approved (extra resources,
+different size or region, higher cost), stop and re-ask. A `plan` that
+matches the approval needs no second sign-off.
+
+Authoring or repairing IaC is **iac-author's** job, not yours. A small
+in-place fix to get past a provisioning error is fine — record it in
+your findings — but a redesign goes back to the lead.
+
+**Never dump Terraform state.** `terraform.tfstate` routinely holds
+credentials in plaintext; use `terraform output <name>` for a single
+value and never quote state into findings.
+
 **Pre-deploy gate (GPU / model-serving)**: before provisioning GPU nodes
-or deploying model serving, confirm doc-search's pre-deployment
-constraint check covered this environment — AMI instance-type allowlist
-(ROSA Classic vs self-managed OCP), GPU AZ availability, node disk ≥ 3×
-model size, serving-image quantization support. If it didn't, ask the
-lead for that check before burning provisioning time; a constraint
-discovered post-deploy costs hours of rebuild.
+or deploying model serving, confirm the pre-deployment constraint check
+covered this environment — AMI instance-type allowlist (ROSA Classic vs
+self-managed OCP), GPU AZ availability, node disk ≥ 3× model size,
+serving-image quantization support. When iac-author ran, that check is
+its "Pre-deploy constraints checked" table; otherwise it is doc-search's.
+If neither covered it, ask the lead for that check before burning
+provisioning time; a constraint discovered post-deploy costs hours of
+rebuild. A `TODO(iac-author)` left in the code marks a value that was
+never confirmed — resolve it before apply, do not fill it in with a
+guess.
 
 ### Phase 3: Verify and trace
 
@@ -74,7 +108,11 @@ discovered post-deploy costs hours of rebuild.
 ### Phase 4: Teardown
 
 - Tear down via the same mechanism that provisioned (kind delete cluster /
-  rosa delete cluster / terraform destroy / release the DEMO reservation)
+  rosa delete cluster / `terraform destroy` in `cases/<id>/iac/terraform` /
+  release the DEMO reservation)
+- Verify deletion rather than trusting the exit code — a destroy that
+  leaves an orphaned domain or volume behind is how the *next* case's
+  provision fails on a name collision.
 - Update the lab resource ledger
 
 ### Phase-boundary reporting
