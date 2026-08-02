@@ -15,6 +15,17 @@ evidence file —
     > VM live migration fails on OCP 4.18.41 with SIGSEGV in qemu-kvm
     > — findings/crash-analyze.md
 
+The attribution may also be a markdown link, so a reader can click
+through to the evidence (see linkcheck.py):
+
+    > VM live migration fails on OCP 4.18.41 with SIGSEGV in qemu-kvm
+    > — [F3](../findings/crash-analyze.md#f3-vm-live-migration-fails)
+
+Both forms are accepted. In the linked form the *target* identifies the
+source file — the link text is free-form ("F3", a stage name, anything)
+and any `#fragment` is dropped, since it selects a place within the file
+rather than a different source.
+
 Whitespace-normalized, the quoted text must appear verbatim in the
 cited file. A mismatch is a mutated fact; an attribution to a missing
 file is a fabricated citation; both FAIL (exit 1) → send back under
@@ -30,12 +41,38 @@ import sys
 from pathlib import Path
 
 ATTRIBUTION = re.compile(
-    r"^>\s*[—–-]{1,2}\s*`?\(?(?P<src>(?:findings|audit)/[^\s)`]+)\)?`?\s*$"
+    r"^>\s*[—–-]{1,2}\s*"
+    r"(?:"
+    r"\[[^\]]*\]\(\s*(?P<link>[^)\s]+?)\s*\)"  # > — [F3](../findings/x.md#f3)
+    r"|`?\(?(?P<plain>(?:findings|audit)/[^\s)`]+?)\)?`?"  # > — findings/x.md
+    r")\s*$"
 )
 
 
 def _normalize(text):
     return " ".join(text.split())
+
+
+def source_path(raw, report_path, case_dir):
+    """Resolve an attribution target to a case-relative evidence path.
+
+    Accepts both the case-relative plain form (`findings/x.md`) and a
+    link target relative to the report (`../findings/x.md#anchor`). Any
+    fragment is dropped — it selects a place *within* the file, not a
+    different source. Returns None for a target that escapes the case
+    directory or does not name evidence."""
+    raw = raw.split("#", 1)[0].strip()
+    if not raw:
+        return None
+    if raw.startswith(("findings/", "audit/")):
+        candidate = case_dir / raw
+    else:
+        candidate = report_path.parent / raw
+    try:
+        rel = candidate.resolve().relative_to(case_dir.resolve())
+    except ValueError:
+        return None  # points outside the case — never valid evidence
+    return rel.as_posix() if rel.parts and rel.parts[0] in ("findings", "audit") else None
 
 
 def extract_quotes(text):
@@ -61,7 +98,7 @@ def _from_block(block, start):
     if not m:
         return []  # a plain blockquote, not an evidence quote
     body = _normalize(" ".join(line.lstrip(">").strip() for line in block[:-1]))
-    return [(m.group("src"), body, start)]
+    return [(m.group("link") or m.group("plain"), body, start)]
 
 
 def run(report_path):
@@ -81,8 +118,14 @@ def run(report_path):
         )
         return problems, warnings, ok
     sources = {}
-    for src, body, line_no in quotes:
+    for raw, body, line_no in quotes:
         where = f"{report_path.name}:{line_no}"
+        src = source_path(raw, report_path, case_dir)
+        if src is None:
+            problems.append(
+                f"{where}: attribution does not point at case evidence: {raw}"
+            )
+            continue
         if not body:
             problems.append(f"{where}: empty quote attributed to {src}")
             continue

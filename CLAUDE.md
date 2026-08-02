@@ -112,11 +112,15 @@ accidentally removing load-bearing discipline:
   `C1/url`, `C2/quote-absent`, `C2/version`, …); the same sub-code failing
   twice escalates to NEEDS_HUMAN. Sub-codes carry the diagnostic
   granularity of the seven gates they replaced in 0.17.0 — keep them named.
-- **Four mechanical pre-checks** back those gates: `chain.py` (append-only
+- **Six mechanical pre-checks** back those gates: `chain.py` (append-only
   hash ledger making edits visible, plus `lock` freezing the fact base at
   fan-in), `quotecheck.py` (report quotes must appear verbatim in the
   finding they cite), `urlcheck.py` (dead citations), `versioncheck.py`
-  (version-provenance drift).
+  (version-provenance drift), `linkcheck.py` (every local evidence link in
+  the report resolves to a real file and anchor — the offline counterpart
+  to urlcheck), and `prosecheck.py` (Japanese report prose
+  via textlint — the one check that shells out, so it fails open to a
+  notice whenever textlint is absent).
 - **Hooks in `plugins/janus/hooks/`** enforce this at tool level:
   `secret-safety.py` and `evidence-lock.py` are PreToolUse denies;
   `evidence-chain.py` is a PostToolUse auto-seal.

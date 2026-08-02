@@ -159,6 +159,42 @@ def test_quotecheck():
             len(quotes) == 1 and quotes[0][0] == "findings/doc-search.md",
             "extract_quotes takes attributed blockquotes, skips plain ones",
         )
+        # Regression: making the attribution clickable (what the reader
+        # actually wants) must not stop it being recognised as an
+        # attribution — that silently turned every report into a
+        # "no attributed quotes" C2/quote-absent send-back.
+        linked = (
+            "# Report\n\n"
+            "> The VM fails on OCP 4.18.41 because the livenessProbe\n"
+            "> times out after 30s.\n"
+            "> — [F1](../findings/doc-search.md#f1-probe-timeout)\n"
+        )
+        report.write_text(linked)
+        problems, warnings, ok = quotecheck.run(report)
+        check(
+            not problems and not warnings and ok == 1,
+            "a linked attribution is still an attributed quote",
+        )
+        check(
+            quotecheck.source_path(
+                "../findings/doc-search.md#f1-probe-timeout", report, case
+            )
+            == "findings/doc-search.md",
+            "the link target resolves to a case-relative evidence path",
+        )
+        check(
+            quotecheck.source_path("../../../etc/passwd", report, case) is None,
+            "an attribution pointing outside the case resolves to nothing",
+        )
+
+        report.write_text(
+            "# Report\n\n"
+            "> The VM fails on OCP 4.18.41 because the livenessProbe\n"
+            "> times out after 30s.\n"
+            "> — findings/doc-search.md\n\n"
+            "Analysis follows.\n\n"
+            "> just a stylistic blockquote, no attribution\n"
+        )
         problems, warnings, ok = quotecheck.run(report)
         check(
             not problems and not warnings and ok == 1,
@@ -301,12 +337,212 @@ def test_versioncheck():
               "an in-scope z-stream and a different-family kernel do not warn")
 
 
+def test_linkcheck():
+    link = load("linkcheck")
+
+    check(
+        link.slug("F1: VM migration fails on OCP 4.18.41")
+        == "f1-vm-migration-fails-on-ocp-41841",
+        "slug drops punctuation rather than hyphenating it (GitHub's rule)",
+    )
+    check(link.slug("根拠となる所見") == "根拠となる所見", "slug keeps Japanese headings")
+
+    dupes = link.anchors("# same\n\n# same\n\n# same\n")
+    check(
+        dupes == {"same", "same-1", "same-2"},
+        "duplicate headings get GitHub's -1/-2 suffixes",
+    )
+    check(
+        link.anchors('<a id="f7"></a>\n\n### F7: t\n') >= {"f7", "f7-t"},
+        "explicit <a id> anchors count alongside heading slugs",
+    )
+
+    fenced = "```\n[x](../findings/nope.md)\n```\n[y](../findings/real.md)\n"
+    targets = [t for t, _ in link.extract_links(fenced)]
+    check(
+        targets == ["../findings/real.md"],
+        "links inside a fenced code block are not checked",
+    )
+    check(
+        not link.extract_links("[cve](https://example.com/a) [m](mailto:a@b.c)"),
+        "external links are urlcheck's job, not linkcheck's",
+    )
+
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "2026-01-01-link"
+        (case / "findings").mkdir(parents=True)
+        (case / "audit").mkdir()
+        (case / "results").mkdir()
+        (case / "findings" / "crash-analyze.md").write_text(
+            "### F3: SIGSEGV in qemu-kvm\ndetail\n", encoding="utf-8"
+        )
+        (case / "audit" / "lab-1.log").write_text("out\n")
+        report = case / "results" / "report.md"
+
+        report.write_text(
+            "# R\n\n"
+            "[F3](../findings/crash-analyze.md#f3-sigsegv-in-qemu-kvm)\n"
+            "[log](../audit/lab-1.log)\n"
+            "[toc](#r)\n",
+            encoding="utf-8",
+        )
+        problems, warnings, ok = link.run(report)
+        check(
+            not problems and ok == 3,
+            "valid finding-anchor, log and same-file links all resolve",
+        )
+
+        report.write_text("# R\n\n[F9](../findings/crash-analyze.md#f9-nope)\n", encoding="utf-8")
+        problems, _, _ = link.run(report)
+        check(
+            len(problems) == 1 and "no such anchor" in problems[0],
+            "an anchor no heading produces is a FAIL",
+        )
+
+        report.write_text("# R\n\n[gone](../findings/source-trace.md)\n", encoding="utf-8")
+        problems, _, _ = link.run(report)
+        check(
+            len(problems) == 1 and "does not exist" in problems[0],
+            "a link to a findings file that was never written is a FAIL",
+        )
+
+        report.write_text("# R\n\n[esc](../../../../etc/passwd)\n", encoding="utf-8")
+        problems, _, _ = link.run(report)
+        check(
+            len(problems) == 1 and "escapes the case directory" in problems[0],
+            "a link outside the case directory is a FAIL",
+        )
+
+        report.write_text("# R\n\nprose with no links.\n", encoding="utf-8")
+        problems, warnings, _ = link.run(report)
+        check(
+            not problems and any("no local evidence links" in w for w in warnings),
+            "a report with no links warns, but does not FAIL",
+        )
+
+
+def test_prosecheck():
+    """prosecheck shells out to textlint, which CI does not have. Every
+    assertion here must therefore hold with textlint absent — which is
+    itself the property under test: the check degrades to a notice rather
+    than failing an English case or an offline box."""
+    prose = load("prosecheck")
+
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "2026-01-01-prose"
+        (case / "results").mkdir(parents=True)
+        report = case / "results" / "report.md"
+        report.write_text("# report\n\n本文である。\n", encoding="utf-8")
+
+        check(prose.report_language(case) is None, "a missing case.yaml reads as None")
+
+        (case / "case.yaml").write_text("id: prose\nstatus: done\n")
+        check(
+            prose.report_language(case) == prose.DEFAULT_LANGUAGE,
+            "an absent report_language defaults to en",
+        )
+
+        problems, warnings, notices = prose.run(case)
+        check(
+            not problems and len(notices) == 1 and "skipped" in notices[0],
+            "an English report is skipped with a notice, never a FAIL",
+        )
+
+        (case / "case.yaml").write_text('id: prose\nreport_language: "JA"\n')
+        check(
+            prose.report_language(case) == "ja",
+            "report_language is case-insensitive and quote-tolerant",
+        )
+
+        # With textlint absent (CI) this notices; with it installed the
+        # report above is clean. Either way it must not FAIL.
+        problems, _, notices = prose.run(case)
+        check(not problems, "a clean/uncheckable Japanese report does not FAIL")
+        if prose.textlint_command() is None:
+            check(
+                any("textlint not installed" in n for n in notices),
+                "a missing textlint degrades to an actionable notice",
+            )
+
+        # Regression: `npx --no-install textlint` with no textlint present
+        # exits non-zero with empty stdout. That once parsed as "no
+        # problems" and printed OK — a check that never ran claiming to
+        # pass. Every not-actually-run path must yield a notice.
+        original = prose.textlint_command
+        try:
+            for label, cmd in (
+                ("a non-zero exit with no output", ["false"]),
+                ("a zero exit with no output", ["true"]),
+                ("a command that does not exist", ["janus-no-such-textlint"]),
+            ):
+                prose.textlint_command = lambda cmd=cmd: cmd
+                problems, warnings, notices = prose.run(case)
+                check(
+                    not problems and not warnings and len(notices) == 1,
+                    f"{label} is a notice, never a silent pass",
+                )
+                check(
+                    "skipped" in notices[0],
+                    f"{label} says the check was skipped",
+                )
+        finally:
+            prose.textlint_command = original
+
+        (case / "case.yaml").write_text("id: prose\nreport_language: ja\n")
+        report.unlink()
+        _, _, notices = prose.run(case)
+        check(
+            any("no report yet" in n for n in notices),
+            "a case with no report yet is a notice, not a FAIL",
+        )
+
+    payload = json.dumps(
+        [
+            {
+                "filePath": "/x/results/report.md",
+                "messages": [
+                    {
+                        "line": 12,
+                        "column": 3,
+                        "ruleId": "sentence-length",
+                        "message": "Line 12 exceeds\nthe maximum",
+                        "severity": 2,
+                    },
+                    {
+                        "line": 20,
+                        "column": 1,
+                        "ruleId": "no-doubled-joshi",
+                        "message": "doubled joshi",
+                        "severity": 1,
+                    },
+                ],
+            }
+        ]
+    )
+    problems, warnings = prose.parse_results(payload)
+    check(
+        len(problems) == 1 and "report.md:12:3" in problems[0],
+        "severity 2 becomes a problem, anchored at file:line:column",
+    )
+    check(
+        "sentence-length" in problems[0] and "\n" not in problems[0],
+        "the rule id is kept and the message is flattened to one line",
+    )
+    check(
+        len(warnings) == 1 and "no-doubled-joshi" in warnings[0],
+        "severity 1 becomes a warning, not a problem",
+    )
+    check(prose.parse_results("") == ([], []), "an empty payload is not an error")
+
+
 def main():
     test_chain()
     test_lock()
     test_quotecheck()
     test_urlcheck()
     test_versioncheck()
+    test_linkcheck()
+    test_prosecheck()
     if failures:
         print(f"{len(failures)} self-test(s) failed")
         return 1
