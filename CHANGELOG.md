@@ -2,6 +2,90 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.23.0 — 2026-08-02
+
+Click-through evidence: the report's claims now link straight to the
+finding that backs them, and a sixth mechanical pre-check makes sure
+those links actually land somewhere.
+
+- **synthesize emits links, not bare filenames.** Hypothesis evidence
+  bullets, the Affected Artifacts source column, the References table,
+  and — most importantly — each quote's attribution line become markdown
+  links into `../findings/<stage>.md#f<n>-<slug>` or `../audit/<log>`.
+  The anchor is built from the finding's own `### F<N>: <title>` heading
+  using GitHub's rule, which the agent prompt now spells out: punctuation
+  is *dropped*, not hyphenated, so `### F1: VM migration fails on OCP
+  4.18.41` becomes `#f1-vm-migration-fails-on-ocp-41841` — the version's
+  dots vanish rather than becoming separators.
+- **`scripts/linkcheck.py`** (stdlib-only, offline) backs a new sub-code
+  **C1/link**: every local link must resolve to a file that exists,
+  inside the case directory, with any `#fragment` matching a heading
+  there. `urlcheck.py` only sees `http(s)://`, so before this a relative
+  link to a finding that was never written rendered as a perfectly
+  ordinary link pointing at nothing — the same failure urlcheck catches,
+  one layer down, and more misleading because a local link looks
+  authoritative. It **never fails open**: local resolution is
+  deterministic, so there is no air-gapped case where the answer is
+  unknowable. Fenced code blocks are ignored; a report with no links at
+  all warns rather than failing.
+- **`quotecheck.py` accepts a linked attribution.** This was a blocking
+  interaction, found by testing before shipping: making the attribution
+  line clickable — the reader's main jump-off point — caused quotecheck
+  to stop recognising the blockquote as attributed at all, silently
+  turning every report into a `C2/quote-absent` send-back. It now takes
+  both `> — findings/x.md` and `> — [F3](../findings/x.md#f3-…)`, reads
+  the *target* rather than the free-form link text, drops the fragment,
+  and rejects a target that escapes the case directory. Quote text
+  itself must still never contain a link — it stays byte-identical to
+  the finding.
+
+## 0.22.0 — 2026-08-02
+
+Japanese report mode, plus a fifth mechanical pre-check that keeps its
+prose readable. The other four checks ask whether the report is *true*;
+none asked whether it was *readable*, which for a Japanese deliverable is
+a real gap — a technically correct report that mixes ですます and である or
+runs 200-character sentences is not something you hand a customer.
+
+- **`report_language` in `case.yaml`** — `en` (default) or `ja`. With
+  `ja`, synthesize writes the **prose** in Japanese while the
+  **structure stays English**: headings, table headers, and the label
+  vocabulary (`Confidence`, `Basis`, `VERIFIED`, `H1`/`F1`) are a
+  machine-readable contract that gate C2/section and the mechanical
+  checks read by name, so translating a heading breaks a gate rather
+  than restyling it.
+- **`scripts/prosecheck.py`** (stdlib-only itself) wraps
+  [textlint](https://github.com/textlint/textlint) with the
+  [ja-technical-writing](https://github.com/textlint-ja/textlint-rule-preset-ja-technical-writing)
+  preset, backing a new sub-code **C2/prose**. It never rewrites: `--fix`
+  would mutate prose that `chain.py` has sealed and `quotecheck.py`
+  cross-checks, and would break the standing rule that the lead never
+  patches the report itself. Violations go back to synthesize.
+- **Two preset rules deliberately off.** `ja-no-weak-phrase` flags
+  hedging, but in JANUS a LOW-confidence hypothesis is *supposed* to read
+  as uncertain — forcing assertive prose would make the report overclaim,
+  the exact failure the Confidence/Basis labels prevent.
+  `max-kanji-continuous-len` fires constantly on Red Hat product names.
+- **Fails open in every direction**, as the only check depending on an
+  external tool: English case, textlint not installed, preset missing, no
+  report yet — all print a notice and exit 0. `npx` is invoked with
+  `--no-install` so nothing downloads mid-investigation. **A notice means
+  *not checked*, never *passed***: an early cut printed `OK: passes` when
+  `npx --no-install` exited non-zero with empty stdout, i.e. claimed a
+  pass for a check that never ran. Now any non-JSON or unexpected-exit
+  result is a notice, with three regression tests behind it.
+- **Quoted evidence is never linted.** `textlintrc.json` excludes
+  BlockQuote / CodeBlock / Code / Table / Header via
+  `textlint-filter-rule-node-types` — "improving" the wording of a quote
+  that `quotecheck.py` matches byte-for-byte against its finding is
+  falsification, not editing. Measured honestly, this filter is currently
+  a no-op: the preset's own rules already skip those node types. It is
+  kept as a backstop for rules added later (`prh` for terminology does
+  match inside blockquotes), and the script says so rather than implying
+  the filter is what protects the quotes.
+- CI is unchanged — no npm install step, because the check degrades to a
+  notice there.
+
 ## 0.21.0 — 2026-08-02
 
 iac-author: a new static stage that builds the lab's Infrastructure-as-Code

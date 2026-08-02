@@ -151,6 +151,13 @@ Absent it, versioncheck still hard-fails an unpinned source citation but
 skips the scope/attribution warnings — so declare it whenever the case
 turns on one version rather than a whole family.
 
+`report_language` — `en` (default) or `ja`, the language synthesize
+writes the report's **prose** in. Headings, table headers and the label
+vocabulary stay English in both modes: gate C2/section and the mechanical
+checks read them by name, so translating a heading breaks a gate. Set
+`ja` when the deliverable goes to a Japanese-speaking reader; it also
+switches on `prosecheck.py` (Step 7).
+
 ---
 
 ## Pipeline composition
@@ -340,7 +347,7 @@ as gaps.
 
 ### 7. Quality check (the lead's own job) — named gates
 
-Mechanical pre-checks before any content gate (all four scripts live
+Mechanical pre-checks before any content gate (all six scripts live
 in `scripts/` next to this file):
 
 1. `python3 <skill-dir>/scripts/chain.py verify cases/<id>` — a FAIL
@@ -373,9 +380,33 @@ in `scripts/` next to this file):
    4.18), or — when `version_scope` is declared — a finding or report
    version in that family but off-scope (a neighbouring version drifted
    in). Warnings never block; they feed the judgment call below.
+5. `python3 <skill-dir>/scripts/linkcheck.py cases/<id>/results/report.md`
+   — every local evidence link in the report resolves: the target file
+   exists, sits inside the case directory, and any `#fragment` matches a
+   heading in it. urlcheck only sees `http(s)://`, so a relative link to
+   a finding that does not exist — or to an anchor no heading produces —
+   renders as an ordinary link and points at nothing. A FAIL is that
+   defect: send back **under C1/link**, quoting the link. This check
+   never fails open; local resolution is deterministic, so there is no
+   air-gapped case where the answer is unknowable. A report with no
+   local links at all is a warning, not a FAIL — the lead judges it
+   against C1/link.
+6. `python3 <skill-dir>/scripts/prosecheck.py cases/<id>` — Japanese
+   prose quality, and **only when `report_language: ja`**; an English
+   case prints a notice and passes. It runs textlint with the
+   ja-technical-writing preset over the report's prose, leaving quoted
+   evidence, code, tables and headings alone. A FAIL is a readability
+   defect in synthesize's own writing — mixed である/ですます, a sentence
+   past ~120 characters, 4+ 読点, 半角ｶﾀｶﾅ: send back **under C2/prose**,
+   quoting the offending line. This is the only check that depends on an
+   external tool, so it fails open in every direction (textlint not
+   installed, preset missing, no report yet) with a notice and exit 0.
+   **A notice means *not checked*, never *passed*** — if a Japanese
+   report matters and you see one, install textlint rather than treating
+   the silence as a pass.
 
 Read `results/report.md` and check it against these two judgment gates
-(the four mechanical pre-checks above already cover the rest). **A
+(the six mechanical pre-checks above already cover the rest). **A
 failed gate = send the report back to synthesize, naming the sub-code
 and quoting the offending line** — the lead never patches the report
 itself. The sub-codes are the send-back vocabulary: they keep the
@@ -384,8 +415,8 @@ lead's read of the report into two passes.
 
 | Gate | The one question | Sub-codes (send-back vocabulary) |
 |---|---|---|
-| **C1 — GROUNDING** | Is every claim anchored to evidence at the right strength? | `C1/ref` — a claim with no reference · `C1/url` — a resolvable-pattern ID (CVE/RHSA/KB/PR) with no public URL; dead URLs are caught mechanically by urlcheck.py · `C1/basis` — a HIGH hypothesis without ≥1 VERIFIED or 2+ independent REASONED findings from different stages, or an unlabeled citation · `C1/spec` — an unsupported "likely / probably / should" claim · `C1/currency` — a recommended configuration, feature, flag, or API with no lifecycle check against the target version, so the report may prescribe a setting that is deprecated / removed / superseded in that release; send back to doc-search to confirm against official release notes and lifecycle docs · `C1/source-of-truth` — a load-bearing source-content claim (what the code does, that a fix or behavior is present) resting only on a GitHub URL while a `casket` server is connected: a live URL is not an accurate one, so the own-server source index must corroborate it; send back to source-trace, or downgrade and label the claim upstream-only |
-| **C2 — COMPLETENESS & FIDELITY** | Is the report structurally complete, and are identifiers and quotes reproduced exactly? | `C2/section` — an empty Objectives Assessment or Execution Metadata cell · `C2/artifact` — a paraphrased concrete identifier (file, resource, symbol, version) · `C2/quote-absent` — an evidence-backed report with no attributed verbatim quotes; mutated quotes and fabricated attributions are caught mechanically by quotecheck.py and sent back as `C2/quote-mismatch` · `C2/version` — a fact attributed to the wrong product version: an unpinned source citation (FAIL) or a crossed / off-scope version that versioncheck.py flagged and the read confirms |
+| **C1 — GROUNDING** | Is every claim anchored to evidence at the right strength? | `C1/ref` — a claim with no reference · `C1/url` — a resolvable-pattern ID (CVE/RHSA/KB/PR) with no public URL; dead URLs are caught mechanically by urlcheck.py · `C1/link` — a claim whose evidence the reader cannot click through to: a bare filename where a link belongs, or a local link that linkcheck.py proved resolves to no file or no anchor · `C1/basis` — a HIGH hypothesis without ≥1 VERIFIED or 2+ independent REASONED findings from different stages, or an unlabeled citation · `C1/spec` — an unsupported "likely / probably / should" claim · `C1/currency` — a recommended configuration, feature, flag, or API with no lifecycle check against the target version, so the report may prescribe a setting that is deprecated / removed / superseded in that release; send back to doc-search to confirm against official release notes and lifecycle docs · `C1/source-of-truth` — a load-bearing source-content claim (what the code does, that a fix or behavior is present) resting only on a GitHub URL while a `casket` server is connected: a live URL is not an accurate one, so the own-server source index must corroborate it; send back to source-trace, or downgrade and label the claim upstream-only |
+| **C2 — COMPLETENESS & FIDELITY** | Is the report structurally complete, and are identifiers and quotes reproduced exactly? | `C2/section` — an empty Objectives Assessment or Execution Metadata cell · `C2/artifact` — a paraphrased concrete identifier (file, resource, symbol, version) · `C2/quote-absent` — an evidence-backed report with no attributed verbatim quotes; mutated quotes and fabricated attributions are caught mechanically by quotecheck.py and sent back as `C2/quote-mismatch` · `C2/version` — a fact attributed to the wrong product version: an unpinned source citation (FAIL) or a crossed / off-scope version that versioncheck.py flagged and the read confirms · `C2/prose` — a `report_language: ja` report whose prose fails the ja-technical-writing checks prosecheck.py runs (mixed である/ですます, over-long sentences, 4+ 読点, 半角ｶﾀｶﾅ). Style only: never send back under C2/prose for hedging — 「〜の可能性がある」 on a LOW-confidence hypothesis is correct writing, not weak writing |
 
 Both gates pass → `review-queue/DONE_<id>.md`
 The same sub-code fails twice on one report → stop the loop:

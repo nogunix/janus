@@ -1,0 +1,21 @@
+{
+  "filters": {
+    "node-types": {
+      "nodeTypes": ["BlockQuote", "CodeBlock", "Code", "Table", "Header"]
+    }
+  },
+  "rules": {
+    "preset-ja-technical-writing": {
+      "ja-no-weak-phrase": false,
+      "max-kanji-continuous-len": false,
+      "sentence-length": { "max": 120 },
+      "max-ten": { "max": 3 },
+      "max-comma": { "max": 3 },
+      "no-mix-dearu-desumasu": {
+        "preferInBody": "である",
+        "preferInList": "である"
+      },
+      "ja-no-mixed-period": { "periodMark": "。" }
+    }
+  }
+}

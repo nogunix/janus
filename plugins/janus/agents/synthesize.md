@@ -58,6 +58,39 @@ Cite the specific finding that answers it.
 
 ## Output
 
+### Report language
+
+Read `report_language` from `case.yaml` — `en` (the default when the
+field is absent) or `ja`.
+
+**The structure is always English, in both modes.** Section headings
+(`## Executive Summary`, `## Objectives Assessment`, `## Execution
+Metadata`, `## Hypotheses`, …), table header cells, and the label
+vocabulary (`Confidence`, `Basis`, `VERIFIED | REASONED | ASSUMED`,
+`HIGH | MEDIUM | LOW`, `H1`/`F1` identifiers) are a machine-readable
+contract: gate C2/section and the lead's checks read them by name.
+Translating a heading breaks the gate, not just the style.
+
+With `report_language: ja`, write the **prose** in Japanese — Executive
+Summary, hypothesis Detail/Rationale, Investigation Gaps, and any
+narrative cell. Two rules:
+
+- **Never translate a quoted evidence block.** Attributed quotes
+  (`> …` / `> — findings/<stage>.md`) are reproduced verbatim in their
+  original language; quotecheck.py matches them byte-for-byte against
+  the finding, and a translated quote is a fabricated one.
+- **Keep hedging where hedging is accurate.** A LOW-confidence
+  hypothesis should read as uncertain in Japanese too. Do not inflate
+  「〜の可能性がある」into an assertion to sound cleaner — Confidence
+  and Basis carry the strength of a claim, and the prose must not
+  overclaim past them.
+
+Japanese reports are checked mechanically by `prosecheck.py`
+(textlint + ja-technical-writing); a failure comes back to you as
+**C2/prose**. Writing である調 consistently, keeping sentences under
+~120 characters, at most 3 読点 per sentence, and avoiding 半角ｶﾀｶﾅ
+clears it without further thought.
+
 Write to `cases/<id>/results/report.md`:
 
 ```markdown
@@ -92,13 +125,13 @@ Write to `cases/<id>/results/report.md`:
 
 ### H1: <title> (Confidence: HIGH/MEDIUM/LOW)
 **Evidence:**
-- [docs] <finding with ref>
-- [source] <finding with ref>
-- [drgn] <finding with ref>
-- [lab] <finding with ref>
+- [docs] [F<N>](../findings/doc-search.md#f<n>-<slug>) — <what it shows>
+- [source] [F<N>](../findings/source-trace.md#f<n>-<slug>) — <what it shows>
+- [drgn] [F<N>](../findings/crash-analyze.md#f<n>-<slug>) — <what it shows>
+- [lab] [F<N>](../findings/lab-verify.md#f<n>-<slug>) — <what it shows>
 
 > <the decisive sentence(s), copied verbatim from the finding>
-> — findings/<stage>.md
+> — [F<N>](../findings/<stage>.md#f<n>-<slug>)
 
 **Counter-evidence:**
 - <if any>
@@ -111,7 +144,7 @@ Write to `cases/<id>/results/report.md`:
 ## Affected Artifacts
 | Artifact | What changed / role | Source |
 |---|---|---|
-| <exact file/resource name, e.g. osc-operator.yaml> | <one line> | <stage + ref> |
+| <exact file/resource name, e.g. osc-operator.yaml> | <one line> | [F<N>](../findings/<stage>.md#f<n>-<slug>) |
 
 ## Investigation Gaps
 - <stages that were unavailable and what that means for conclusions>
@@ -123,8 +156,8 @@ Write to `cases/<id>/results/report.md`:
 | docs | RHSA-YYYY:NNNN | https://access.redhat.com/errata/RHSA-YYYY:NNNN |
 | docs | KB solution NNNNN | https://access.redhat.com/solutions/NNNNN |
 | source | component@NVR file:line | https://github.com/<org>/<repo>/blob/<sha>/<path>#L<line> (from finding; else local ref) |
-| drgn | script | audit/drgn-N.log |
-| lab | command (ver) | audit/lab-N.log |
+| drgn | script | [audit/drgn-N.log](../audit/drgn-N.log) |
+| lab | command (ver) | [audit/lab-N.log](../audit/lab-N.log) |
 
 ## Stages Used
 | Stage | Status | Findings |
@@ -141,6 +174,34 @@ Write to `cases/<id>/results/report.md`:
 
 - Write the file before SendMessage.
 - Every claim must cite a specific reference from a stage's findings.
+- **Make the evidence clickable (C1/link).** A reference is a markdown
+  link the reader can follow from the claim straight to the evidence,
+  not a bare filename. The report lives at `results/report.md`, so
+  findings and logs are one level up:
+
+  ```markdown
+  [F3](../findings/crash-analyze.md#f3-sigsegv-in-qemu-kvm)
+  [audit/lab-1.log](../audit/lab-1.log)
+  ```
+
+  Build the `#fragment` from the finding's own `### F<N>: <title>`
+  heading exactly as GitHub and VS Code do: **lowercase, drop every
+  character that is not a letter, digit, underscore, space or hyphen,
+  then turn runs of spaces into single hyphens.** Punctuation
+  disappears rather than becoming a hyphen — `### F1: VM migration
+  fails on OCP 4.18.41` becomes `#f1-vm-migration-fails-on-ocp-41841`
+  (the dots in the version vanish). Copy the heading from the findings
+  file rather than reconstructing it from memory; `linkcheck.py`
+  re-derives every anchor and FAILs on one that matches no heading.
+  A link to a `.log` needs no fragment.
+
+  Link the **attribution line of each quote** the same way — that is the
+  reader's main jump-off point. `quotecheck.py` accepts both the linked
+  and the plain form, and reads the *target* (not the link text) to find
+  the file, so the text may be `F3` or the stage name.
+
+  Never put a link inside the quoted text itself: the quote must stay
+  byte-identical to the finding.
 - **Carry concrete identifiers verbatim.** Every file name, path, resource
   name, config key, symbol, and version that a finding names (e.g.
   `osc-operator.yaml`, a changed manifest, a patched function) must appear
