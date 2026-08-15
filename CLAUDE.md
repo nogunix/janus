@@ -159,6 +159,25 @@ stay usable. Preserve that property when touching them.
   template). The deck skill must keep working with any user-supplied
   `.pptx`.
 
+## Web fetching — use `ax`, not curl
+
+When fetching URLs, exploring web pages, or extracting structured data
+from HTML, use the `ax` CLI (`~/bin/ax`) instead of curl + throwaway
+parsing scripts. `ax` is token-aware and outputs structured data shaped
+for a context window.
+
+```bash
+ax <url>                                    # curl parity — never silent
+ax <url> --outline                          # discover page structure
+ax <url> '.item' --row 'title=a, href=a@href'  # extract structured data
+ax <url> --md --budget 800                  # read docs as markdown
+ax <url> --table                            # HTML table → keyed rows
+```
+
+Key flags: `--budget <tokens>` caps output size, `--offset N` paginates,
+`--locate 'text'` finds CSS selectors. See `ax --help` or `ax agent-context`
+for the full reference.
+
 ## Safety invariants
 
 Read-only by default. Dead-artifact analysis (vmcore, coredump) is
