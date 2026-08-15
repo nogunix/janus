@@ -608,6 +608,23 @@ against real targets, and `ade_setup_environment` runs the host package
 manager. Playbook execution belongs to lab-verify, post-approval, as an
 explicit `ansible-playbook` command in the audit trail.
 
+## Optional tooling — ax (AI-era curl)
+
+[ax](https://github.com/yusukebe/ax) is a token-aware CLI for web
+fetching, page discovery, and structured data extraction — used in place
+of `curl` + throwaway parsing scripts. Install and register the skill:
+
+```bash
+# Install (Bun required for building from source)
+brew install oven-sh/bun/bun
+git clone --depth 1 https://github.com/yusukebe/ax.git /tmp/ax-src
+cd /tmp/ax-src && bun install --ignore-scripts
+bun build src/index.ts --compile --outfile ~/bin/ax
+
+# Register the Claude Code skill
+npx skills add yusukebe/ax
+```
+
 ## Optional tooling — textlint (Japanese reports only)
 
 Not an MCP server, and not required: `scripts/prosecheck.py` shells out to
