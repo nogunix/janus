@@ -178,6 +178,25 @@ Key flags: `--budget <tokens>` caps output size, `--offset N` paginates,
 `--locate 'text'` finds CSS selectors. See `ax --help` or `ax agent-context`
 for the full reference.
 
+## Markdown querying — use `mdq` for structured extraction
+
+When extracting specific sections, lists, tables, or links from Markdown
+files (findings, reports, documentation), use `mdq` (jq for Markdown)
+instead of grep or ad-hoc regex.
+
+```bash
+mdq '# Section'                  # extract a section by heading
+mdq '# Section | -'              # list items within a section
+mdq '- [ ]'                      # uncompleted tasks
+mdq '- [x]'                      # completed tasks
+mdq '[]()'                       # all links
+mdq ':-: header :-: row'         # filter table columns/rows
+mdq --output json '# Section'    # output as JSON (pipe to jq)
+```
+
+Combines well with `ax`: `ax <url> --md | mdq '# Section'`.
+See `mdq --help` or the [tutorial](https://github.com/yshavit/mdq/wiki/Tutorial).
+
 ## Safety invariants
 
 Read-only by default. Dead-artifact analysis (vmcore, coredump) is
