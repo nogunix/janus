@@ -625,6 +625,17 @@ bun build src/index.ts --compile --outfile ~/bin/ax
 npx skills add yusukebe/ax
 ```
 
+## Optional tooling — mdq (jq for Markdown)
+
+[mdq](https://github.com/yshavit/mdq) queries Markdown documents the
+way jq queries JSON — extract sections, lists, tables, links, and code
+blocks by selector. Useful for filtering findings, reports, and `ax --md`
+output.
+
+```bash
+brew install mdq
+```
+
 ## Optional tooling — textlint (Japanese reports only)
 
 Not an MCP server, and not required: `scripts/prosecheck.py` shells out to
