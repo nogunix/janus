@@ -2,6 +2,36 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.24.0 — 2026-08-19
+
+Theme-mode investigations and lead-side supplemental searches — two
+capabilities that surfaced from running strategy/architecture cases
+where the question is "what should we do" rather than "what broke."
+
+- **synthesize: theme mode.** `mode: theme` in `case.yaml` switches the
+  report template from root-cause hypotheses (artifact mode) to strategy
+  recommendations: Hypotheses become strategic options ranked by evidence
+  strength, Affected Artifacts gives way to Comparison Tables, Stakeholder
+  Questions, Architecture/Design Analysis, and Cost/Impact Analysis. The
+  ranking and objective-assessment logic is shared; what differs is the
+  correlation angles (convergent community evidence, docs-vs-practice
+  validation, IaC-readiness alignment) and the report skeleton. Section
+  inclusion is evidence-driven — empty sections are never generated.
+- **Lead-side supplemental searches (SKILL.md step 5a).** When a subagent
+  stage fails to access an MCP server (API connection error, session loss,
+  server not propagated), the lead runs the searches directly and writes
+  the results as supplement findings files (`doc-search-<source>-supplement.md`).
+  Finding numbers are globally unique within a case (parent owns F1–F19,
+  supplements start at F20+). Supplement files are first-class — synthesize
+  reads them alongside the parent stage's findings.
+- **doc-search: MCP gap reporting.** The Gaps section now asks stages to
+  report unavailable MCP servers explicitly, so the lead's step-5a
+  decision tree has the data it needs.
+- **synthesize: large-finding-set resilience.** Theme-mode cases routinely
+  produce 15–25 findings across multiple supplement files. New guidance:
+  plan the structure before writing, write section by section, and build
+  supplement-file link targets from the supplement's own headings.
+
 ## 0.23.0 — 2026-08-02
 
 Click-through evidence: the report's claims now link straight to the

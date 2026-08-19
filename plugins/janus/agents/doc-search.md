@@ -136,6 +136,8 @@ duration_s: <seconds>
 
 ## Gaps
 - <what could not be searched and why>
+- <MCP servers that were unavailable — the lead uses this to decide
+  whether to run supplemental searches (SKILL.md step 5a)>
 
 ## References
 | # | Source | Reference | URL |
