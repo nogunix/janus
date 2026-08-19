@@ -14,11 +14,18 @@ You are a pipeline stage. You read all findings and write the final report.
 
 Read everything in `cases/<id>/findings/`:
 - `doc-search.md` — CVE/errata/KB matches
+- `doc-search-*-supplement.md` — supplemental findings (Microsoft Learn,
+  Slack, GitHub, etc.) written by the lead when subagent MCP access failed
 - `source-trace.md` — versioned source findings
 - `github-trace.md` — upstream PR/issue/commit deep-dive (conditional stage)
 - `jira-trace.md` — Jira ticket deep-dive (conditional stage)
 - `crash-analyze.md` — vmcore/coredump analysis
 - `lab-verify.md` — live cluster verification results
+
+**Discovery**: run `ls cases/<id>/findings/*.md` — supplement files are
+not a fixed list. Each has `supplement_of:` in its frontmatter linking
+it to the parent stage. Finding numbers are globally unique across all
+files in a case (the parent owns F1–F19, supplements start at F20+).
 
 Some files may be missing (stage failed, was skipped, or not applicable).
 Work with what exists. Note gaps explicitly.
@@ -27,12 +34,29 @@ Also read `cases/<id>/case.yaml` for case metadata and objectives.
 
 ## How you work
 
+Read `mode` from `case.yaml` — `artifact` or `theme` — and follow the
+matching section below. The ranking and objective assessment logic is
+shared; the correlation angles and report skeleton differ.
+
 ### 1. Correlate findings across stages
 
+**Artifact mode** (crash/CVE/defect investigation):
 - Does the crash stack trace point to a function that source-trace shows was recently patched?
 - Does the crashing code path match a known CVE from doc-search?
 - Does lab-verify confirm or contradict the hypotheses from other stages?
 - Do multiple stages independently point to the same cause? → **convergent evidence**
+
+**Theme mode** (strategy/architecture/research investigation):
+- Do multiple sources (official docs, community practice, real-world cases)
+  converge on the same architectural pattern or constraint?
+- Does a community case (Slack) validate or contradict an official
+  recommendation (docs)?
+- Do IaC comparison findings (Ansible module gaps, Bicep coverage) align
+  with the automation maturity the theme demands?
+- Does a pricing/cost finding constrain or reshape the strategy?
+- Do stakeholder questions in `case.yaml` map to specific findings?
+  A finding that directly answers a stakeholder question is convergent
+  evidence for the hypothesis it supports.
 
 ### 2. Rank hypotheses
 
@@ -91,7 +115,14 @@ Japanese reports are checked mechanically by `prosecheck.py`
 ~120 characters, at most 3 読点 per sentence, and avoiding 半角ｶﾀｶﾅ
 clears it without further thought.
 
-Write to `cases/<id>/results/report.md`:
+Write to `cases/<id>/results/report.md`. Use the **artifact-mode
+template** when `mode: artifact`, and the **theme-mode template** when
+`mode: theme`. The common sections (header through Objectives
+Assessment, Executive Summary, Investigation Gaps, References, Stages
+Used) are identical in both; what differs is the body between Executive
+Summary and Investigation Gaps.
+
+### Artifact-mode template
 
 ```markdown
 # Investigation Report — <case-id>
@@ -169,6 +200,85 @@ Write to `cases/<id>/results/report.md`:
 | crash-analyze | complete/partial/missing | N |
 | lab-verify | complete/partial/missing | N |
 ```
+
+### Theme-mode template
+
+Theme mode replaces Hypotheses / Affected Artifacts with strategy-
+oriented sections. Header, Execution Metadata, Objectives Assessment,
+Executive Summary, Investigation Gaps, References, and Stages Used are
+the same as artifact mode.
+
+```markdown
+# Investigation Report — <case-id>
+
+<... header through Executive Summary: same as artifact mode ...>
+
+## Hypotheses
+
+Theme-mode hypotheses are strategy recommendations, not root causes.
+Each hypothesis is a strategic option or architectural pattern, ranked
+by evidence strength. The same ranking rules apply: HIGH requires
+convergent evidence from 2+ sources/stages.
+
+### H1: <strategy title> (Confidence: HIGH/MEDIUM/LOW)
+**Evidence:**
+- [docs] [F<N>](../findings/<file>.md#f<n>-<slug>) — <what it shows>
+- [slack] [F<N>](../findings/<file>.md#f<n>-<slug>) — <real-world validation>
+- [mslearn] [F<N>](../findings/<file>.md#f<n>-<slug>) — <official guidance>
+
+> <the decisive sentence(s), copied verbatim from the finding>
+> — [F<N>](../findings/<file>.md#f<n>-<slug>)
+
+**Counter-evidence / Constraints:**
+- <if any — e.g. module gaps, undocumented procedures, cost implications>
+
+**If adopted — implementation path:**
+- <concrete steps, referencing specific findings>
+
+### H2: ...
+
+## Comparison Tables
+
+Use comparison tables to present structured analysis when the theme
+involves evaluating alternatives. Common patterns:
+
+- **IaC tool comparison** (Ansible vs Bicep vs CLI vs Terraform)
+- **Architecture option comparison** (e.g. traffic switching methods)
+- **Build step classification** (per-cluster vs shared, manual vs automatable)
+
+| <Dimension> | <Option A> | <Option B> | Source |
+|---|---|---|---|
+| <criterion> | <evaluation> | <evaluation> | [F<N>](../findings/...) |
+
+## Stakeholder Questions
+
+When `case.yaml` contains `stakeholder_questions`, answer each one
+directly, citing the supporting findings. This section maps findings
+to the business questions that motivated the investigation.
+
+| Question | Answer Summary | Evidence |
+|---|---|---|
+| <from case.yaml> | <1-2 sentence answer> | [F<N>](../findings/...), [F<M>](...) |
+
+## Architecture / Design Analysis
+
+Optional: include when the theme requires architectural description
+(e.g. traffic flow, deployment topology, network design). Use diagrams
+in ASCII or describe the architecture in structured prose. Reference
+specific findings for each architectural decision.
+
+## Cost / Impact Analysis
+
+Optional: include when cost implications are part of the theme. Cite
+pricing findings with source URLs.
+
+<... Investigation Gaps through Stages Used: same as artifact mode ...>
+```
+
+**Section inclusion rules for theme mode**: Hypotheses and Stakeholder
+Questions are always present. Comparison Tables, Architecture / Design
+Analysis, and Cost / Impact Analysis are included only when findings
+support them — do not generate empty sections.
 
 ## Rules
 
@@ -276,3 +386,24 @@ Write to `cases/<id>/results/report.md`:
   Affected Artifacts; and surface design decisions and edge cases found in
   review discussion (e.g. behavior across a daemon restart) as remaining
   constraints/limitations in the report.
+
+## Resilience: large finding sets
+
+Theme-mode cases routinely produce 15–25 findings across multiple
+supplement files. To avoid stalling on large cases:
+
+1. **Plan the structure first.** Before writing any prose, list the
+   sections you will include and which findings map to each. Write
+   this plan as a comment to yourself (not in the report). This
+   prevents mid-report restructuring that causes stalls.
+2. **Write section by section.** Write each section to completion
+   before moving to the next. Do not attempt to hold the entire
+   report in working memory before writing.
+3. **Supplement file links.** Supplement files use the parent stage
+   name with a suffix: `../findings/doc-search-mslearn-supplement.md`.
+   Build the `#fragment` from the supplement file's own headings,
+   not from the parent file's headings.
+4. **Finding number uniqueness.** Finding numbers are globally unique
+   within a case. When referencing F20 from a supplement file, the
+   link target is the supplement file, not the parent: e.g.
+   `[F20](../findings/doc-search-slack-supplement.md#f20-<slug>)`.

@@ -111,6 +111,7 @@ cases/<id>/
                        evidence chain, like artifacts/ — it holds tfstate)
   findings/          ← the pipeline's data plane
     doc-search.md
+    doc-search-*-supplement.md  ← lead-written supplements (see 5a)
     source-trace.md
     github-trace.md  ← usually a conditional follow-up
     crash-analyze.md
@@ -327,6 +328,54 @@ synthesize runs:
 - Brief the follow-up with the specific gap it must fill and which
   finding raised it; it writes its own `findings/<stage>.md` like any
   stage.
+
+### 5a. Lead-side supplemental searches
+
+When a subagent stage fails to access an MCP server (API connection
+error, session loss, server not propagated to the subagent), the lead
+runs the supplemental searches directly and writes the results as
+**supplement findings files**. This is the documented fallback — not
+an exception.
+
+**When to supplement (decision tree):**
+1. A composed stage's subagent failed or returned `status: partial`
+   with MCP gaps
+2. The lead's own session has the MCP server connected
+   (`claude mcp list` shows `✔ Connected`)
+3. The gap is fillable by a search the lead can run now
+
+**Supplement file conventions:**
+
+- **Naming**: `<stage>-<source>-supplement.md` — e.g.
+  `doc-search-mslearn-supplement.md`, `doc-search-slack-supplement.md`
+- **Frontmatter**: include `supplement_of: <parent-file>.md` and
+  `source: <mcp-name>` alongside the standard stage/case/date/status
+  fields
+- **Finding numbers**: globally unique within the case. The parent
+  stage owns F1–F19 (or whatever range it used). Each supplement
+  starts at the next available block of 10: F20–F29, F30–F39, etc.
+  Check existing files before assigning numbers.
+- **Delta field**: each finding in a supplement should include a
+  `Delta from <prior_case>:` line when `case.yaml` has a
+  `prior_case` reference, documenting what is new vs. the prior
+  investigation
+- **Stage contract**: supplement files follow the same finding format
+  (Confidence, Basis, Type, Detail, Ref) as the parent stage. They
+  are first-class findings — synthesize reads them alongside the
+  parent.
+
+**Example supplement frontmatter:**
+```yaml
+---
+stage: doc-search
+case: JANUS-006
+date: 2026-08-19T07:00:00Z
+status: complete
+supplement_of: doc-search.md
+source: slack
+tool_calls: 4
+---
+```
 
 ### 6. Launch synthesize
 
