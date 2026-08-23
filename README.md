@@ -1,6 +1,9 @@
 # JANUS — Claude Code plugin
 
 [![CI](https://github.com/nogunix/janus/actions/workflows/ci.yml/badge.svg)](https://github.com/nogunix/janus/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-blueviolet)](https://claude.ai/code)
+[![GitHub last commit](https://img.shields.io/github/last-commit/nogunix/janus)](https://github.com/nogunix/janus/commits/main)
 
 > **Janus**, the Roman god of gates, has two faces looking in opposite
 > directions — and so does this pipeline. One face looks **downstream**,
