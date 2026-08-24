@@ -12,11 +12,9 @@ description: >-
 # Google Slides via gws CLI
 
 Create Google Slides presentations through the Slides API using `gws slides
-presentations`. Two workflows: **declarative YAML spec** (preferred — reproducible,
-iterable) or **direct batchUpdate** (for one-off or programmatic use).
-
-Supports **template-based creation**: copy an existing Google Slides template,
-strip the sample slides, and rebuild with the template's branded layouts.
+presentations`. Primary workflow: **declarative YAML spec** (reproducible,
+iterable). Escape hatch: **direct batchUpdate** (for one-off or programmatic
+use).
 
 ## When to use
 
@@ -24,23 +22,6 @@ strip the sample slides, and rebuild with the template's branded layouts.
 - "Google Slides で○○のプレゼンを生成して"
 - "この内容でスライドを更新して"
 - Any slide/deck/presentation request — this is the default slide skill.
-
-## Template workflow
-
-When a user asks to create slides, **always ask**:
-
-> テンプレートとして使う Google Slides はありますか？
-> URL があれば貼ってください（なければデフォルトテーマで作成します）
-
-If the user provides a URL like:
-```
-https://docs.google.com/presentation/d/XXXXX/edit...
-```
-Extract the presentation ID (`XXXXX`) and set `template_id` in the spec.
-
-The script copies the template, strips all sample slides, and creates new
-slides using the template's layouts — theme, colors, logo, footer are all
-inherited automatically.
 
 ## Prerequisites
 
@@ -64,114 +45,148 @@ rm ~/.config/gws/token_cache.json
 gws auth login --services drive,docs,sheets,slides,calendar,gmail
 ```
 
-## Workflow 1: Declarative YAML spec (default)
+## Workflow
 
-Write the deck as data; `build_gslides.py` handles the two-phase API calls:
+### 1. テンプレート確認 (Inspect)
+
+Ask the user:
+
+> テンプレートとして使う Google Slides はありますか？
+> URL があれば貼ってください（なければデフォルトテーマで作成します）
+
+If the user provides a URL like
+`https://docs.google.com/presentation/d/XXXXX/edit...`, extract the
+presentation ID (`XXXXX`) and set `template_id` in the spec.
+
+**Template layout discovery:**
+
+```bash
+gws slides presentations get \
+  --params '{"presentationId": "TEMPLATE_ID"}' 2>&1 \
+  | python3 -c "
+import json, sys
+lines = sys.stdin.read()
+data = json.loads(lines[lines.index('{'):lines.rindex('}')+1])
+for l in data.get('layouts', []):
+    lp = l.get('layoutProperties', {})
+    phs = [e.get('shape',{}).get('placeholder',{}).get('type','')
+           for e in l.get('pageElements',[])
+           if e.get('shape',{}).get('placeholder',{}).get('type','')
+           not in ('SLIDE_NUMBER','')]
+    print(f'{lp.get(\"displayName\",\"?\"):45s} {l[\"objectId\"]:30s} {phs}')
+"
+```
+
+**Default layouts (blank presentation):**
+
+| Layout name | layoutId | Placeholders |
+|-------------|----------|-------------|
+| TITLE | p2 | CENTERED_TITLE, SUBTITLE |
+| SECTION_HEADER | p3 | TITLE |
+| TITLE_AND_BODY | p4 | TITLE, BODY |
+| TITLE_AND_TWO_COLUMNS | p5 | TITLE, BODY x2 |
+| TITLE_ONLY | p6 | TITLE |
+| ONE_COLUMN_TEXT | p7 | TITLE, BODY |
+| MAIN_POINT | p8 | TITLE |
+| BIG_NUMBER | p11 | TITLE, BODY |
+| BLANK | p12 | (none) |
+
+### 2. スライド設計 (Plan the mapping)
+
+**全スライドの構成を先に決めてからYAMLを書く。** この手順がスタイル統一の鍵。
+
+1. **スライド一覧を決める** — 各スライドのレイアウトとタイトルを列挙
+2. **`styles:` を定義する** — 2枚以上のスライドで繰り返す要素（サブタイトル、脚注、コンテンツボックスなど）はスタイルとして定義
+3. **`brand:` を決める** — フォント、色、サイズ
+4. **座標の基準を決める** — インチ座標 (`xi`/`yi`/`wi`/`hi`) を使用。標準スライドは **10in x 7.5in**
+
+**インチ座標クイックリファレンス:**
+
+| 位置 | インチ | EMU相当 |
+|------|--------|---------|
+| 左マージン | xi: 0.22 | 200000 |
+| 右端 | xi: 9.78 | 8940000 |
+| タイトル下 | yi: 0.98 | 900000 |
+| コンテンツ開始 | yi: 1.53 | 1400000 |
+| ボトムゾーン | yi: 6.7-7.0 | 6100000-6400000 |
+| 全幅 | wi: 9.51 | 8700000 |
+| ハーフ幅 | wi: 4.59 | 4200000 |
+
+### 3. YAML spec作成 (Build the spec)
+
+**ルール: 変更は全てYAML経由で行う。** 直接 batchUpdate を叩かない。YAML specを編集して再実行するのが正しいワークフロー。
 
 ```bash
 python3 scripts/build_gslides.py deck.yaml
-python3 scripts/build_gslides.py deck.yaml --dry-run   # preview JSON without calling API
+python3 scripts/build_gslides.py deck.yaml --dry-run   # preview JSON
 ```
 
-### Spec format (blank)
+**Spec例 (blank, スタイル + インチ座標使用):**
 
 ```yaml
-title: "HubSpot導入のご提案"
+title: "提案資料"
 brand:
   font: "Noto Sans JP"
-  title_size: 36
-  body_size: 20
-  date_format: "%Y年%-m月%-d日"
+  title_size: 28
+  body_size: 16
   colors:
-    primary: "2563EB"
-    accent: "FF5C35"
-    text: "000000"
+    primary: "0078D4"
+    grey: "595959"
+    ltgrey: "888888"
     bg: "FFFFFF"
-    sub_bg: "F3F4F6"
+
+styles:
+  section_subtitle:
+    size: 14
+    color: ltgrey
+    xi: 0.38
+    yi: 0.98
+    wi: 9.19
+    hi: 0.38
+  citation:
+    size: 8
+    color: "999999"
+    xi: 0.22
+    yi: 7.1
+    wi: 9.5
+    hi: 0.27
+
+page_numbers:
+  skip_first: true
+  skip_last: true
+  size: 8
+  color: "595959"
+  position: bottom_left
 
 slides:
   - layout: TITLE
     do:
-      - title: {text: "HubSpot導入のご提案", bold: true, size: 40, color: primary}
-      - subtitle: {text: "統合CRMプラットフォーム\n$today", size: 18}
-
-  - layout: TITLE_AND_BODY
-    do:
-      - title: {text: "現状の課題", bold: true}
-      - body: {text: "❶ 顧客情報が分散\n\n❷ ROIが見えない\n\n❸ 営業プロセスが属人化"}
-
-  - layout: TITLE_AND_BODY
-    do:
-      - title: {text: "解決策：HubSpot CRM", color: primary, bold: true}
-      - body: {text: "Marketing Hub\n効果を統合ダッシュボードで可視化\n\nSales Hub\nAIによる商談スコアリング"}
+      - title: {text: "提案資料", bold: true, size: 40, color: primary}
+      - subtitle: {text: "○○株式会社 様\n$today", size: 18}
 
   - layout: TITLE_ONLY
     do:
-      - title: {text: "導入スケジュール", bold: true}
-      - table:
-          header: [フェーズ, 期間, 主な活動]
-          header_bg: primary
-          rows:
-            - ["Phase 1: 要件定義", "1〜2ヶ月目", "現状分析、ゴール設定"]
-            - ["Phase 2: 構築・移行", "3〜4ヶ月目", "CRM設定、トレーニング"]
-            - ["Phase 3: 運用", "5〜6ヶ月目", "KPIモニタリング、改善"]
-
-  - layout: TITLE_AND_BODY
-    do:
-      - title: {text: "投資対効果", bold: true}
-      - body: {text: "営業生産性 30〜40% 向上\nマーケティングROI 20〜30% 改善\n顧客対応品質 25% 向上"}
+      - title: {text: "現状の課題", bold: true}
+      - shape:
+          style: section_subtitle
+          text: "3つの主要課題を特定"
+      - shape:
+          text: "❶ 課題A\n❷ 課題B\n❸ 課題C"
+          xi: 0.22
+          yi: 1.53
+          wi: 9.51
+          hi: 4.0
+          size: 14
+      - shape:
+          style: citation
+          text: "[1] https://example.com/reference"
 
   - layout: MAIN_POINT
     do:
-      - title: {text: "お問い合わせ\n次のステップ", bold: true, color: primary}
+      - title: {text: "お問い合わせ", bold: true, color: primary}
 ```
 
-### Spec reference
-
-**Top-level keys:**
-- `title` — presentation title
-- `brand` — font, sizes, colors (referenced by name in ops)
-- `slides` — list of slides
-
-**`brand` keys:**
-- `font` — default font family (e.g. `"Noto Sans JP"`)
-- `title_size` — default title font size in pt
-- `body_size` — default body font size in pt
-- `date_format` — strftime format for `$today` substitution
-- `colors` — named color map (hex without `#`); use names in ops
-
-**Slide ops (`do:` list):**
-
-| Op | Description | Key args |
-|----|-------------|----------|
-| `title` | Fill the TITLE/CENTERED_TITLE placeholder | `text`, `size`, `bold`, `italic`, `color`, `font`, `autofit` |
-| `subtitle` | Fill the SUBTITLE placeholder | same as title (autofit on by default) |
-| `body` | Fill the BODY placeholder | same as title (autofit on by default) |
-| `table` | Create a table on the slide | `header`, `rows`, `header_bg`, `x`, `y`, `w`, `h`, `font_size` |
-| `shape` | Add a free-form text box or shape | `text`, `x`, `y`, `w`, `h`, `size`, `bold`, `color`, `fill`, `shape_type`, paragraph style keys |
-| `background` | Set slide background color | `color` |
-| `image` | Insert an image by URL | `url`, `x`, `y`, `w`, `h` |
-
-**Paragraph style keys** (available on title/subtitle/body/shape):
-- `line_spacing` — line spacing in percentage (e.g. `100` = single, `150` = 1.5x)
-- `space_above` / `space_below` — paragraph spacing in pt
-- `alignment` — `START`, `CENTER`, `END`, `JUSTIFIED`
-- `indent_start` — left indent in pt
-
-**Text autofit:** `body` and `subtitle` ops enable TEXT_AUTOFIT by default —
-text that overflows the placeholder shrinks automatically. Set `autofit: false`
-to disable, or `autofit: true` on `title` to enable it there.
-
-**Color values:** a key from `brand.colors` (e.g. `primary`) or a raw 6-digit hex (e.g. `2563EB`).
-
-**Position/size values:** in EMU (1 inch = 914400 EMU). Standard slide = 9144000×6858000 EMU.
-
-**`$today`** in any text string is replaced with the build date.
-
-Iterate by editing the YAML and re-running — same spec reproduces the same deck
-(minus the presentation ID). Use `--dry-run` to preview the API calls.
-
-### Spec format (template-based)
+**Spec例 (template-based):**
 
 ```yaml
 template_id: "YOUR_TEMPLATE_PRESENTATION_ID"
@@ -182,7 +197,7 @@ brand:
   body_size: 16
 
 slides:
-  - layout: "Title slide"          # layout display name from the template
+  - layout: "Title slide"
     do:
       - title: {text: "サービス提案書"}
       - subtitle: {text: "○○株式会社 様"}
@@ -192,29 +207,144 @@ slides:
       - title: {text: "現状の課題"}
       - body: {text: "課題1\n課題2\n課題3"}
 
-  - layout: "Section header"
-    do:
-      - title: {text: "Approach"}
-
-  - layout: "Two column"
-    do:
-      - title: {text: "提案内容"}
-      - body: {text: "左カラムの内容"}
-
   - layout: "Closing"
     do:
       - title: {text: "Thank you"}
 ```
 
-The `template_id` is the Google Slides presentation ID (from the URL).
-Layout names must match the template's layout display names exactly.
+### 4. ビルド実行 (Execute)
+
+```bash
+python3 scripts/build_gslides.py deck.yaml --dry-run   # まず確認
+python3 scripts/build_gslides.py deck.yaml              # 本番実行
+```
+
+出力されたURLをブラウザで開く。
+
+### 5. 確認・修正 (QA loop)
+
+1. Google Slidesで開いて確認: タイトル位置、フォント統一、テキスト溢れ、間隔
+2. 問題があればYAMLを修正して再実行（新しいプレゼンテーションが生成される）
+3. **確認せずに完了と宣言しない**
+
+## Spec reference
+
+### Top-level keys
+
+| Key | Description |
+|-----|-------------|
+| `title` | プレゼンテーションタイトル |
+| `template_id` | テンプレートのプレゼンテーションID (省略可) |
+| `brand` | フォント、サイズ、色のデフォルト設定 |
+| `styles` | 名前付きスタイル定義 (省略可) |
+| `page_numbers` | 自動ページ番号設定 (省略可) |
+| `slides` | スライドのリスト |
+
+### `brand` keys
+
+| Key | Description | Example |
+|-----|-------------|---------|
+| `font` | デフォルトフォント | `"Noto Sans JP"` |
+| `title_size` | タイトルのデフォルトサイズ (pt) | `28` |
+| `body_size` | 本文のデフォルトサイズ (pt) | `16` |
+| `date_format` | `$today` のstrftime形式 | `"%Y年%-m月%-d日"` |
+| `colors` | 名前付き色マップ (6桁hex, `#`なし) | `primary: "0078D4"` |
+
+### `styles:` — 名前付き再利用スタイル
+
+shape/table/image opで `style: name` として参照。明示的な値がスタイルのデフォルトを上書きする。
+
+```yaml
+styles:
+  section_subtitle:
+    size: 14
+    color: ltgrey
+    xi: 0.38
+    yi: 0.98
+    wi: 9.19
+    hi: 0.38
+  citation:
+    size: 8
+    color: "999999"
+    xi: 0.22
+    yi: 7.1
+    wi: 9.5
+    hi: 0.27
+  content_box:
+    xi: 0.22
+    wi: 9.51
+    size: 11
+    line_spacing: 120
+```
+
+使用例:
+```yaml
+- shape:
+    style: section_subtitle
+    text: "このスライドのサブタイトル"
+- shape:
+    style: citation
+    text: "[1] https://example.com"
+```
+
+位置を上書きしたい場合:
+```yaml
+- shape:
+    style: content_box
+    text: "左カラム"
+    xi: 0.22
+    wi: 4.5
+```
+
+### `page_numbers:` — 自動ページ番号
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `skip_first` | `true` | 最初のスライド(表紙)をスキップ |
+| `skip_last` | `false` | 最後のスライド(Closing)をスキップ |
+| `size` | `8` | フォントサイズ (pt) |
+| `color` | `"595959"` | 文字色 (色名 or hex) |
+| `position` | `bottom_left` | `bottom_left`, `bottom_right`, `bottom_center` |
+
+### Position/size values
+
+**インチ座標 (推奨):** `xi`, `yi`, `wi`, `hi` — 標準スライド = **10in x 7.5in**
+
+**EMU座標 (後方互換):** `x`, `y`, `w`, `h` — 1 inch = 914400 EMU
+
+インチキーが存在する場合、EMUキーより優先される。
+
+### Slide ops (`do:` list)
+
+| Op | Description | Key args |
+|----|-------------|----------|
+| `title` | TITLE/CENTERED_TITLE placeholderを埋める | `text`, `size`, `bold`, `italic`, `color`, `font`, `autofit` |
+| `subtitle` | SUBTITLE placeholderを埋める | 同上 (autofit: デフォルトon) |
+| `body` | BODY placeholderを埋める | 同上 (autofit: デフォルトon) |
+| `table` | テーブルを作成 | `header`, `rows`, `header_bg`, `xi`/`yi`/`wi`/`hi`, `font_size`, `style` |
+| `shape` | テキストボックスや図形を追加 | `text`, `xi`/`yi`/`wi`/`hi`, `size`, `bold`, `color`, `fill`, `shape_type`, `style`, paragraph style keys |
+| `background` | スライド背景色を設定 | `color` |
+| `image` | URL指定で画像を挿入 | `url`, `xi`/`yi`/`wi`/`hi`, `style` |
+
+**Paragraph style keys** (title/subtitle/body/shapeで利用可):
+`line_spacing` (%), `space_above` / `space_below` (pt), `alignment` (`START`/`CENTER`/`END`/`JUSTIFIED`), `indent_start` (pt)
+
+**Text autofit:** `body` と `subtitle` はデフォルトでTEXT_AUTOFITが有効。`autofit: false` で無効化、`autofit: true` で `title` にも有効化。
+
+**Color values:** `brand.colors` のキー名 (e.g. `primary`) or 6桁hex (e.g. `2563EB`)
+
+**フォント継承:** shape/table は `brand.font` と `brand.body_size` を自動継承。明示的に指定した場合はそちらが優先。
+
+**`$today`** はビルド日に置換される。
 
 ## Workflow 2: Direct batchUpdate (escape hatch)
 
-For one-off decks or when Workflow 1 can't express what you need, call the
-API directly. The pattern is always **two phases**:
+YAML specで表現できない操作のためのエスケープハッチ。
+**注意: 反復的なスライド作業では使わない。** 直接 batchUpdate はコンテキストを急速に消費し、コンテキスト溢れの原因になる。
 
-### Phase 1: Create presentation + slides
+パターンは常に **2フェーズ**:
+
+### Phase 1: プレゼンテーション + スライド作成
 
 ```bash
 PRES_ID=$(gws slides presentations create \
@@ -235,7 +365,7 @@ gws slides presentations batchUpdate \
   }'
 ```
 
-### Phase 2: Discover placeholder IDs → insert content
+### Phase 2: Placeholder ID発見 → コンテンツ挿入
 
 ```bash
 gws slides presentations get \
@@ -252,86 +382,25 @@ for s in data.get('slides', []):
             print(f'  {el[\"objectId\"]}: {ph.get(\"type\")}')
 "
 
-# Then batchUpdate with the discovered IDs
+# 発見したIDでbatchUpdate
 gws slides presentations batchUpdate \
   --params "{\"presentationId\": \"$PRES_ID\"}" \
   --json '{ "requests": [ ... ] }'
 ```
 
-## Available layouts
-
-### Default theme (no template)
-
-| Layout name | layoutId | Placeholders |
-|-------------|----------|-------------|
-| TITLE | p2 | CENTERED_TITLE, SUBTITLE |
-| SECTION_HEADER | p3 | TITLE |
-| TITLE_AND_BODY | p4 | TITLE, BODY |
-| TITLE_AND_TWO_COLUMNS | p5 | TITLE, BODY ×2 |
-| TITLE_ONLY | p6 | TITLE |
-| ONE_COLUMN_TEXT | p7 | TITLE, BODY |
-| MAIN_POINT | p8 | TITLE |
-| BIG_NUMBER | p11 | TITLE, BODY |
-| BLANK | p12 | (none) |
-
-### Template layouts (discovered dynamically)
-
-When `template_id` is set, `build_gslides.py` automatically discovers the
-template's layouts and maps them by display name. Use the display name
-(e.g. `"Interior title and body"`) in the spec's `layout:` field.
-
-To inspect a template's layouts manually:
-
-```bash
-gws slides presentations get \
-  --params '{"presentationId": "TEMPLATE_ID"}' 2>&1 \
-  | python3 -c "
-import json, sys
-lines = sys.stdin.read()
-data = json.loads(lines[lines.index('{'):lines.rindex('}')+1])
-for l in data.get('layouts', []):
-    lp = l.get('layoutProperties', {})
-    phs = [e.get('shape',{}).get('placeholder',{}).get('type','')
-           for e in l.get('pageElements',[])
-           if e.get('shape',{}).get('placeholder',{}).get('type','')
-           not in ('SLIDE_NUMBER','')]
-    print(f'{lp.get(\"displayName\",\"?\"):45s} {l[\"objectId\"]:30s} {phs}')
-"
-```
-
 ## Diagrams
 
-### SVG diagrams (preferred for new diagrams)
-
-Render SVG diagrams from HTML to PNG, optionally recoloring to a light palette:
+### SVG diagrams (HTML → PNG)
 
 ```bash
 python3 scripts/svgtools.py page.html outdir --light --names arch flow
 ```
-
-Or in Python:
-```python
-from svgtools import html_to_pngs
-html_to_pngs("index.html", "diagrams", names=["arch"], light=True, width=2000)
-```
-
-Then host the PNG (e.g. on Google Drive with public link) and insert via
-the `image` op in the spec or `createImage` in a batchUpdate.
 
 ### Recolor raster diagrams (dark → light)
 
 ```bash
 python3 scripts/recolor_image.py dark.png light.png
 ```
-
-Or in Python:
-```python
-from recolor_image import recolor_blob
-light_bytes = recolor_blob(original_png_bytes)
-```
-
-Maps dark backgrounds → white, accent hues → new palette. Tune with
-`--bg`, `--floor`, `--span`.
 
 ## PDF export
 
@@ -341,31 +410,12 @@ gws drive files export \
   -o output.pdf
 ```
 
-## Common patterns
+## Image hosting
 
-### Citation / reference URLs at slide bottom
-
-Add a small gray text box at the bottom of content slides for source URLs:
-
-```yaml
-- shape:
-    text: "[1] https://example.com/docs\n[2] https://example.com/spec"
-    x: 520000
-    y: 6200000
-    w: 8100000
-    h: 400000
-    size: 10
-    color: "999999"
-```
-
-### Image hosting
-
-`createImage` requires a URL accessible to Google's servers. Options:
+`createImage` requires a URL accessible to Google's servers:
 - **imgur** (anonymous upload): `curl -X POST -H "Authorization: Client-ID YOUR_ID" -F "image=@file.png" https://api.imgur.com/3/image`
-- **Google Drive** with public sharing (may be blocked by org policy)
+- **Google Drive** with public sharing
 - Any publicly accessible HTTPS URL
-
-If org policy blocks Drive public sharing, use an external host like imgur.
 
 ## Gotchas
 
@@ -377,8 +427,7 @@ If org policy blocks Drive public sharing, use an external host like imgur.
    `SLIDES_API...` IDs before inserting text.
 
 3. **Two-phase batchUpdate is mandatory.** You cannot createSlide and
-   insertText into its placeholders in the same request — the placeholder
-   IDs don't exist until the slide is created.
+   insertText into its placeholders in the same request.
 
 4. **gws CLI prefixes JSON output with `Using keyring backend: keyring`.**
    When piping to python, strip: `data = json.loads(output[output.index('{'):])`
@@ -394,8 +443,7 @@ If org policy blocks Drive public sharing, use an external host like imgur.
    blank slide with objectId `p`. Delete it in the first batchUpdate.
 
 8. **Table text styling requires cellLocation.** Include
-   `"cellLocation": {"rowIndex": R, "columnIndex": C}` in updateTextStyle
-   for table cells.
+   `"cellLocation": {"rowIndex": R, "columnIndex": C}` in updateTextStyle.
 
 9. **`fields` mask is required.** Every update request needs a `fields`
    string. Omitting it silently does nothing.
@@ -404,16 +452,25 @@ If org policy blocks Drive public sharing, use an external host like imgur.
     directly (unlike LibreOffice which needs `Noto Sans CJK JP`).
 
 11. **Image insertion requires a public URL.** `createImage` needs a
-    URL accessible to Google's servers. Upload to Drive first and use a
-    sharing link, or host elsewhere.
+    URL accessible to Google's servers.
 
 12. **Multiple SUBTITLE placeholders.** Some template layouts have
-    SUBTITLE in both the header area and footer. The script picks the
-    topmost (smallest Y coordinate) so `subtitle:` fills the header,
-    not the footer.
+    SUBTITLE in both header and footer. The script picks the topmost
+    (smallest Y coordinate).
+
+13. **スタイルドリフト防止.** 2枚以上のスライドで同じ要素（サブタイトル、脚注など）が
+    異なる座標やサイズになる場合、`styles:` エントリを定義して `style: name` で参照する。
+    座標のコピペは不統一の原因になる。
+
+14. **コンテキスト溢れ防止.** YAML specアプローチは直接batchUpdateの約1/10のトークン量。
+    反復的な修正は必ずYAMLを編集して再実行する。
+
+15. **インチ→EMU変換.** `xi: 1.0` = 914400 EMU。よく使う値:
+    左マージン xi: 0.22 (≈200000), 全幅 wi: 9.51 (≈8700000),
+    コンテンツ開始 yi: 1.53 (≈1400000)。
 
 ## Files
 
-- `scripts/build_gslides.py` — declarative driver: YAML/JSON spec → Google Slides (Workflow 1).
-- `scripts/svgtools.py` — render SVG diagrams from HTML to PNG, light-recolor on hex.
+- `scripts/build_gslides.py` — declarative driver: YAML/JSON spec → Google Slides.
+- `scripts/svgtools.py` — render SVG diagrams from HTML to PNG, light-recolor.
 - `scripts/recolor_image.py` — dark→light raster diagram recolor.

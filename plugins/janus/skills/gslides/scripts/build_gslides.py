@@ -85,6 +85,25 @@ DEFAULT_PLACEHOLDER_ROLE = {
 EMU_PER_INCH = 914400
 
 
+def resolve_dim(op, inch_key, emu_key, default):
+    if inch_key in op:
+        return int(op[inch_key] * EMU_PER_INCH)
+    return op.get(emu_key, default)
+
+
+def resolve_style(op_args, styles):
+    style_name = op_args.pop("style", None)
+    if not style_name or not styles:
+        return op_args
+    style_defaults = styles.get(style_name)
+    if not style_defaults:
+        print(f"  warn: style '{style_name}' not found", file=sys.stderr)
+        return op_args
+    merged = dict(style_defaults)
+    merged.update(op_args)
+    return merged
+
+
 def hex_to_rgb(h):
     h = h.lstrip("#")
     return {
@@ -360,7 +379,7 @@ def resolve_placeholder(slide_obj_id, op_name, layout_name, placeholders,
 
 
 def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
-                      counter, layout_phs=None):
+                      counter, layout_phs=None, styles=None):
     requests = []
     ph_map = placeholders.get(slide_obj_id, {})
 
@@ -369,6 +388,9 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
         if isinstance(op_args, str):
             op_args = {"text": op_args}
         op_args = dict(op_args or {})
+
+        if op_name in ("shape", "table", "image"):
+            op_args = resolve_style(op_args, styles or {})
 
         # $today substitution
         today_str = date.today().strftime(
@@ -444,10 +466,10 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
             cols = len(header) if header else (len(rows[0]) if rows else 1)
             total_rows = (1 if header else 0) + len(rows)
 
-            x = op_args.get("x", 500000)
-            y = op_args.get("y", 1500000)
-            w = op_args.get("w", 7800000)
-            h = op_args.get("h", total_rows * 600000)
+            x = resolve_dim(op_args, "xi", "x", 500000)
+            y = resolve_dim(op_args, "yi", "y", 1500000)
+            w = resolve_dim(op_args, "wi", "w", 7800000)
+            h = resolve_dim(op_args, "hi", "h", total_rows * 600000)
 
             requests.append({
                 "createTable": {
@@ -544,7 +566,7 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
                     })
 
             font = brand.get("font")
-            tbl_font_size = op_args.get("font_size", 14)
+            tbl_font_size = op_args.get("font_size", brand.get("body_size", 14))
             if font:
                 for ri in range(row_offset, total_rows):
                     for ci in range(cols):
@@ -569,10 +591,10 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
         elif op_name == "shape":
             counter[0] += 1
             shape_id = f"shp_{counter[0]:03d}"
-            x = op_args.get("x", 2000000)
-            y = op_args.get("y", 2500000)
-            w = op_args.get("w", 5000000)
-            h = op_args.get("h", 800000)
+            x = resolve_dim(op_args, "xi", "x", 2000000)
+            y = resolve_dim(op_args, "yi", "y", 2500000)
+            w = resolve_dim(op_args, "wi", "w", 5000000)
+            h = resolve_dim(op_args, "hi", "h", 800000)
             requests.append({
                 "createShape": {
                     "objectId": shape_id,
@@ -592,6 +614,12 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
                 }
             })
             text = op_args.get("text", "")
+            if not op_args.get("font"):
+                op_args["font"] = brand.get("font")
+            if not op_args.get("size"):
+                body_size = brand.get("body_size")
+                if body_size:
+                    op_args["size"] = body_size
             if text:
                 requests.append({
                     "insertText": {"objectId": shape_id, "text": text}
@@ -655,10 +683,10 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
             counter[0] += 1
             img_id = f"img_{counter[0]:03d}"
             url = op_args.get("url", "")
-            x = op_args.get("x", 500000)
-            y = op_args.get("y", 1500000)
-            w = op_args.get("w", 5000000)
-            h = op_args.get("h", 3000000)
+            x = resolve_dim(op_args, "xi", "x", 500000)
+            y = resolve_dim(op_args, "yi", "y", 1500000)
+            w = resolve_dim(op_args, "wi", "w", 5000000)
+            h = resolve_dim(op_args, "hi", "h", 3000000)
             requests.append({
                 "createImage": {
                     "objectId": img_id,
@@ -682,6 +710,81 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
 
 
 # ---------------------------------------------------------------------------
+# Page numbers
+# ---------------------------------------------------------------------------
+
+PAGE_NUMBER_POSITIONS = {
+    "bottom_left":   (0.22, 7.1),
+    "bottom_right":  (9.5, 7.1),
+    "bottom_center": (4.8, 7.1),
+}
+
+
+def build_page_numbers(slide_count, config, brand):
+    skip_first = config.get("skip_first", True)
+    skip_last = config.get("skip_last", False)
+    size = config.get("size", 8)
+    color = config.get("color", "595959")
+    pos_name = config.get("position", "bottom_left")
+    xi, yi = PAGE_NUMBER_POSITIONS.get(pos_name,
+                                        PAGE_NUMBER_POSITIONS["bottom_left"])
+    w = int(config.get("wi", 0.4) * EMU_PER_INCH)
+    h = int(config.get("hi", 0.25) * EMU_PER_INCH)
+    x = int(xi * EMU_PER_INCH)
+    y = int(yi * EMU_PER_INCH)
+
+    requests = []
+    for i in range(slide_count):
+        slide_num = i + 1
+        if skip_first and i == 0:
+            continue
+        if skip_last and i == slide_count - 1:
+            continue
+        slide_id = f"slide_{slide_num:02d}"
+        pn_id = f"pagenum_{slide_num:02d}"
+        requests.append({
+            "createShape": {
+                "objectId": pn_id,
+                "shapeType": "TEXT_BOX",
+                "elementProperties": {
+                    "pageObjectId": slide_id,
+                    "size": {
+                        "width": {"magnitude": w, "unit": "EMU"},
+                        "height": {"magnitude": h, "unit": "EMU"},
+                    },
+                    "transform": {
+                        "scaleX": 1, "scaleY": 1,
+                        "translateX": x, "translateY": y,
+                        "unit": "EMU",
+                    },
+                },
+            }
+        })
+        requests.append({
+            "insertText": {"objectId": pn_id, "text": str(slide_num)}
+        })
+        text_style = {"fontSize": {"magnitude": size, "unit": "PT"}}
+        fields = ["fontSize"]
+        font = brand.get("font")
+        if font:
+            text_style["fontFamily"] = font
+            fields.append("fontFamily")
+        text_style["foregroundColor"] = {
+            "opaqueColor": {"rgbColor": resolve_color(color, brand)}
+        }
+        fields.append("foregroundColor")
+        requests.append({
+            "updateTextStyle": {
+                "objectId": pn_id,
+                "style": text_style,
+                "textRange": {"type": "ALL"},
+                "fields": ",".join(fields),
+            }
+        })
+    return requests
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -697,6 +800,7 @@ def main():
     brand = spec.get("brand", {})
     title = spec.get("title", "Untitled")
     slides = spec.get("slides", [])
+    styles = spec.get("styles", {})
     template_id = spec.get("template_id")
 
     if not slides:
@@ -782,7 +886,8 @@ def main():
         reqs = process_slide_ops(slide_id, layout_name, ops,
                                  placeholder_map, brand, counter,
                                  layout_phs=layout_phs if template_id
-                                 else None)
+                                 else None,
+                                 styles=styles)
         phase2_requests.extend(reqs)
 
     if args.dry_run:
@@ -793,6 +898,23 @@ def main():
         if phase2_requests:
             print(f"  Inserting content ({len(phase2_requests)} operations)...")
             batch_update(pres_id, phase2_requests)
+
+    # -----------------------------------------------------------------------
+    # Phase 3: Page numbers (optional)
+    # -----------------------------------------------------------------------
+    page_numbers_config = spec.get("page_numbers")
+    if page_numbers_config:
+        phase3_requests = build_page_numbers(len(slides),
+                                              page_numbers_config, brand)
+        if args.dry_run:
+            print("\n=== Phase 3 (page numbers) ===")
+            print(json.dumps({"requests": phase3_requests}, indent=2,
+                             ensure_ascii=False))
+        else:
+            if phase3_requests:
+                print(f"  Adding page numbers "
+                      f"({len(phase3_requests)} operations)...")
+                batch_update(pres_id, phase3_requests)
 
     url = f"https://docs.google.com/presentation/d/{pres_id}/edit"
     print(f"\nDone: {url}")
