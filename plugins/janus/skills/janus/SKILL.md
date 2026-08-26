@@ -43,7 +43,7 @@ connects, it does not process.
 | **crash-analyze** | vmcore/coredump analysis | findings/crash-analyze.md | drgn-mcp + gdb | Static | opus |
 | **iac-author** | Authors + statically validates the lab's IaC | findings/iac-author.md + `iac/` | terraform-mcp + ansible-mcp (authoring subset) | Static | sonnet |
 | **lab-verify** | Live cluster verification | findings/lab-verify.md | oc, terraform CLI, bpftrace, linux-mcp | Dynamic | opus |
-| **synthesize** | All findings → report | results/report.md | Read only | Static | opus |
+| **synthesize** | All findings → report | results/report.md | Read only | Static | sonnet |
 
 github-trace and jira-trace are normally **conditional follow-up
 stages**: the lead launches them at fan-in when another stage's
@@ -666,7 +666,7 @@ nothing.
 | crash-analyze | opus | Needs heavy reasoning for the iterative hypothesis-test loop |
 | iac-author | sonnet | Registry lookup and templating against a documented schema. The judgment — is this the right lab, is the cost worth it — sits with lab-verify and the human |
 | lab-verify | opus | Needs heavy reasoning for verification judgment and trace interpretation |
-| synthesize | opus | Cross-references multiple stages and ranks hypotheses |
+| synthesize | sonnet | Structured input (YAML frontmatter + Basis labels); mechanical pre-checks enforce quality. Well-defined synthesis, not novel reasoning |
 
 **Cost de-escalation ladder** (applied in order under budget pressure):
 1. Lower the effort level for doc-search / source-trace

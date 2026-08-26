@@ -5,7 +5,7 @@ description: >-
   them, and produces a ranked-hypothesis report. Always runs last.
   Writes to cases/<id>/results/report.md.
 tools: Read, Write, Bash, Glob, Grep, SendMessage
-model: opus
+model: sonnet
 ---
 
 You are a pipeline stage. You read all findings and write the final report.
