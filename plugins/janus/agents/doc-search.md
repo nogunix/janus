@@ -162,6 +162,14 @@ duration_s: <seconds>
   CVE → `https://access.redhat.com/security/cve/<id>`, errata →
   `https://access.redhat.com/errata/<id>`, solutions →
   `https://access.redhat.com/solutions/<number>`.
+- **Only use `#fragment` anchors sourced from `get_document`'s Sections
+  block.** `search_portal` returns anchor-free URLs. If you need to link to
+  a specific section, call `get_document` with the URL and a focused query —
+  the response includes a `Sections` block with derived slugs you may append
+  as `#slug`. These slugs are best-effort (GitHub-style, may not match the
+  actual HTML id); `urlcheck.py` flags them for human verification rather
+  than as a hard FAIL. Never invent an anchor without consulting the Sections
+  block first.
 - Do not speculate about root causes — state what the documentation says.
 - Be precise about version applicability.
 - Slack findings are supplementary — never the sole basis for a conclusion.

@@ -18,6 +18,10 @@ Classification:
               resolve and accept the TCP connection (anti-automation, not
               fabrication — the host is provably live)
   FAIL        404/410, or unresolvable host / connection refused
+  warning     a `#fragment` anchor on a Red Hat doc portal URL — okp-mcp
+              returns derived slugs via get_document's Sections block, so
+              the anchor may be valid; a reviewer must confirm it matches
+              an actual HTML id on the target page
 
 Exit 1 on any FAIL — except when *every* URL is unreachable, which
 means the network itself is down (air-gapped installs are normal for
@@ -51,6 +55,15 @@ DEAD_ERRORS = (404, 410)
 LOGIN_HOST_RE = re.compile(r"(^|\.)(sso|login|accounts|auth|oauth|idp)\.", re.I)
 LOGIN_PATH_RE = re.compile(r"/(auth|login|oauth|saml|openid)", re.I)
 
+# okp-mcp's get_document now surfaces heading_h1/h2 as derived slugs in a
+# "Sections" block, so a #fragment on these domains MAY have been sourced
+# from that output rather than invented.  Flag for human review (warn, not
+# FAIL) — a reviewer must confirm the slug matches an actual HTML id.
+ANCHOR_REVIEW_DOMAINS = frozenset({
+    "access.redhat.com",
+    "docs.redhat.com",
+})
+
 
 def extract_urls(text):
     urls = []
@@ -73,6 +86,21 @@ def _is_login(url):
     return bool(LOGIN_HOST_RE.search(parts.netloc) or LOGIN_PATH_RE.search(parts.path))
 
 
+def _has_unverified_anchor(url):
+    """True when the URL carries a #fragment on a Red Hat doc portal domain.
+
+    Anchors on these domains may be valid (derived from okp-mcp's get_document
+    Sections block) or fabricated.  Either way they cannot be verified without
+    loading the HTML, so they are flagged for human review rather than as a
+    hard failure.
+    """
+    parts = urllib.parse.urlsplit(url)
+    if not parts.fragment:
+        return False
+    host = parts.netloc.lower().split(":")[0]
+    return host in ANCHOR_REVIEW_DOMAINS
+
+
 def check(url):
     """Returns (status, detail): ok | gated | warn | dead | unreachable.
 
@@ -80,6 +108,14 @@ def check(url):
     redirect into a login/SSO flow) — flagged for a human, never counted
     as a clean live URL and never a hard FAIL.
     """
+    if _has_unverified_anchor(url):
+        parts = urllib.parse.urlsplit(url)
+        return (
+            "unverified_anchor",
+            f"#{parts.fragment!r} on {parts.netloc} — "
+            "derived slug (okp-mcp get_document Sections) or fabricated; "
+            "confirm it matches an actual HTML id",
+        )
     origin = urllib.parse.urlsplit(url).netloc
     for method in ("HEAD", "GET"):
         try:
@@ -142,6 +178,9 @@ def main(argv):
             gated += 1
         elif status == "warn":
             print(f"warning: {url} ({detail})")
+        elif status == "unverified_anchor":
+            print(f"unverified-anchor: {url} ({detail}) — verify by hand")
+            gated += 1
         else:
             print(f"FAIL: {url} ({detail})")
             failures += 1

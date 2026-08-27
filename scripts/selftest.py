@@ -279,6 +279,50 @@ def test_urlcheck():
     finally:
         urlcheck._request = orig
 
+    # Unverified-anchor detection is offline — no monkeypatching needed.
+    status, detail = urlcheck.check(
+        "https://access.redhat.com/documentation/en-us/openshift_container_platform"
+        "/4.16/html-single/installation_overview/index#connected-to-disconnected"
+    )
+    check(
+        status == "unverified_anchor",
+        "a #fragment on access.redhat.com is flagged as unverified_anchor",
+    )
+    status, detail = urlcheck.check(
+        "https://docs.redhat.com/en/documentation/openshift_container_platform"
+        "/4.16/html-single/installation_overview/index#some-section"
+    )
+    check(
+        status == "unverified_anchor",
+        "a #fragment on docs.redhat.com is flagged as unverified_anchor",
+    )
+    status, _ = urlcheck.check(
+        "https://access.redhat.com/documentation/en-us/openshift_container_platform"
+        "/4.16/html-single/installation_overview/index"
+    )
+    check(
+        status != "unverified_anchor",
+        "an anchor-free access.redhat.com URL is not flagged",
+    )
+    check(
+        urlcheck._has_unverified_anchor(
+            "https://access.redhat.com/errata/RHSA-2024:1234#some-cve"
+        ),
+        "_has_unverified_anchor detects fragment on access.redhat.com",
+    )
+    check(
+        not urlcheck._has_unverified_anchor(
+            "https://access.redhat.com/errata/RHSA-2024:1234"
+        ),
+        "_has_unverified_anchor passes through anchor-free URL",
+    )
+    check(
+        not urlcheck._has_unverified_anchor(
+            "https://github.com/openshift/openshift-docs/issues/123#comment-456"
+        ),
+        "_has_unverified_anchor does not flag non-Red-Hat domains",
+    )
+
 
 def test_versioncheck():
     version = load("versioncheck")
