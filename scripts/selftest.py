@@ -465,6 +465,57 @@ def test_linkcheck():
         )
 
 
+def test_anchors():
+    anchors_mod = load("anchors")
+    link = load("linkcheck")
+
+    # anchors.py slug must match linkcheck.py slug on every input
+    cases = [
+        ("F1: VM migration fails on OCP 4.18.41", "f1-vm-migration-fails-on-ocp-41841"),
+        ("F10: ODF 4.18→4.19 アップグレード: NooBaa DB 移行デッドロック",
+         "f10-odf-418419-アップグレード-noobaa-db-移行デッドロック"),
+        ("F4: DFBUGS-8895 — ODF 4.18/4.19 NooBaa DB 移行 (ON_QA, 修正中)",
+         "f4-dfbugs-8895-odf-418419-noobaa-db-移行-on_qa-修正中"),
+        ("F1: 管理者 ACK が必須 — Kubernetes 1.32 API 削除への対応",
+         "f1-管理者-ack-が必須-kubernetes-132-api-削除への対応"),
+        ("根拠となる所見", "根拠となる所見"),
+    ]
+    for title, expected in cases:
+        a_slug = anchors_mod.slug(title)
+        l_slug = link.slug(title)
+        check(
+            a_slug == l_slug,
+            f"anchors.slug == linkcheck.slug for '{title[:40]}…'",
+        )
+        check(
+            a_slug == expected,
+            f"slug value correct for '{title[:40]}…'",
+        )
+
+    with tempfile.TemporaryDirectory() as td:
+        findings = Path(td) / "findings"
+        findings.mkdir()
+        f = findings / "doc-search.md"
+        f.write_text(
+            "### F1: probe timeout\n\n"
+            "### F10: ODF 4.18→4.19 アップグレード: NooBaa DB 移行デッドロック\n\n"
+            "### F1: probe timeout\n"
+        )
+        rows = list(anchors_mod.extract(f))
+        check(
+            rows[0] == ("f1-probe-timeout", "F1: probe timeout"),
+            "extract yields correct (slug, title) for F1",
+        )
+        check(
+            rows[1][0] == "f10-odf-418419-アップグレード-noobaa-db-移行デッドロック",
+            "extract handles version arrows and Japanese correctly",
+        )
+        check(
+            rows[2] == ("f1-probe-timeout-1", "F1: probe timeout"),
+            "duplicate headings get -1 suffix (same as linkcheck)",
+        )
+
+
 def test_prosecheck():
     """prosecheck shells out to textlint, which CI does not have. Every
     assertion here must therefore hold with textlint absent — which is
@@ -586,6 +637,7 @@ def main():
     test_urlcheck()
     test_versioncheck()
     test_linkcheck()
+    test_anchors()
     test_prosecheck()
     if failures:
         print(f"{len(failures)} self-test(s) failed")

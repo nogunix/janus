@@ -87,6 +87,13 @@ Cite the specific finding that answers it.
 Read `report_language` from `case.yaml` — `en` (the default when the
 field is absent) or `ja`.
 
+**Synthesize always writes in English.** The output file depends on
+`report_language`:
+
+- `en` → write to `cases/<id>/results/report.md` (final deliverable)
+- `ja` → write to `cases/<id>/results/report-en.md` (English draft;
+  a separate localize step translates it to `report.md`)
+
 **The structure is always English, in both modes.** Section headings
 (`## Executive Summary`, `## Objectives Assessment`, `## Execution
 Metadata`, `## Hypotheses`, …), table header cells, and the label
@@ -95,27 +102,13 @@ vocabulary (`Confidence`, `Basis`, `VERIFIED | REASONED | ASSUMED`,
 contract: gate C2/section and the lead's checks read them by name.
 Translating a heading breaks the gate, not just the style.
 
-With `report_language: ja`, write the **prose** in Japanese — Executive
-Summary, hypothesis Detail/Rationale, Investigation Gaps, and any
-narrative cell. Two rules:
+When `report_language: ja`, do **not** write Japanese. Write clear,
+concise English prose. The lead will launch a localize step that
+translates your English draft into Japanese. Writing in English first
+produces shorter, more naturally structured sentences that translate
+well and pass prosecheck.py's 120-character sentence limit.
 
-- **Never translate a quoted evidence block.** Attributed quotes
-  (`> …` / `> — findings/<stage>.md`) are reproduced verbatim in their
-  original language; quotecheck.py matches them byte-for-byte against
-  the finding, and a translated quote is a fabricated one.
-- **Keep hedging where hedging is accurate.** A LOW-confidence
-  hypothesis should read as uncertain in Japanese too. Do not inflate
-  「〜の可能性がある」into an assertion to sound cleaner — Confidence
-  and Basis carry the strength of a claim, and the prose must not
-  overclaim past them.
-
-Japanese reports are checked mechanically by `prosecheck.py`
-(textlint + ja-technical-writing); a failure comes back to you as
-**C2/prose**. Writing である調 consistently, keeping sentences under
-~120 characters, at most 3 読点 per sentence, and avoiding 半角ｶﾀｶﾅ
-clears it without further thought.
-
-Write to `cases/<id>/results/report.md`. Use the **artifact-mode
+Write to the appropriate file (see above). Use the **artifact-mode
 template** when `mode: artifact`, and the **theme-mode template** when
 `mode: theme`. The common sections (header through Objectives
 Assessment, Executive Summary, Investigation Gaps, References, Stages
@@ -294,15 +287,33 @@ support them — do not generate empty sections.
   [audit/lab-1.log](../audit/lab-1.log)
   ```
 
-  Build the `#fragment` from the finding's own `### F<N>: <title>`
-  heading exactly as GitHub and VS Code do: **lowercase, drop every
-  character that is not a letter, digit, underscore, space or hyphen,
-  then turn runs of spaces into single hyphens.** Punctuation
-  disappears rather than becoming a hyphen — `### F1: VM migration
-  fails on OCP 4.18.41` becomes `#f1-vm-migration-fails-on-ocp-41841`
-  (the dots in the version vanish). Copy the heading from the findings
-  file rather than reconstructing it from memory; `linkcheck.py`
-  re-derives every anchor and FAILs on one that matches no heading.
+  **Use the anchor map provided in your brief** to get the exact
+  slugs — **never compute slugs by hand.** The lead runs
+  `anchors.py` on the findings before launching you and includes the
+  output as an `## Anchor Map` section in your brief. Each line is:
+
+  ```
+  findings/doc-search.md	#f1-管理者-ack-が必須-...	F1: 管理者 ACK が必須 — ...
+  ```
+
+  Copy the `#fragment` column verbatim. Hand-computed slugs break on
+  version strings (`4.18→4.19` → `418419`, not `41819`), Japanese
+  text, and punctuation removal. `linkcheck.py` re-derives every
+  anchor with the same algorithm and FAILs on any mismatch.
+
+  If no anchor map was provided in the brief, run:
+
+  ```bash
+  python3 <anchors-script> cases/<id>/findings/
+  ```
+
+  where `<anchors-script>` is the path the lead would have used
+  (look for `anchors.py` next to `linkcheck.py` in the skill
+  scripts directory). Falling back to hand-computation is the last
+  resort — use `grep -n '^###' cases/<id>/findings/*.md` and apply
+  the slug rules manually only if both the map and the script are
+  unavailable.
+
   A link to a `.log` needs no fragment.
 
   Link the **attribution line of each quote** the same way — that is the

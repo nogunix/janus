@@ -29,8 +29,10 @@ text streams (`findings/`). Compose small tools. The shell (lead) only
 connects, it does not process.
 
 ```
-{ doc-search, source-trace, crash-analyze, iac-author | [approve] lab-verify } | synthesize
+{ doc-search, source-trace, crash-analyze, iac-author | [approve] lab-verify } | synthesize [| localize]
 ```
+
+`localize` runs only when `report_language` ≠ `en`.
 
 ## Pipeline stages
 
@@ -43,7 +45,8 @@ connects, it does not process.
 | **crash-analyze** | vmcore/coredump analysis | findings/crash-analyze.md | drgn-mcp + gdb | Static | opus |
 | **iac-author** | Authors + statically validates the lab's IaC | findings/iac-author.md + `iac/` | terraform-mcp + ansible-mcp (authoring subset) | Static | sonnet |
 | **lab-verify** | Live cluster verification | findings/lab-verify.md | oc, terraform CLI, bpftrace, linux-mcp | Dynamic | opus |
-| **synthesize** | All findings → report | results/report.md | Read only | Static | sonnet |
+| **synthesize** | All findings → English report | results/report.md (en) or results/report-en.md (ja) | Read only | Static | sonnet |
+| **localize** | English report → Japanese report | results/report.md | Read only | Static | sonnet |
 
 github-trace and jira-trace are normally **conditional follow-up
 stages**: the lead launches them at fan-in when another stage's
@@ -390,9 +393,46 @@ here on the facts can be read, never rewritten. A genuinely needed
 revision goes through the lead: `chain.py unlock cases/<id> <file>`,
 edit, re-seal, `lock` again.
 
-Instruct it to read all of `findings/*.md` and write `results/report.md`.
+Before writing the brief, generate the anchor map that synthesize will
+use for evidence links:
+
+```bash
+python3 <skill-dir>/scripts/anchors.py cases/<id>/findings/
+```
+
+Include the full output as an `## Anchor Map` section at the end of the
+synthesize brief. This gives synthesize a deterministic, pre-computed
+slug for every finding heading — it copies them verbatim instead of
+computing slugs by hand (which breaks on version strings, Japanese
+text, and punctuation).
+
+Instruct synthesize to read all of `findings/*.md` and write the
+report. **Synthesize always writes in English:**
+
+- `report_language: en` (or absent) → synthesize writes
+  `results/report.md` directly. Done.
+- `report_language: ja` → synthesize writes `results/report-en.md`
+  (English draft). Then launch the **localize** step (see 6a below).
+
 synthesize works with whatever findings exist — it reports missing ones
 as gaps.
+
+### 6a. Launch localize (only when `report_language` ≠ `en`)
+
+After synthesize completes and `results/report-en.md` exists, launch
+the **localize** agent (`janus:localize` / `localize`). Include in
+its brief:
+
+1. The case directory path
+2. The same **Anchor Map** from step 6 (or regenerate it)
+
+localize reads `report-en.md`, translates prose to Japanese, applies
+the anchor map to all evidence links, and writes `results/report.md`.
+
+This two-pass process (English → Japanese) avoids the chronic
+prosecheck failures that occur when synthesize writes Japanese
+directly: English sentences are naturally short, and faithful
+translation preserves that structure.
 
 ### 7. Quality check (the lead's own job) — named gates
 
