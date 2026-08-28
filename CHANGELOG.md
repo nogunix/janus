@@ -2,6 +2,33 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.35.0 — 2026-10-15
+
+**A citation that lands on a 300-section page has not really cited
+anything.** doc-search could already append a `#fragment`, but the guidance
+around it hedged: the anchors were described as best-effort "derived slugs"
+that might not match a real HTML id, which is a good reason for a reader to
+not trust them and for an agent to not bother producing them.
+
+They are not derived. `get_document` surfaces the Solr index's
+`heading_h1`/`heading_h2` fields, which are the ids the page actually uses.
+Calling `get_document` with a doc_id and **no `query`** returns just the
+`Sections` block — every heading anchor in the document — which is the cheap
+way to turn a page-level citation into a section-level one. doc-search now
+does this as an explicit step for docs.redhat.com / html-single pages, and
+skips it for solutions, articles, errata and CVE pages, which are
+single-topic and return no sections.
+
+The same correction lands in `skills/okp-doc-search/SKILL.md`, because the
+pipeline stage reads the agent and a fix to only one of the two does not
+reach it. The old note that `query` is "required in practice" is replaced by
+what it actually controls: with a query you get passages plus sections,
+without one you get sections alone.
+
+`urlcheck.py` keeps flagging doc-portal anchors for human review, and
+deliberately so — it still cannot tell a sourced anchor from an invented one
+without loading the HTML. Only its stale rationale changed.
+
 ## 0.34.0 — 2026-10-15
 
 **There was no legitimate way to remove a sealed file.** `verify` treats a

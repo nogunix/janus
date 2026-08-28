@@ -19,9 +19,9 @@ Classification:
               fabrication — the host is provably live)
   FAIL        404/410, or unresolvable host / connection refused
   warning     a `#fragment` anchor on a Red Hat doc portal URL — okp-mcp
-              returns derived slugs via get_document's Sections block, so
-              the anchor may be valid; a reviewer must confirm it matches
-              an actual HTML id on the target page
+              returns real heading ids via get_document's Sections block,
+              so the anchor is probably valid; but this check cannot tell a
+              sourced anchor from an invented one, so a reviewer confirms it
   notice      TLS certificate verification failed — a defect in the *local*
               trust store, never evidence about the citation (see below)
 
@@ -69,10 +69,10 @@ DEAD_ERRORS = (404, 410)
 LOGIN_HOST_RE = re.compile(r"(^|\.)(sso|login|accounts|auth|oauth|idp)\.", re.I)
 LOGIN_PATH_RE = re.compile(r"/(auth|login|oauth|saml|openid)", re.I)
 
-# okp-mcp's get_document now surfaces heading_h1/h2 as derived slugs in a
-# "Sections" block, so a #fragment on these domains MAY have been sourced
-# from that output rather than invented.  Flag for human review (warn, not
-# FAIL) — a reviewer must confirm the slug matches an actual HTML id.
+# okp-mcp's get_document surfaces the heading_h1/h2 ids in a "Sections"
+# block, so a #fragment on these domains MAY have been sourced from that
+# output rather than invented — and this check cannot tell the two apart
+# offline.  Flag for human review (warn, not FAIL) rather than guessing.
 ANCHOR_REVIEW_DOMAINS = frozenset({
     "access.redhat.com",
     "docs.redhat.com",
@@ -136,10 +136,10 @@ def _is_login(url):
 def _has_unverified_anchor(url):
     """True when the URL carries a #fragment on a Red Hat doc portal domain.
 
-    Anchors on these domains may be valid (derived from okp-mcp's get_document
-    Sections block) or fabricated.  Either way they cannot be verified without
-    loading the HTML, so they are flagged for human review rather than as a
-    hard failure.
+    Anchors on these domains may be sourced (from okp-mcp's get_document
+    Sections block, which returns real heading ids) or fabricated.  Either way
+    they cannot be told apart without loading the HTML, so they are flagged
+    for human review rather than as a hard failure.
     """
     parts = urllib.parse.urlsplit(url)
     if not parts.fragment:
@@ -160,7 +160,7 @@ def check(url):
         return (
             "unverified_anchor",
             f"#{parts.fragment!r} on {parts.netloc} — "
-            "derived slug (okp-mcp get_document Sections) or fabricated; "
+            "sourced from okp-mcp get_document Sections, or fabricated; "
             "confirm it matches an actual HTML id",
         )
     origin = urllib.parse.urlsplit(url).netloc

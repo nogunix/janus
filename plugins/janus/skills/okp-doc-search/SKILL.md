@@ -101,19 +101,26 @@ rule above.
 
 Constraints:
 
-- `query` is **required in practice** — omitting it returns
-  `Document not found: <doc_id>` for a doc_id that resolves perfectly well
-  *with* a query. There is no "pass a query" nudge.
-- **A query that shares no terms with the document fails the same way.**
-  `/errata/RHSA-2026:34927/` + "Which CVEs are fixed?" → "Document not
-  found"; the same doc_id + "kernel" → full content. Retrieval is lexical,
-  so query with words the document actually contains (product, package,
-  command, section title), not with your paraphrase of the question.
+- `query` **controls what the response contains**, and both modes are useful:
+  - **With `query`** — returns matching passages plus a `Sections` block.
+  - **Without `query`** — returns **only the `Sections` block**: every
+    heading anchor in the document, as `#anchor-id — Heading Title`. Use
+    this when you already have the content and just need an anchor for
+    precise linking. Solutions, articles, errata and CVE pages return no
+    sections (expected — they are single-topic pages).
+- **A query that shares no terms with the document returns "Document not
+  found".** `/errata/RHSA-2026:34927/` + "Which CVEs are fixed?" → "Document
+  not found"; the same doc_id + "kernel" → full content. Retrieval is
+  lexical, so query with words the document actually contains (product,
+  package, command, section title), not with your paraphrase of the question.
 - Output is capped: max ~10,000 chars, up to 3 relevant passages ×
   1,000 chars. You never get the full document.
 - **The query selects which passages return.** Phrase it as the specific
   thing you want to know; re-query with different phrasings to pull
   different sections of the same document.
+- **Anchors come from the Solr index's `heading_h1`/`heading_h2` fields** —
+  they are the actual HTML ids on the page, not derived slugs. Never invent
+  an anchor without consulting the `Sections` block first.
 - Not every solution is indexed — get_document can fail on a valid,
   existing article.
 
