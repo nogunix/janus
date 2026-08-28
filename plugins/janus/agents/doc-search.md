@@ -52,7 +52,17 @@ Read `cases/<id>/case.yaml` for:
 
 5. If Slack MCP is available, search for related discussions. Attribute as `[slack] #channel, YYYY-MM-DD`.
 
-6. Report negative results explicitly — "searched X, nothing matched" is evidence.
+6. **Retrieve section anchors for documentation URLs.** When a finding
+   references a Red Hat documentation page (docs.redhat.com / html-single),
+   call `get_document` with the URL and **no `query` parameter** — this
+   returns a `Sections` block listing all heading anchors in the document
+   (`#anchor-id — Heading Title`). Pick the anchor that best matches the
+   finding's topic and append it to the URL in the Ref field. This makes
+   the final report link directly to the relevant section, not just the
+   top of a 300-section page. Skip this for solutions, articles, errata,
+   and CVE pages (they have no sections).
+
+7. Report negative results explicitly — "searched X, nothing matched" is evidence.
 
 ## Pre-deployment constraint check (GPU / model-serving cases)
 
@@ -163,13 +173,15 @@ duration_s: <seconds>
   `https://access.redhat.com/errata/<id>`, solutions →
   `https://access.redhat.com/solutions/<number>`.
 - **Only use `#fragment` anchors sourced from `get_document`'s Sections
-  block.** `search_portal` returns anchor-free URLs. If you need to link to
-  a specific section, call `get_document` with the URL and a focused query —
-  the response includes a `Sections` block with derived slugs you may append
-  as `#slug`. These slugs are best-effort (GitHub-style, may not match the
-  actual HTML id); `urlcheck.py` flags them for human verification rather
-  than as a hard FAIL. Never invent an anchor without consulting the Sections
-  block first.
+  block.** `search_portal` returns anchor-free URLs. To get section anchors,
+  call `get_document` with the URL and **no `query` parameter** — the
+  response includes a `Sections` block listing every heading anchor in the
+  document (`#anchor-id — Heading Title`). Pick the anchor whose title best
+  matches your finding and append it to the URL as `#anchor-id`. These
+  anchors come from the Solr index's `heading_h1`/`heading_h2` fields and
+  are the actual HTML ids used on the page. Solutions, articles, errata, and
+  CVE pages return no sections (expected — they are single-topic pages).
+  Never invent an anchor without consulting the Sections block first.
 - Do not speculate about root causes — state what the documentation says.
 - Be precise about version applicability.
 - Slack findings are supplementary — never the sole basis for a conclusion.
@@ -230,14 +242,16 @@ match" as a corpus gap, not proof of absence, and say so in the findings.
   append `/index.html`.
 - A full `access.redhat.com` URL is accepted as doc_id (the domain is
   stripped) — but only when its path already satisfies the rule above.
-- `query` is **required in practice**: omitting it returns
-  `Document not found: <doc_id>` for a doc_id that resolves fine *with* a
-  query — there is no "pass a query" notice. A query sharing no terms with
-  the document fails identically (retrieval is lexical), so query with words
-  the document actually contains, not with a paraphrase of the question.
-- The query also selects which passages return (caps: ~10,000 chars total,
-  up to 3 passages × 1,000 chars). Vary it to pull different sections of the
-  same doc.
+- `query` controls what the response contains:
+  - **With `query`**: returns matching passages (caps: ~10,000 chars total,
+    up to 3 passages × 1,000 chars) plus a `Sections` block. Vary the query
+    to pull different sections of the same doc. A query sharing no terms with
+    the document returns "Document not found" (retrieval is lexical), so query
+    with words the document actually contains, not with a paraphrase.
+  - **Without `query`**: returns **only the `Sections` block** — the list of
+    all heading anchors in the document. Use this mode when you already have
+    the content you need and just want section anchors for precise linking.
+    Solutions, articles, errata, and CVE pages return no sections (expected).
 - **"Document not found" is ambiguous** — work the causes in order before
   concluding a document is unindexed: (1) suffix form (try `…/` ↔
   `…/index.html`), (2) missing query, (3) query with no lexical overlap —
