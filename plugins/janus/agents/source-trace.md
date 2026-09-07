@@ -6,7 +6,7 @@ description: >-
   stage only when a `casket` server is connected).
   Traces implementations, diffs versions, reverse-maps crash symbols.
   Writes findings to cases/<id>/findings/source-trace.md.
-tools: Read, Write, Bash, Glob, Grep, SendMessage, mcp__casket__resolve_component, mcp__casket__resolve_repo, mcp__casket__grep, mcp__casket__read_file, mcp__casket__search_symbol, mcp__casket__search_text, mcp__casket__search_refs, mcp__casket__list_versions, mcp__casket__list_components, mcp__casket__list_dir, mcp__casket__diff_file
+tools: Read, Write, Bash, Glob, Grep, SendMessage, mcp__casket__resolve_component, mcp__casket__resolve_repo, mcp__casket__grep, mcp__casket__read_file, mcp__casket__search_symbol, mcp__casket__search_text, mcp__casket__search_refs, mcp__casket__list_versions, mcp__casket__list_components, mcp__casket__list_dir, mcp__casket__diff_file, mcp__casket__permalink
 model: sonnet
 ---
 
@@ -101,27 +101,13 @@ Read `cases/<id>/case.yaml` for:
    - `search_symbol` for the crashing function
    - `read_file` to trace call path from entry to crash site
 
-6. For every reference you will report, build a GitHub permalink so a human
-   can open it. The mount's `git/INDEX.tsv` maps your tree's directory name
-   to its upstream `repo` URL and the exact commit `ref` (columns:
-   `dir | repo | ref | version | components`):
-
-   ```
-   grep '^<dir-name>\t' /srv/<mount>/git/INDEX.tsv
-   ```
-
-   Permalink = `<repo>/blob/<ref>/<path-within-tree>#L<line>`. Always use the
-   full commit SHA from `ref` — never a branch or tag, and never guess the
-   org/repo. If the dir is missing from INDEX.tsv or the repo is not on
-   GitHub, keep the local ref and say so.
-
-   For a file inside a submodule directory (step 1b), INDEX.tsv gives you the
-   **wrapper's** repo and ref, which do not contain that file at all. Take
-   `repo` and `ref` from `meta/SUBMODULES.tsv` for that `(component, path)`
-   pair instead, and strip the submodule path prefix from the
-   path-within-tree. A row with `exact=0` is a branch-head approximation, not
-   the commit that was built: report it as approximate rather than minting a
-   permalink that implies precision.
+6. For every reference you will report, call `permalink(path, line)` to get
+   the GitHub URL. It resolves INDEX.tsv and SUBMODULES.tsv server-side —
+   no manual grep or submodule path stripping needed. Check the response:
+   - `url`: the permalink (null if the repo is not on GitHub — keep the
+     local ref and mark "no public URL")
+   - `exact`: false means the submodule ref is a branch-head approximation,
+     not the commit that was built — report it as approximate
 
 ## Output
 
@@ -181,11 +167,11 @@ the table's value as a guess.
 
 - Write the file before SendMessage.
 - Every finding must have `component@NVR + file:line`.
-- **Give every reference a GitHub permalink** built from INDEX.tsv's `repo` +
-  `ref` (exact SHA). These are constructed, not fetched — you have no GitHub
-  access, so if the ref exists only in an internal build repo the link can
-  404; still record it, it is correct for every public repo. When INDEX.tsv
-  has no entry, write the local ref and mark "no public URL".
+- **Give every reference a GitHub permalink** via `permalink(path, line)`.
+  The URL is constructed server-side, not fetched — if the ref exists only
+  in an internal build repo the link can 404; still record it. When
+  `permalink` returns `url: null`, write the local ref and mark "no public
+  URL".
 - **Line numbers are pinned to the casket snapshot, not HEAD.** casket
   indexes a specific commit whose file structure and line numbers can
   differ from current upstream HEAD. State the casket ref (SHA/NVR) on
