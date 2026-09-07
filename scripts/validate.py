@@ -131,6 +131,87 @@ def validate_pipeline_stage_sync(plugin_dir: Path) -> None:
             error(f"agents/{agent}.md is never mentioned in SKILL.md")
 
 
+# Prose in README and plugin.json spells its counts as words.
+NUMBER_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
+    "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
+}
+README_STAGE_COUNT_RE = re.compile(r"\b([a-z]+) composable stages\b")
+DESC_AGENT_COUNT_RE = re.compile(r"\b([A-Za-z]+) composable agents\b")
+STAGE_ROW_RE = re.compile(r"^\| \*\*([a-z-]+)\*\* \|")
+
+
+def pipeline_stages(plugin_dir: Path) -> list[str]:
+    """Stage names from SKILL.md's pipeline-stage table only.
+
+    The looser scan in validate_pipeline_stage_sync also picks up the
+    periodic-agent table (self-improver, upstream-adviser), which is not
+    what the 'N composable stages' prose counts.
+    """
+    skill_md = plugin_dir / "skills" / "janus" / "SKILL.md"
+    if not skill_md.exists():
+        return []
+    lines = skill_md.read_text().splitlines()
+    for i, line in enumerate(lines):
+        if line.startswith("| Stage |"):
+            stages = []
+            for row in lines[i + 2:]:
+                m = STAGE_ROW_RE.match(row)
+                if not m:
+                    break
+                stages.append(m.group(1))
+            return stages
+    return []
+
+
+def _spelled(pattern: re.Pattern, text: str, source: str) -> int | None:
+    m = pattern.search(text)
+    if not m:
+        error(f"{source}: no '<N> composable ...' count found")
+        return None
+    n = NUMBER_WORDS.get(m.group(1).lower())
+    if n is None:
+        error(f"{source}: unrecognized count word '{m.group(1)}'")
+    return n
+
+
+def validate_prose_counts(plugin_dir: Path) -> None:
+    """README's stage-count prose and plugin.json's description must track
+    the pipeline-stage table, and the description must name every agent.
+    Both drifted when localize was added."""
+    stages = pipeline_stages(plugin_dir)
+    if not stages:
+        error(f"No pipeline-stage table parsed from {rel(plugin_dir)}/skills/janus/SKILL.md")
+        return
+
+    readme = REPO_ROOT / "README.md"
+    if readme.exists():
+        n = _spelled(README_STAGE_COUNT_RE, readme.read_text(), "README.md")
+        if n is not None and n != len(stages):
+            error(
+                f"README.md says '{n} composable stages' but SKILL.md's stage "
+                f"table has {len(stages)}"
+            )
+
+    manifest = plugin_dir / ".claude-plugin" / "plugin.json"
+    if not manifest.exists():
+        return
+    try:
+        description = json.loads(manifest.read_text()).get("description", "")
+    except json.JSONDecodeError:
+        return  # already reported by load_json
+    n = _spelled(DESC_AGENT_COUNT_RE, description, f"{rel(manifest)} description")
+    if n is not None and n != len(stages):
+        error(
+            f"{rel(manifest)} description says '{n} composable agents' but "
+            f"SKILL.md's stage table has {len(stages)} stages"
+        )
+    for agent in sorted(p.stem for p in (plugin_dir / "agents").glob("*.md")):
+        if agent not in description:
+            error(f"{rel(manifest)} description never names agent '{agent}'")
+
+
 # README's plugin tree declares an agent count and then lists the roster.
 # Both drifted silently when localize was added (README said 10 agents while
 # agents/ held 11), so both are checked against agents/*.md.
@@ -295,6 +376,7 @@ def main() -> int:
         validate_tool_grants(plugin_dir)
         validate_okp_doc_id_sync(plugin_dir)
         validate_readme_agent_sync(plugin_dir)
+        validate_prose_counts(plugin_dir)
 
     claude_md = REPO_ROOT / ".claude" / "CLAUDE.md"
     if claude_md.exists():
