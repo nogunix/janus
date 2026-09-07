@@ -38,6 +38,26 @@ Read `cases/<id>/case.yaml` for:
 
 1. Always start with `resolve_component` or `resolve_repo` to find the exact source tree.
 
+1b. **A component's own code may sit one level down, inside a filled
+   submodule directory.** `resolve_component`, `list_components` and the
+   `by-component/` index only know the tree names in `git/INDEX.tsv`, and what
+   that names is often a *wrapper* repo — `<name>-release`, `-midstream`,
+   `...-build` — holding Containerfiles, a Makefile and submodules, but none of
+   the component's own code. Resolving to a repo whose name is not the one you
+   asked for is the signal. Before recording "not in casket":
+   - `list_dir` the resolved tree. Containerfiles + `.gitmodules` + a few
+     thin subdirectories means a wrapper, not the implementation.
+   - `grep '<component>' /srv/<mount>/meta/SUBMODULES.tsv` — columns
+     `component | path | repo | ref | exact | status`. It names the tree, the
+     subdirectory, the real upstream repo and the exact pinned commit.
+   - Re-run the search with `path=<tree>/<submodule-path>`.
+   Worked example: in `b` 4.18–4.22 the indexed tree is
+   `openshift/zero-trust-workload-identity-manager-release`; the ZTWIM
+   operator's `api/`, `pkg/controller/` and `bundle/manifests/` live in its
+   `zero-trust-workload-identity-manager/` submodule, and its SPIRE is the
+   fork `openshift/spiffe-spire` — not upstream `spiffe/spire`. Reporting the
+   wrapper's contents as the whole of the component is a false negative.
+
 2. Use `list_versions` to confirm availability — and enumerate ALL casket
    phases/mounts where the component (or its counterparts in other layers)
    exists, not just the first match. Casket phase ids (2026-07-11 naming):
@@ -94,6 +114,14 @@ Read `cases/<id>/case.yaml` for:
    full commit SHA from `ref` — never a branch or tag, and never guess the
    org/repo. If the dir is missing from INDEX.tsv or the repo is not on
    GitHub, keep the local ref and say so.
+
+   For a file inside a submodule directory (step 1b), INDEX.tsv gives you the
+   **wrapper's** repo and ref, which do not contain that file at all. Take
+   `repo` and `ref` from `meta/SUBMODULES.tsv` for that `(component, path)`
+   pair instead, and strip the submodule path prefix from the
+   path-within-tree. A row with `exact=0` is a branch-head approximation, not
+   the commit that was built: report it as approximate rather than minting a
+   permalink that implies precision.
 
 ## Output
 
