@@ -131,6 +131,50 @@ def validate_pipeline_stage_sync(plugin_dir: Path) -> None:
             error(f"agents/{agent}.md is never mentioned in SKILL.md")
 
 
+# README's plugin tree declares an agent count and then lists the roster.
+# Both drifted silently when localize was added (README said 10 agents while
+# agents/ held 11), so both are checked against agents/*.md.
+README_AGENT_COUNT_RE = re.compile(r"^\s*agents/\s+#\s*(\d+) agents\b")
+README_ROSTER_RE = re.compile(r"^ {4}[a-z][a-z0-9-]*( +[a-z][a-z0-9-]*)*$")
+
+
+def validate_readme_agent_sync(plugin_dir: Path) -> None:
+    """README's 'What's in the plugin' tree must declare the real agent count
+    and name every agent. Adding an agent is a multi-file change; this is the
+    file that gets forgotten."""
+    readme = REPO_ROOT / "README.md"
+    if not readme.exists():
+        error("Missing file: README.md")
+        return
+    lines = readme.read_text().splitlines()
+    idx = None
+    for i, line in enumerate(lines):
+        if README_AGENT_COUNT_RE.match(line):
+            idx = i
+            break
+    if idx is None:
+        error("README.md: no 'agents/  # <N> agents' line in the plugin tree")
+        return
+
+    agent_names = {p.stem for p in (plugin_dir / "agents").glob("*.md")}
+    declared = int(README_AGENT_COUNT_RE.match(lines[idx]).group(1))
+    if declared != len(agent_names):
+        error(
+            f"README.md says '{declared} agents' but {rel(plugin_dir)}/agents/ "
+            f"holds {len(agent_names)}"
+        )
+
+    listed: set[str] = set()
+    for line in lines[idx + 1:]:
+        if not README_ROSTER_RE.match(line):
+            break
+        listed.update(line.split())
+    for missing in sorted(agent_names - listed):
+        error(f"README.md's agent list omits agents/{missing}.md")
+    for extra in sorted(listed - agent_names):
+        error(f"README.md's agent list names '{extra}' with no agents/{extra}.md")
+
+
 # Tool grants that would let an agent provision infrastructure from inside
 # the pipeline, bypassing the review-queue/APPROVE_<id>.md gate. Keyed by
 # the exact string that must not appear in any agent's `tools:` frontmatter.
@@ -250,6 +294,7 @@ def main() -> int:
         validate_pipeline_stage_sync(plugin_dir)
         validate_tool_grants(plugin_dir)
         validate_okp_doc_id_sync(plugin_dir)
+        validate_readme_agent_sync(plugin_dir)
 
     claude_md = REPO_ROOT / ".claude" / "CLAUDE.md"
     if claude_md.exists():
