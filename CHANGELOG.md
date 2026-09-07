@@ -2,6 +2,56 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.25.0 — 2026-09-07
+
+Report localization becomes its own stage, two new output skills, and
+three accuracy fixes to stages and checks that were each quietly
+producing a wrong answer.
+
+- **localize: a new pipeline stage.** `report_language: ja` used to have
+  synthesize write the Japanese report directly. It now writes an English
+  draft to `results/report-en.md`, and the new **localize** stage
+  translates it into `results/report.md`. Splitting the passes keeps the
+  analytic work in the language the findings are written in and leaves
+  translation a separate, checkable step. The pipeline is now
+  `{ … } | synthesize [| localize]`, nine stages.
+- **`scripts/anchors.py` (new, stdlib-only).** Derives the GitHub-style
+  slug of every findings heading so both report passes copy
+  evidence-link anchors instead of computing them by hand. The failure
+  mode it removes is slugs nobody guesses right — Japanese headings and
+  version strings (`4.18→4.19` → `418419`).
+- **source-trace: a wrapper repo is not the component.** casket's
+  `by-component/` index names only a tree's top-level directory, and for
+  a component built from a `-release` / `-midstream` / `-build` wrapper
+  that directory holds Containerfiles and submodules but none of the
+  component's own code. A ZTWIM run resolved the wrapper and reported the
+  operator as "not in casket" while its `api/`, `pkg/controller/` and
+  `bundle/manifests/` sat one level down in the same tree, in every minor
+  from 4.18 to 4.22. Step 1b now names the signal (a resolved repo whose
+  name is not the one asked for) and the way out (`list_dir`,
+  `meta/SUBMODULES.tsv`, re-search with `path=<tree>/<submodule>`);
+  "not in casket" is not a conclusion until that has been done. Step 6
+  builds a submodule permalink from the SUBMODULES.tsv row rather than
+  the wrapper's ref, and reports an `exact=0` row as the branch-head
+  approximation it is.
+- **urlcheck: `#fragment` anchors on Red Hat doc portals are flagged.**
+  okp-mcp's `get_document` surfaces derived heading slugs, so an anchor
+  on `access.redhat.com` / `docs.redhat.com` may be genuine or may be
+  invented, and neither can be settled without loading the HTML. New
+  `warning` class — reviewer-visible, never a FAIL — preserving the
+  check's fail-open property.
+- **Model strategy: synthesize, self-improver and upstream-adviser move
+  opus → sonnet.**
+- **New skill `md2pdf`** — Markdown → PDF via pandoc + weasyprint, with
+  Japanese typography, tables, code blocks, SVG and mermaid.
+- **New skill `gslides`** — Google Slides via the `gws` CLI from a
+  declarative YAML spec: styles, inch coordinates, page numbers, table /
+  image / shape support, and SVG diagram insertion with optional
+  light-recolor. No pptx and no LibreOffice in the path.
+- **README and plugin.json resync.** The agent count, the stage count in
+  prose, and the skills tree had drifted — localize, gslides, md2pdf and
+  (since 0.20.0) ocp-triage-heuristics were all missing.
+
 ## 0.24.0 — 2026-08-19
 
 Theme-mode investigations and lead-side supplemental searches — two

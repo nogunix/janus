@@ -99,21 +99,27 @@ plugins/janus/
   skills/janus/scripts/linkcheck.py  # evidence links resolve to a real file/anchor (backs C1/link)
   skills/janus/scripts/prosecheck.py # ja report prose via textlint (backs gate C2/prose)
   skills/janus/scripts/textlintrc.json # ja-technical-writing config for the above
+  skills/janus/scripts/anchors.py    # findings heading → GitHub slug map (evidence links)
   skills/deck/                       # report → branded .pptx/PDF
+  skills/gslides/                    # report → Google Slides via the gws CLI
+  skills/md2pdf/                     # Markdown → PDF (pandoc + weasyprint, CJK)
   skills/okp-doc-search/             # okp-mcp research know-how (queries, doc_id rules)
+  skills/ocp-triage-heuristics/      # experiential OCP live-cluster triage reference
   hooks/                             # secret-safety + evidence-lock (PreToolUse denies) + evidence-chain (PostToolUse auto-seal)
-  agents/                            # 10 agents (patterns inlined into each)
+  agents/                            # 11 agents (patterns inlined into each)
     doc-search  source-trace  github-trace  jira-trace  crash-analyze
-    iac-author  lab-verify  synthesize  self-improver  upstream-adviser
+    iac-author  lab-verify  synthesize  localize  self-improver
+    upstream-adviser
 scripts/validate.py                  # repo consistency checks (CI-friendly, stdlib-only)
 scripts/selftest.py                  # offline self-tests for chain.py / urlcheck.py / quotecheck.py / versioncheck.py / linkcheck.py / prosecheck.py / hooks
 .github/workflows/ci.yml             # runs both on every push / PR
 ```
 
-The pipeline: `{ doc-search, source-trace, crash-analyze, iac-author | [approve] lab-verify } | synthesize`
-— eight composable stages connected by a universal `findings/*.md` format
+The pipeline: `{ doc-search, source-trace, crash-analyze, iac-author | [approve] lab-verify } | synthesize [| localize]`
+— nine composable stages connected by a universal `findings/*.md` format
 (github-trace and jira-trace join conditionally when another stage surfaces
-an upstream PR/issue or a Jira ticket), plus two periodic agents. Reusable investigation patterns (drgn triage, CVE tracing,
+an upstream PR/issue or a Jira ticket; localize runs only when
+`report_language` ≠ `en`), plus two periodic agents. Reusable investigation patterns (drgn triage, CVE tracing,
 refuting an a-priori hypothesis, goroutine-leak repro, etc.) are **inlined into
 each agent** so they travel with the plugin.
 
