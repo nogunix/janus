@@ -115,6 +115,16 @@ Assessment, Executive Summary, Investigation Gaps, References, Stages
 Used) are identical in both; what differs is the body between Executive
 Summary and Investigation Gaps.
 
+**Models used** is copied from each findings file's `model:` frontmatter
+key — the model that actually ran that stage, which the cost and refusal
+ladders may have substituted for the one the Model strategy table
+assigns. Copy the key verbatim; never substitute the table's value for a
+missing key. A findings file with no `model:` key is recorded as
+`<stage>=unrecorded`, and the cell is never left blank — blank is a
+`C2/section` send-back, while `unrecorded` is the honest answer that the
+provenance was not captured. Append your own model as
+`synthesize=<model>` so the report says what wrote it.
+
 ### Artifact-mode template
 
 ```markdown
@@ -133,6 +143,7 @@ Summary and Investigation Gaps.
 |---|---|
 | Stages completed | <list> |
 | Stages failed/skipped | <list> |
+| Models used | <stage>=<model>, … , synthesize=<your own model> |
 | Total findings | HIGH: N, MEDIUM: M, LOW: L |
 | Evidence basis | VERIFIED: N, REASONED: M, ASSUMED: L |
 | Gaps | <unavailable stages/tools> |

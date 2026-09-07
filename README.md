@@ -173,6 +173,16 @@ Day-to-day maintenance:
 Investigation quality is enforced by explicit discipline, not by the
 model in the seat:
 
+- **Model provenance** — the claim above is only worth as much as your
+  ability to check it, so every findings file records `model:` — the
+  model that *actually* ran that stage — and the report's Execution
+  Metadata carries the roll-up. The Model strategy table states what was
+  *assigned*; the cost and refusal ladders substitute a different model
+  without announcing it, so the table cannot be read backwards. A stage
+  that cannot tell writes `unrecorded` rather than guessing.
+  `validate.py` keeps the assigned side honest: every agent's declared
+  model must match SKILL.md's roster, and the Model strategy table must
+  not contradict it.
 - **Evidence-basis labels** — every finding carries
   `Basis: VERIFIED | REASONED | ASSUMED` (tool output observed vs.
   inferred from reading vs. carried in) alongside its confidence, and a
@@ -197,6 +207,12 @@ model in the seat:
   updates never overwrite; the lead injects relevant entries into stage
   briefs, and recurring ones get promoted into the plugin's own
   catalogs via the self-improver review queue.
+- **Declared fail direction** — for each check, what it does when it
+  *proves* a defect and what it does when it *cannot tell* are both
+  written down, in SKILL.md's **Fail direction** table. Fail-closed
+  where a defect is provable, fail-open where it is not (an air-gapped
+  install has to stay usable), and across every row: **a notice means
+  *not checked*, never *passed***.
 
 ### Integrity checks (mechanical, before any human-level gate)
 

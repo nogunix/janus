@@ -130,12 +130,21 @@ stage: lab-verify
 case: <case-id>
 date: <ISO 8601>
 status: complete | partial | failed
+model: <the model you are actually running as>
 tool_calls: <N>
 duration_s: <seconds>
 backend: ROSA | ARO | DEMO
 cluster_version: <OCP version>
 ---
+```
 
+`model` is the model **actually** running this stage, not the one the
+Model strategy table assigns — the lead's cost and refusal ladders
+substitute a different one without announcing it, so the table cannot
+be read backwards. If you cannot tell, write `unrecorded`; never copy
+the table's value as a guess.
+
+```markdown
 # lab-verify — <case-id>
 
 ## Context

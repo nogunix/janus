@@ -88,10 +88,10 @@ silently. `scripts/validate.py` enforces both rules.
 
 ## Periodic agents (outside the pipeline)
 
-| Agent | Trigger | Role |
-|---|---|---|
-| **self-improver** | 10 accumulated verdict.md files, or weekly | Metrics computation, improvement proposals |
-| **upstream-adviser** | After a high-confidence report, or periodic | Drafts upstream contribution proposals |
+| Agent | Trigger | Role | Model |
+|---|---|---|---|
+| **self-improver** | 10 accumulated verdict.md files, or weekly | Metrics computation, improvement proposals | sonnet |
+| **upstream-adviser** | After a high-confidence report, or periodic | Drafts upstream contribution proposals | sonnet |
 
 ## What the lead does directly (shell functions)
 
@@ -494,6 +494,10 @@ in `scripts/` next to this file):
    report matters and you see one, install textlint rather than treating
    the silence as a pass.
 
+Each check's behaviour when it *cannot* decide — and what a notice
+means — is the Fail direction table below; read it before trusting a
+pass.
+
 Read `results/report.md` and check it against these two judgment gates
 (the six mechanical pre-checks above already cover the rest). **A
 failed gate = send the report back to synthesize, naming the sub-code
@@ -537,10 +541,22 @@ stage: <stage-name>
 case: <case-id>
 date: <ISO 8601>
 status: complete | partial | failed
+model: <the model that actually ran this stage>
 tool_calls: <N>
 duration_s: <seconds>
 ---
 ```
+
+`model` records **what ran, not what was assigned**. The Model strategy
+table is the declared assignment; the cost de-escalation and refusal
+ladders both substitute a different model legitimately and silently, so
+the assignment cannot be read backwards off the table. Write the model
+you are actually running as. A stage that cannot determine it writes
+`model: unrecorded` — never omits the key, and never guesses the table's
+value. This is what makes "quality survives a model swap" auditable
+after the fact instead of merely asserted: without it, a report produced
+by a degraded model is indistinguishable from one produced by the
+assigned model.
 
 ### Finding structure
 
@@ -629,6 +645,55 @@ altered — that is a human matter, never something to quietly repair.
 `artifacts/` (vmcore binaries) stays outside the chain, as it stays
 outside git.
 
+## Fail direction (what each check does when it cannot decide)
+
+Every check answers two questions, and the second is the one that gets
+forgotten: what does it do when it **proves** a defect, and what does it
+do when it **cannot tell**? The second answer is a safety property, not
+an implementation detail — it decides whether an unprovable case leaves
+the pipeline blocked or quietly released. Three directions, and only
+three:
+
+- **closed** — blocks the handoff. Reserved for defects the check can
+  prove from what it has in hand.
+- **open** — passes with a notice, because the answer is genuinely
+  unknowable here (no network, no textlint, nothing sealed yet).
+  Air-gapped and minimal installs have to stay usable.
+- **warn** — passes, and hands the lead a judgment call under a named
+  sub-code.
+
+**A notice means *not checked*, never *passed*.** This holds for every
+row below, not only prosecheck: a check that printed a notice has told
+you it declined to answer. Reading that as a pass is the one way this
+table gets silently defeated. If the property matters for the case in
+hand, restore what the check needs — network, textlint, a seal — and run
+it again.
+
+| Check | Proves a defect → | Cannot decide → | Note |
+|---|---|---|---|
+| `chain.py verify` | **closed** — a file changed after its seal (TAMPER), or a malformed ledger | **warn** — a tracked file that was never sealed prints `warning: unsealed` and exits 0 | Unsealed is the shape a *hook* failure takes, not a tamper. A persistent unsealed warning on evidence you expect sealed is a hook to fix, not noise. |
+| `urlcheck.py` | **closed** — 404/410 or an unresolvable host: a provably dead citation (`C1/url`) | **open** — no network at all: says so and passes; 5xx/timeout warn | 401/403/429 count as reachable. Login-walled is normal for access.redhat.com, so a gated URL is classified, never failed. |
+| `quotecheck.py` | **closed** — an attributed quote not verbatim in the file it cites (`C2/quote-mismatch`) | **warn** — no attributed quotes at all (`C2/quote-absent` for any evidence-backed report) | Absence of quotes is mechanically indistinguishable from a report that legitimately has none. |
+| `versioncheck.py` | **closed** — a source citation with no version pin anywhere in its Ref: which version was read is unrecoverable | **warn** — crossed or off-scope versions (`C2/version`), and every scope check when no `version_scope` is declared | |
+| `linkcheck.py` | **closed** — a local evidence link resolving to no file or no anchor (`C1/link`) | **never arises** — local resolution is deterministic | The one check with no fail-open path. A report with no local links at all is a warning. |
+| `prosecheck.py` | **closed** — a ja-technical-writing violation in synthesize's own prose (`C2/prose`) | **open in every direction** — textlint absent, preset missing, no report yet | The only check that shells out, hence the widest open path. |
+| `secret-safety.py` (PreToolUse) | **closed** — denies a matched bulk-secret command | **open by construction** — it stops only the patterns it knows | A known-shape blocklist, not a boundary. Never restructure a command to slip past it. |
+| `evidence-lock.py` (PreToolUse) | **closed** — denies a write to a locked file | **open** — an exception emits no deny and the write proceeds | Backstopped by the filesystem: `chain.py lock` drops the write bits, so the write still fails when the hook does. |
+| `evidence-chain.py` (PostToolUse) | *n/a* — auto-seals tracked writes | **open, silently** — every exception is swallowed, exit 0 | A failed seal is invisible at write time and surfaces only as `chain.py verify`'s unsealed warning. |
+
+`chain.py verify` is the one that behaves like attestation: it runs
+before handoff, and on a proven mismatch the case does not go out
+degraded-but-delivered — it stops and becomes `NEEDS_HUMAN_<id>.md`. The
+report is never released as "produced, but with an evidence base we
+could not vouch for".
+
+**Preserve the direction when editing a check.** Fail-open where a check
+cannot prove a negative is deliberate: it is what keeps offline and
+minimal installs usable. Fail-closed where it can prove one. Moving a
+row from open to closed makes JANUS unusable in some install; moving one
+from closed to open removes a guarantee without announcing it. Either
+way, move the row in this table in the same commit.
+
 ## Safety (invariant)
 
 - **Static stages are autonomous.** Dead-artifact analysis
@@ -707,6 +772,16 @@ nothing.
 | iac-author | sonnet | Registry lookup and templating against a documented schema. The judgment — is this the right lab, is the cost worth it — sits with lab-verify and the human |
 | lab-verify | opus | Needs heavy reasoning for verification judgment and trace interpretation |
 | synthesize | sonnet | Structured input (YAML frontmatter + Basis labels); mechanical pre-checks enforce quality. Well-defined synthesis, not novel reasoning |
+| localize | sonnet | Translation against a fixed anchor map, with the label vocabulary held in English. Mechanical, not interpretive |
+
+This table is the **declared** assignment. Both ladders below substitute
+a different model, and a substitution is a legitimate, unannounced event
+— so the table can never be read backwards to learn what produced a
+given finding. **The model that actually ran is recorded in each
+findings file's `model:` frontmatter key and surfaced in the report's
+Execution Metadata.** That record is the point: the design premise is
+that investigation quality survives a model swap, and a premise nobody
+can check after the fact is an assumption, not a property.
 
 **Cost de-escalation ladder** (applied in order under budget pressure):
 1. Lower the effort level for doc-search / source-trace
@@ -715,6 +790,11 @@ nothing.
 
 **Refusal handling**: on refusal, record it, then degrade Opus → Sonnet
 → Haiku in order. If all refuse, `NEEDS_HUMAN_*`.
+
+Either ladder firing changes what the stage's `model:` key must say. The
+substituted model is the one that ran; record it there, and record the
+substitution itself in `cases/<id>/audit/` so the report's Execution
+Metadata and the reason behind it can be reconciled later.
 
 ## Failure handling
 

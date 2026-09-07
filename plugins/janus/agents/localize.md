@@ -47,6 +47,11 @@ Leave these in English exactly as they appear:
 - URLs
 - All markdown link syntax `[text](target#anchor)` — fix anchors
   from the map but do not translate link text that is an identifier
+- The **Models used** cell in Execution Metadata — it is a list of
+  `<stage>=<model>` identifiers, not prose. Append your own model to it
+  as `, localize=<the model you are actually running as>`, so the
+  report records every model that touched it. Write `unrecorded` if you
+  cannot tell; never guess.
 
 ### 4. Preserve quoted evidence verbatim
 

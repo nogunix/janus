@@ -2,6 +2,60 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.26.0 — 2026-09-08
+
+Two provenance and safety properties that JANUS relied on but never
+recorded: which model actually produced a finding, and what each check
+does when it cannot decide.
+
+- **`model:` is now a required findings frontmatter key.** JANUS's
+  central design premise is that investigation quality survives a model
+  swap — but nothing recorded which model ran, so the premise could be
+  asserted and never audited. The Model strategy table states the
+  *assigned* model; the cost de-escalation and refusal ladders both
+  substitute a different one legitimately and silently, so the table
+  could never be read backwards. Every stage now writes the model it
+  actually ran as, or `unrecorded` when it cannot tell — never the
+  table's value as a guess. synthesize rolls the keys up into a new
+  **Models used** row in Execution Metadata and appends its own; localize
+  appends its own when it translates. A missing key is reported as
+  `unrecorded`, never as a blank cell, so a gap in provenance reads as a
+  gap rather than as an answer.
+- **`validate_model_sync()` in `scripts/validate.py` (new).** The
+  assigned side has to be unambiguous for the recorded side to be worth
+  comparing against, so every agent's frontmatter `model:` must match
+  SKILL.md's roster, every agent must appear in exactly one roster table,
+  and the Model strategy table may not contradict the pipeline-stages
+  table. It caught two live inconsistencies on its first run: **localize
+  was missing from the Model strategy table** since 0.25.0, and
+  self-improver / upstream-adviser had a declared model that no table
+  stated. The periodic-agents table gains a Model column and the Model
+  strategy table gains its localize row.
+- **A Fail direction table in SKILL.md (new section).** Each check's
+  behaviour when it *proves* a defect and when it *cannot tell* is now
+  written down together, in one table, with the third direction (warn →
+  the lead's judgment under a named sub-code) named alongside. The
+  reasoning already existed, scattered across six check descriptions;
+  collecting it makes the property editable on purpose instead of
+  erodible by accident, and the closing rule is explicit: moving a row
+  from open to closed makes some install unusable, moving one from
+  closed to open removes a guarantee silently, and either way the row
+  moves in the same commit.
+- **"A notice means *not checked*, never *passed*" is now a global
+  rule.** It was stated for prosecheck alone; it holds for every
+  fail-open path, and reading a notice as a pass is the one way the
+  table gets silently defeated.
+- **Two fail-open paths documented that were not written down
+  anywhere.** `evidence-chain.py` (the PostToolUse auto-seal) swallows
+  every exception and exits 0, so a failed seal is invisible at write
+  time — it surfaces only later, as `chain.py verify`'s `warning:
+  unsealed`, which passes with exit 0. Unsealed is therefore the shape a
+  *hook* failure takes, not the shape tampering takes, and a persistent
+  unsealed warning on evidence you expect sealed is a hook to fix.
+  `evidence-lock.py` likewise emits no deny on an exception, but is
+  backstopped by the filesystem: `chain.py lock` drops the write bits, so
+  the write still fails when the hook does.
+
 ## 0.25.0 — 2026-09-07
 
 Report localization becomes its own stage, two new output skills, and

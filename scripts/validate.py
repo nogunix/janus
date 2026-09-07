@@ -280,6 +280,85 @@ FORBIDDEN_TOOL_GRANTS = {
 }
 
 
+PIPELINE_MODEL_HEADER = "| Stage | Role | Output | Tools | Safety | Model |"
+PERIODIC_MODEL_HEADER = "| Agent | Trigger | Role | Model |"
+STRATEGY_MODEL_HEADER = "| Stage | Model | Rationale |"
+
+
+def md_table_rows(text: str, header: str) -> list[list[str]]:
+    """Cells of every row under the markdown table with exactly this header."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if line.strip() != header:
+            continue
+        rows = []
+        for row in lines[i + 2:]:
+            if not row.startswith("|"):
+                break
+            rows.append([c.strip().strip("*") for c in row.strip().strip("|").split("|")])
+        return rows
+    return []
+
+
+def validate_model_sync(plugin_dir: Path) -> None:
+    """Each agent's assigned model is declared identically everywhere.
+
+    Findings record the model that *actually* ran; these tables record
+    the one that was *assigned*. Comparing the two is the whole point of
+    the record, so the assigned value has to be unambiguous: every agent
+    appears in exactly one roster table, and SKILL.md's Model strategy
+    table must not contradict the pipeline-stages table.
+    """
+    skill_md = plugin_dir / "skills" / "janus" / "SKILL.md"
+    if not skill_md.exists():
+        return
+    text = skill_md.read_text()
+
+    declared: dict[str, str] = {}
+    for rows, header, col in (
+        (md_table_rows(text, PIPELINE_MODEL_HEADER), "pipeline-stages", -1),
+        (md_table_rows(text, PERIODIC_MODEL_HEADER), "periodic-agents", -1),
+    ):
+        if not rows:
+            error(f"SKILL.md: no rows parsed from the {header} table")
+        for cells in rows:
+            declared[cells[0]] = cells[col]
+
+    strategy = {cells[0]: cells[1] for cells in md_table_rows(text, STRATEGY_MODEL_HEADER)}
+    if not strategy:
+        error("SKILL.md: no rows parsed from the Model strategy table")
+
+    for agent_md in sorted((plugin_dir / "agents").glob("*.md")):
+        name = agent_md.stem
+        fm = parse_frontmatter(agent_md)
+        actual = (fm or {}).get("model")
+        if not actual:
+            error(f"agents/{name}.md declares no model in its frontmatter")
+            continue
+        if name not in declared:
+            error(
+                f"agents/{name}.md (model: {actual}) is in neither SKILL.md "
+                f"roster table — its assigned model is undeclared"
+            )
+            continue
+        if declared[name] != actual:
+            error(
+                f"agents/{name}.md declares model '{actual}' but SKILL.md's "
+                f"roster table says '{declared[name]}'"
+            )
+
+    # The Model strategy table restates the pipeline stages with a rationale.
+    # It must cover them all, and agree.
+    for stage in pipeline_stages(plugin_dir):
+        if stage not in strategy:
+            error(f"SKILL.md: pipeline stage '{stage}' is missing from the Model strategy table")
+        elif strategy[stage] != declared.get(stage):
+            error(
+                f"SKILL.md: Model strategy says '{stage}' is {strategy[stage]}, "
+                f"pipeline-stages table says {declared.get(stage)}"
+            )
+
+
 def validate_tool_grants(plugin_dir: Path) -> None:
     """No agent may hold a tool that provisions infrastructure.
 
@@ -373,6 +452,7 @@ def main() -> int:
 
         validate_hooks(plugin_dir)
         validate_pipeline_stage_sync(plugin_dir)
+        validate_model_sync(plugin_dir)
         validate_tool_grants(plugin_dir)
         validate_okp_doc_id_sync(plugin_dir)
         validate_readme_agent_sync(plugin_dir)
