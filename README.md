@@ -123,6 +123,42 @@ an upstream PR/issue or a Jira ticket; localize runs only when
 refuting an a-priori hypothesis, goroutine-leak repro, etc.) are **inlined into
 each agent** so they travel with the plugin.
 
+## Prerequisites
+
+| Requirement | Purpose | Required? |
+|-------------|---------|-----------|
+| [Claude Code](https://claude.ai/code) | Plugin host (CLI, desktop, or web) | **Yes** |
+| Python 3.9+ | `validate.py`, `selftest.py`, integrity scripts (`chain.py`, `urlcheck.py`, etc.) | **Yes** |
+| Bash 4+ | Shell-based tests and hook scripts | **Yes** |
+
+### MCP servers (per case type)
+
+None of the MCP servers are bundled — paths are machine-specific.
+Register each one before running an investigation (see **MCP
+dependencies** below for setup commands).
+
+| Server | Used by | Required? |
+|--------|---------|-----------|
+| [okp-mcp](https://github.com/rhel-lightspeed/okp-mcp) | doc-search (CVE / errata / KB) | Recommended |
+| [casket-mcp](https://github.com/nogunix/ocp-source-collector) | source-trace (versioned source) | Optional |
+| [drgn-mcp](https://github.com/walac/drgn-mcp) | crash-analyze (vmcore) | For crash cases |
+| [GitHub MCP](https://github.com/github/github-mcp-server) | github-trace, upstream-adviser | Optional |
+| [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) | jira-trace | Optional |
+| [mslearn](https://github.com/MicrosoftDocs/mcp) | doc-search (ARO/Azure layer) | For ARO cases |
+| [aws-knowledge](https://knowledge-mcp.global.api.aws) | doc-search (ROSA/AWS layer) | For ROSA cases |
+| [terraform-mcp-server](https://github.com/hashicorp/terraform-mcp-server) | iac-author | For lab IaC |
+| [ansible-dev-tools](https://github.com/ansible/ansible-dev-tools) | iac-author | For lab IaC |
+| [linux-mcp-server](https://github.com/rhel-lightspeed/linux-mcp-server) | lab-verify | For live verification |
+| [slack-mcp](https://github.com/redhat-community-ai-tools/slack-mcp) | doc-search (team context) | Optional |
+
+### Optional CLI tools
+
+| Tool | Purpose |
+|------|---------|
+| [textlint](https://github.com/textlint/textlint) + [ja-technical-writing](https://github.com/textlint-ja/textlint-rule-preset-ja-technical-writing) | Japanese report prose check (gate C2/prose) |
+| [ax](https://github.com/yusukebe/ax) | Token-aware web fetching |
+| [mdq](https://github.com/yshavit/mdq) | Markdown querying (jq for Markdown) |
+
 ## Install
 
 This repo is itself a Claude Code plugin marketplace
