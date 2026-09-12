@@ -39,7 +39,7 @@ connects, it does not process.
 | Stage | Role | Output | Tools | Safety | Model |
 |---|---|---|---|---|---|
 | **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure, AWS docs for ROSA/AWS) | findings/doc-search.md | okp-mcp + slack + mslearn + aws | Static | sonnet |
-| **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp (optional, unpublished) | Static | sonnet |
+| **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp (optional) | Static | sonnet |
 | **github-trace** | Upstream GitHub PR/issue/commit deep-dive | findings/github-trace.md | github MCP (read-only) | Static | sonnet |
 | **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | mcp-atlassian (read-only) | Static | sonnet |
 | **crash-analyze** | vmcore/coredump analysis | findings/crash-analyze.md | drgn-mcp + gdb | Static | opus |
@@ -55,8 +55,9 @@ other stage can open (doc-search has only okp/slack; source-trace only
 casket). Include one up front only when the case question itself names
 an upstream PR/issue or a Jira key.
 
-source-trace is **opportunistic**: casket-mcp is an unpublished,
-environment-specific server, so most installs won't have it. When the
+source-trace is **opportunistic**: casket-mcp is an environment-specific
+server ([ocp-source-collector](https://github.com/nogunix/ocp-source-collector)),
+so not every install has it. When the
 preflight (step 1) finds no `casket` server connected, drop source-trace
 silently — its absence is the normal state, not an error. Note it once
 as a gap in the report; do not surface setup instructions or treat the
@@ -869,9 +870,8 @@ launches self-improver.
 
 ## MCP dependencies
 
-`casket` (versioned source — optional and unpublished; source-trace
-activates only when this server happens to be registered, and its absence
-is normal), `okp-mcp` (Red Hat docs/CVE/errata/KB), `mslearn`
+`casket` (versioned source — optional; source-trace activates only when
+this server is registered, and its absence is normal), `okp-mcp` (Red Hat docs/CVE/errata/KB), `mslearn`
 (Microsoft Learn docs — ARO/Azure layer for doc-search; public remote server,
 no auth: `claude mcp add --transport http mslearn
 https://learn.microsoft.com/api/mcp`), `aws-docs` / `aws-knowledge` /

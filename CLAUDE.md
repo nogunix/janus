@@ -77,9 +77,10 @@ each other — they are connected only by files on disk.
 - **github-trace and jira-trace are conditional follow-ups**, launched at
   fan-in when another stage surfaces a PR/issue or Jira key it cannot
   open. Include them up front only if the case question itself names one.
-- **source-trace is opportunistic** — casket-mcp is unpublished and
-  environment-specific, so most installs lack it. Its absence is the
-  normal state: drop the stage silently, do not treat the case as
+- **source-trace is opportunistic** — casket-mcp
+  ([ocp-source-collector](https://github.com/nogunix/ocp-source-collector))
+  is environment-specific, so not every install has it. Its absence is
+  the normal state: drop the stage silently, do not treat the case as
   degraded.
 - **iac-author and lab-verify are one lab split at the execution
   boundary.** Authoring IaC changes no infrastructure, so iac-author is

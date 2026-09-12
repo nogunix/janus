@@ -27,6 +27,83 @@ ranked-hypothesis report grounded in the exact builds involved, and when
 the root cause turns out to be everyone's problem, `upstream-adviser`
 drafts the contribution proposal to carry it home.
 
+## Usage
+
+Invoke `/janus` with a question or an artifact. The lead classifies the
+case, shows you the pipeline it intends to run, fans the stages out on
+approval, and hands you a ranked-hypothesis report at
+`cases/<id>/results/report.md`.
+
+**CVE impact assessment** (needs okp-mcp):
+
+```
+/janus Does CVE-2024-1086 affect OpenShift 4.16 worker nodes?
+```
+
+→ `{ doc-search, source-trace } | synthesize` — errata/KB sweep plus the
+actual code path, cross-referenced into ranked hypotheses. A
+well-supported "not affected, and here is why" is a valid outcome.
+
+**Kernel crash forensics** (needs drgn):
+
+```
+/janus Analyze the vmcore under cases/2026-07-11-node-panic/artifacts/,
+kernel 5.14.0-570.el9. The node panicked during a VM live migration.
+```
+
+→ adds `crash-analyze`: drgn triage (crashed thread, dmesg, task states),
+then up to 5 observe → hypothesize → probe rounds. Every probe and its
+output lands in `cases/<id>/audit/` — the report's claims point at them.
+
+**Upgrade / cross-version compatibility**:
+
+```
+/janus What changed between OCP 4.18 and 4.20 that could break VMs
+using SCSI-3 persistent reservations over multipath?
+```
+
+→ version-diff investigation across layers (kernel, RHEL userspace,
+CNV). When a stage surfaces a KubeVirt PR or an `RHEL-NNNNN` ticket it
+cannot open, the lead launches `github-trace` / `jira-trace` follow-ups
+at fan-in. For ARO cases, mslearn covers the Azure layer; for ROSA cases,
+the AWS MCP servers cover the AWS layer.
+
+Japanese prompts work the same way — the skill triggers on phrases like
+「vmcoreを解析」「OOM調査」「アップグレード互換性を調査」「CVEの影響評価」.
+
+**Reproducible lab as Infrastructure-as-Code** (needs terraform / ansible):
+
+```
+/janus Build the ARO 4.16 lab needed to reproduce this multipath
+hypothesis — Terraform + Ansible, ready for review.
+```
+
+→ adds `iac-author`: it looks every provider argument and version pin up
+in the Terraform registry rather than recalling it, checks the sharp-edged
+values before writing them (instance-type allowlist, GPU AZ availability,
+node disk ≥ 3× model size, image tags that actually exist), and writes
+`fmt`-ed, `validate`-d, `ansible-lint`-clean code into `cases/<id>/iac/`
+with documented variables and no credentials. Anything it could not
+confirm is left un-defaulted with a `TODO(iac-author)` at the exact line —
+a hole you can see beats a plausible guess that survives review.
+
+Every finding in the report carries **Confidence + Basis
+(VERIFIED / REASONED / ASSUMED) + a reference a human can open** — a
+CVE/errata URL, a source permalink, or a drgn audit log. Live-cluster
+verification (`lab-verify`) is only ever *proposed*: it runs on a
+disposable lab, and only after you approve
+`review-queue/APPROVE_<id>.md`.
+
+Authoring that IaC and *applying* it are deliberately different stages.
+`iac-author` is static and autonomous, because writing a `.tf` changes no
+infrastructure; `lab-verify` is the only stage that runs it, behind the
+approval gate, as explicit shell commands recorded in `cases/<id>/audit/`.
+The ansible MCP's executing tools (`ansible_navigator`,
+`ade_setup_environment`) are granted to **no** agent, and the terraform
+grants are enumerated rather than wildcarded so that enabling that
+server's enterprise tools can never quietly hand an agent `apply_run`.
+`scripts/validate.py` fails the build if either rule is broken.
+
 ## Architecture
 
 How a case flows through the team — the lead session orchestrates,
@@ -85,43 +162,22 @@ flowchart LR
     rq -->|"human approves"| plugin["Plugin agent catalogs<br/>failure & reusable patterns,<br/>process changes"]
 ```
 
-## What's in the plugin
+### Pipeline stages
+
+The pipeline has nine composable stages connected by a universal
+`findings/*.md` format, plus two periodic agents:
 
 ```
-.claude-plugin/marketplace.json      # marketplace listing → plugins/janus
-plugins/janus/
-  .claude-plugin/plugin.json         # plugin manifest
-  skills/janus/SKILL.md              # /janus — pipeline driver
-  skills/janus/scripts/chain.py      # per-case evidence hash ledger (seal/verify/lock)
-  skills/janus/scripts/urlcheck.py   # reference-URL liveness check (backs gate C1/url)
-  skills/janus/scripts/quotecheck.py # verbatim-quote fidelity check (backs gate C2/quote)
-  skills/janus/scripts/versioncheck.py # version-provenance check (backs gate C2/version)
-  skills/janus/scripts/linkcheck.py  # evidence links resolve to a real file/anchor (backs C1/link)
-  skills/janus/scripts/prosecheck.py # ja report prose via textlint (backs gate C2/prose)
-  skills/janus/scripts/textlintrc.json # ja-technical-writing config for the above
-  skills/janus/scripts/anchors.py    # findings heading → GitHub slug map (evidence links)
-  skills/deck/                       # report → branded .pptx/PDF
-  skills/gslides/                    # report → Google Slides via the gws CLI
-  skills/md2pdf/                     # Markdown → PDF (pandoc + weasyprint, CJK)
-  skills/okp-doc-search/             # okp-mcp research know-how (queries, doc_id rules)
-  skills/ocp-triage-heuristics/      # experiential OCP live-cluster triage reference
-  hooks/                             # secret-safety + evidence-lock (PreToolUse denies) + evidence-chain (PostToolUse auto-seal)
-  agents/                            # 11 agents (patterns inlined into each)
-    doc-search  source-trace  github-trace  jira-trace  crash-analyze
-    iac-author  lab-verify  synthesize  localize  self-improver
-    upstream-adviser
-scripts/validate.py                  # repo consistency checks (CI-friendly, stdlib-only)
-scripts/selftest.py                  # offline self-tests for chain.py / urlcheck.py / quotecheck.py / versioncheck.py / linkcheck.py / prosecheck.py / hooks
-.github/workflows/ci.yml             # runs both on every push / PR
+{ doc-search, source-trace, crash-analyze, iac-author | [approve] lab-verify }
+  | synthesize [| localize]
 ```
 
-The pipeline: `{ doc-search, source-trace, crash-analyze, iac-author | [approve] lab-verify } | synthesize [| localize]`
-— nine composable stages connected by a universal `findings/*.md` format
-(github-trace and jira-trace join conditionally when another stage surfaces
-an upstream PR/issue or a Jira ticket; localize runs only when
-`report_language` ≠ `en`), plus two periodic agents. Reusable investigation patterns (drgn triage, CVE tracing,
-refuting an a-priori hypothesis, goroutine-leak repro, etc.) are **inlined into
-each agent** so they travel with the plugin.
+- `github-trace` and `jira-trace` join conditionally when another stage
+  surfaces an upstream PR/issue or a Jira ticket.
+- `localize` runs only when `report_language` ≠ `en`.
+- Reusable investigation patterns (drgn triage, CVE tracing, refuting an
+  a-priori hypothesis, goroutine-leak repro, etc.) are inlined into each
+  agent so they travel with the plugin.
 
 ## Prerequisites
 
@@ -204,287 +260,35 @@ Day-to-day maintenance:
 /plugin marketplace remove janus    # remove the marketplace entry
 ```
 
-## Working method (model-agnostic quality)
-
-Investigation quality is enforced by explicit discipline, not by the
-model in the seat:
-
-- **Model provenance** — the claim above is only worth as much as your
-  ability to check it, so every findings file records `model:` — the
-  model that *actually* ran that stage — and the report's Execution
-  Metadata carries the roll-up. The Model strategy table states what was
-  *assigned*; the cost and refusal ladders substitute a different model
-  without announcing it, so the table cannot be read backwards. A stage
-  that cannot tell writes `unrecorded` rather than guessing.
-  `validate.py` keeps the assigned side honest: every agent's declared
-  model must match SKILL.md's roster, and the Model strategy table must
-  not contradict it.
-- **Evidence-basis labels** — every finding carries
-  `Basis: VERIFIED | REASONED | ASSUMED` (tool output observed vs.
-  inferred from reading vs. carried in) alongside its confidence, and a
-  label is only promoted by new evidence.
-- **Named acceptance gates** — the lead checks each report against two
-  judgment gates: **C1 GROUNDING** (references, public URLs, no
-  speculation language, basis integrity) and **C2 COMPLETENESS &
-  FIDELITY** (completeness, verbatim artifact names, verbatim evidence
-  quotes). Failures go back to synthesize by sub-code (`C1/basis`,
-  `C2/quote-absent`, …); a HIGH hypothesis needs at least one VERIFIED
-  finding behind it.
-  Three of these checks are mechanical — reference liveness, quote
-  fidelity, and the evidence chain (see **Integrity checks** below).
-- **Causation gate** — crash-analyze may not record a crash cause
-  without "X causes Y because Z" where X and Y are observations from
-  this vmcore; correlation without a mechanism caps at MEDIUM.
-- **Failure-pattern catalogs** — agents carry
-  `symptom → wrong move → correct move` entries seeded from real cases
-  (e.g. a search timeout means "reduce scope", never "report negative").
-- **Lessons loop** — project-specific lessons are banked (with human
-  approval) in `.claude/skills/janus-lessons/SKILL.md`, which plugin
-  updates never overwrite; the lead injects relevant entries into stage
-  briefs, and recurring ones get promoted into the plugin's own
-  catalogs via the self-improver review queue.
-- **Declared fail direction** — for each check, what it does when it
-  *proves* a defect and what it does when it *cannot tell* are both
-  written down, in SKILL.md's **Fail direction** table. Fail-closed
-  where a defect is provable, fail-open where it is not (an air-gapped
-  install has to stay usable), and across every row: **a notice means
-  *not checked*, never *passed***.
-
-### Integrity checks (mechanical, before any human-level gate)
-
-Four stdlib-only scripts turn "trust the report" into "check the
-report." All run at handoff; a failure sends the report back rather
-than shipping it.
-
-**Evidence chain — `scripts/chain.py`.** Each case carries an
-append-only hash ledger, `cases/<id>/chain.jsonl`. Every record holds
-the sha256 of one evidence file plus the previous record's hash — the
-same linked-hash idea as a blockchain. It makes edits **visible, never
-impossible**: a legitimate revision (a report sent back to synthesize,
-an updated finding) appends a new record and the ledger keeps the full
-history; an edit that bypasses sealing breaks verification.
+## What's in the plugin
 
 ```
-$ python3 scripts/chain.py verify cases/<id>
-FAIL: TAMPER: results/report.md changed after last seal
+.claude-plugin/marketplace.json      # marketplace listing → plugins/janus
+plugins/janus/
+  .claude-plugin/plugin.json         # plugin manifest
+  skills/janus/SKILL.md              # /janus — pipeline driver
+  skills/janus/scripts/chain.py      # per-case evidence hash ledger (seal/verify/lock)
+  skills/janus/scripts/urlcheck.py   # reference-URL liveness check (backs gate C1/url)
+  skills/janus/scripts/quotecheck.py # verbatim-quote fidelity check (backs gate C2/quote)
+  skills/janus/scripts/versioncheck.py # version-provenance check (backs gate C2/version)
+  skills/janus/scripts/linkcheck.py  # evidence links resolve to a real file/anchor (backs C1/link)
+  skills/janus/scripts/prosecheck.py # ja report prose via textlint (backs gate C2/prose)
+  skills/janus/scripts/textlintrc.json # ja-technical-writing config for the above
+  skills/janus/scripts/anchors.py    # findings heading → GitHub slug map (evidence links)
+  skills/deck/                       # report → branded .pptx/PDF
+  skills/gslides/                    # report → Google Slides via the gws CLI
+  skills/md2pdf/                     # Markdown → PDF (pandoc + weasyprint, CJK)
+  skills/okp-doc-search/             # okp-mcp research know-how (queries, doc_id rules)
+  skills/ocp-triage-heuristics/      # experiential OCP live-cluster triage reference
+  hooks/                             # secret-safety + evidence-lock (PreToolUse denies) + evidence-chain (PostToolUse auto-seal)
+  agents/                            # 11 agents (patterns inlined into each)
+    doc-search  source-trace  github-trace  jira-trace  crash-analyze
+    iac-author  lab-verify  synthesize  localize  self-improver
+    upstream-adviser
+scripts/validate.py                  # repo consistency checks (CI-friendly, stdlib-only)
+scripts/selftest.py                  # offline self-tests for chain.py / urlcheck.py / quotecheck.py / versioncheck.py / linkcheck.py / prosecheck.py / hooks
+.github/workflows/ci.yml             # runs both on every push / PR
 ```
-
-Sealing is mostly automatic — a PostToolUse hook
-(`hooks/evidence-chain.py`) seals every write into the evidence set
-(`case.yaml`, findings, report, audit logs, verdict) — and the lead
-also seals explicitly before synthesis and at close (covering
-shell-written files the hook can't see). Deleting a record to cover
-tracks fails too: the broken hash link exposes the gap. The upshot is
-that the audit trail behind a claim can't be quietly rewritten after
-the fact, and the human verdicts self-improver's metrics stand on stay
-ground truth.
-
-The chain detects rewrites; `chain.py lock` prevents the accident in
-the first place. When the lead closes fan-in it drops the write bits on
-the fact base (`case.yaml`, `findings/*.md`, `audit/*`), and a
-PreToolUse hook (`hooks/evidence-lock.py`) denies tracked writes to
-locked files with an explanation instead of a bare permission error —
-so a stage can no longer clobber another stage's findings mid-flight.
-`chain.py unlock` is the lead's explicit escape hatch for a legitimate
-revision (unlock → edit → re-seal → lock).
-
-**Quote fidelity — `scripts/quotecheck.py`.** The telephone-game
-failure the lock can't catch: findings survive intact on disk while a
-fact mutates as synthesize copies it into the report — "reproduced"
-softens into "may reproduce", a version number drifts. The report is a
-legitimately new file, so no hash ledger notices. Instead, the report
-carries its load-bearing facts as attributed verbatim quotes
-(`> …` / `> — findings/<stage>.md`), and quotecheck verifies each one
-appears word-for-word in the file it cites — backing gate C2/quote:
-
-```
-$ python3 scripts/quotecheck.py cases/<id>/results/report.md
-FAIL: report.md:12: quote not found verbatim in findings/doc-search.md: "…"
-```
-
-**Reference liveness — `scripts/urlcheck.py`.** Backs gate C1/url by
-curl-checking every reference URL in the report. A fabricated citation
-(the classic LLM failure) dies as a 404 instead of a footnote nobody
-clicked:
-
-```
-$ python3 scripts/urlcheck.py cases/<id>/results/report.md
-FAIL: https://access.redhat.com/errata/RHSA-2099:9999/ (404)
-```
-
-The check is deliberately honest about what it can't prove. A portal
-that 302-redirects a missing path into an SSO login flow (returns 200)
-is classified **gated**, not live — existence unconfirmable without
-authenticating, so it's flagged for a human rather than passed or
-failed. 401/403/429 fold into the same class. A fully-unreachable
-network downgrades to a notice and passes, so air-gapped okp-mcp
-installs stay usable.
-
-**Version provenance — `scripts/versioncheck.py`.** The drift the quote
-check can't see: a fact observed at one product version reworded into a
-claim about another. Backs gate C2/version. The one hard FAIL is a
-source location cited with no version anywhere in its Ref (no NVR,
-casket path, or commit) — which version was read is unrecoverable. The
-rest are warnings the lead judges: a Detail/Ref pair crossed *within one
-product family* (Detail says 4.16, Ref pins 4.18), or — against the
-`version_scope` a case may declare — a finding or report version in that
-family but off-scope. Family-anchoring keeps kernel `5.14`, image tags,
-and RPM releases from drowning the OCP-minor signal:
-
-```
-$ python3 scripts/versioncheck.py cases/<id>
-FAIL: findings/source-trace.md F2: source location cited with no version pin
-warning: results/report.md: version 4.19 asserted but backed by no finding
-```
-
-**Evidence links — `scripts/linkcheck.py`.** The report is meant to be
-read by clicking: each claim links straight to the finding behind it, so
-a reviewer lands on the evidence instead of grepping for it.
-
-```markdown
-H1 rests on [F3](../findings/crash-analyze.md#f3-sigsegv-in-qemu-kvm)
-and the [lab trace](../audit/lab-1.log).
-```
-
-That affordance creates a new way to lie, which is why the check exists.
-`urlcheck.py` only sees `http(s)://`, so a relative link to a finding
-that was never written — or to an `#anchor` no heading produces —
-renders as an ordinary blue link and resolves to nothing. Backs gate
-C1/link:
-
-```
-$ python3 scripts/linkcheck.py cases/<id>/results/report.md
-FAIL: report.md:8: no such anchor in findings/crash-analyze.md: #f9-does-not-exist
-FAIL: report.md:9: evidence file does not exist: findings/source-trace.md
-```
-
-Anchors are matched the way GitHub and VS Code generate them (lowercase,
-punctuation dropped rather than hyphenated, duplicates suffixed `-1`),
-plus explicit `<a id="…">`. Links inside fenced code blocks are ignored,
-and a target outside the case directory is a FAIL. Unlike urlcheck this
-**never fails open** — local resolution is deterministic and offline, so
-a broken link is always a real defect.
-
-**Japanese prose quality — `scripts/prosecheck.py`.** The other four ask
-whether the report is *true*; none ask whether it is *readable*. For a
-`report_language: ja` case this wraps
-[textlint](https://github.com/textlint/textlint) with the
-[ja-technical-writing](https://github.com/textlint-ja/textlint-rule-preset-ja-technical-writing)
-preset and backs gate C2/prose:
-
-```
-$ python3 scripts/prosecheck.py cases/<id>
-FAIL: report.md:7:47 [ja-technical-writing/no-mix-dearu-desumasu] "である"調 であるべき箇所に "ですます"調
-FAIL: report.md:11:3 [ja-technical-writing/no-hankaku-kana] Disallow to use 半角カタカナ: "ｶﾀﾅ"
-```
-
-Two boundaries make it safe. **It never rewrites** — no `--fix`, because
-that would mutate prose `chain.py` has sealed and `quotecheck.py`
-cross-checks, and would break the rule that the lead never patches the
-report itself; violations go back to synthesize like any other gate.
-And **`ja-no-weak-phrase` is switched off on purpose**: it flags hedging,
-but in JANUS a LOW-confidence hypothesis is *supposed* to read as
-uncertain. Forcing assertive prose would make the report overclaim —
-precisely what the Confidence/Basis labels exist to prevent.
-
-This is the only check that shells out to a non-stdlib tool, so it fails
-open in every direction — English case, textlint not installed, preset
-missing, no report yet — with a notice and exit 0. **A notice means *not
-checked*, never *passed***; the script refuses to print OK for a run that
-did not happen. Quoted evidence, code blocks, tables and headings are
-excluded from linting (`textlint-filter-rule-node-types`), though note
-that the preset's own rules already skip those node types — the filter is
-a backstop for rules added later, such as `prh` for terminology, which do
-match inside blockquotes.
-
-All six scripts and the lock hook have offline self-tests
-(`scripts/selftest.py`) exercising tamper detection, ledger-edit
-detection, lock/deny/unlock, quote-mutation detection, the
-gated-vs-dead URL split, version-provenance drift, evidence-link
-resolution, and prosecheck's
-fail-open paths (including the regression that once printed OK when
-textlint was absent); `.github/workflows/ci.yml` runs them with
-`validate.py` on every push and PR — no npm install needed, because the
-prose check degrades to a notice there.
-
-See [CHANGELOG.md](CHANGELOG.md) for version history.
-
-## Usage
-
-Invoke `/janus` with a question or an artifact. The lead classifies the
-case, shows you the pipeline it intends to run, fans the stages out on
-approval, and hands you a ranked-hypothesis report at
-`cases/<id>/results/report.md`.
-
-**CVE impact assessment** (needs okp-mcp):
-
-```
-/janus Does CVE-2024-1086 affect OpenShift 4.16 worker nodes?
-```
-
-→ `{ doc-search, source-trace } | synthesize` — errata/KB sweep plus the
-actual code path, cross-referenced into ranked hypotheses. A
-well-supported "not affected, and here is why" is a valid outcome.
-
-**Kernel crash forensics** (needs drgn):
-
-```
-/janus Analyze the vmcore under cases/2026-07-11-node-panic/artifacts/,
-kernel 5.14.0-570.el9. The node panicked during a VM live migration.
-```
-
-→ adds `crash-analyze`: drgn triage (crashed thread, dmesg, task states),
-then up to 5 observe → hypothesize → probe rounds. Every probe and its
-output lands in `cases/<id>/audit/` — the report's claims point at them.
-
-**Upgrade / cross-version compatibility**:
-
-```
-/janus What changed between OCP 4.18 and 4.20 that could break VMs
-using SCSI-3 persistent reservations over multipath?
-```
-
-→ version-diff investigation across layers (kernel, RHEL userspace,
-CNV). When a stage surfaces a KubeVirt PR or an `RHEL-NNNNN` ticket it
-cannot open, the lead launches `github-trace` / `jira-trace` follow-ups
-at fan-in. For ARO cases, mslearn covers the Azure layer; for ROSA cases,
-the AWS MCP servers cover the AWS layer.
-
-Japanese prompts work the same way — the skill triggers on phrases like
-「vmcoreを解析」「OOM調査」「アップグレード互換性を調査」「CVEの影響評価」.
-
-**Reproducible lab as Infrastructure-as-Code** (needs terraform / ansible):
-
-```
-/janus Build the ARO 4.16 lab needed to reproduce this multipath
-hypothesis — Terraform + Ansible, ready for review.
-```
-
-→ adds `iac-author`: it looks every provider argument and version pin up
-in the Terraform registry rather than recalling it, checks the sharp-edged
-values before writing them (instance-type allowlist, GPU AZ availability,
-node disk ≥ 3× model size, image tags that actually exist), and writes
-`fmt`-ed, `validate`-d, `ansible-lint`-clean code into `cases/<id>/iac/`
-with documented variables and no credentials. Anything it could not
-confirm is left un-defaulted with a `TODO(iac-author)` at the exact line —
-a hole you can see beats a plausible guess that survives review.
-
-Every finding in the report carries **Confidence + Basis
-(VERIFIED / REASONED / ASSUMED) + a reference a human can open** — a
-CVE/errata URL, a source permalink, or a drgn audit log. Live-cluster
-verification (`lab-verify`) is only ever *proposed*: it runs on a
-disposable lab, and only after you approve
-`review-queue/APPROVE_<id>.md`.
-
-Authoring that IaC and *applying* it are deliberately different stages.
-`iac-author` is static and autonomous, because writing a `.tf` changes no
-infrastructure; `lab-verify` is the only stage that runs it, behind the
-approval gate, as explicit shell commands recorded in `cases/<id>/audit/`.
-The ansible MCP's executing tools (`ansible_navigator`,
-`ade_setup_environment`) are granted to **no** agent, and the terraform
-grants are enumerated rather than wildcarded so that enabling that
-server's enterprise tools can never quietly hand an agent `apply_run`.
-`scripts/validate.py` fails the build if either rule is broken.
 
 ## MCP dependencies (environment-specific)
 
@@ -689,24 +493,23 @@ against real targets, and `ade_setup_environment` runs the host package
 manager. Playbook execution belongs to lab-verify, post-approval, as an
 explicit `ansible-playbook` command in the audit trail.
 
-## Optional tooling — ax (AI-era curl)
+## Optional tooling
+
+### ax (AI-era curl)
 
 [ax](https://github.com/yusukebe/ax) is a token-aware CLI for web
 fetching, page discovery, and structured data extraction — used in place
-of `curl` + throwaway parsing scripts. Install and register the skill:
+of `curl` + throwaway parsing scripts.
 
 ```bash
-# Install (Bun required for building from source)
 brew install oven-sh/bun/bun
 git clone --depth 1 https://github.com/yusukebe/ax.git /tmp/ax-src
 cd /tmp/ax-src && bun install --ignore-scripts
 bun build src/index.ts --compile --outfile ~/bin/ax
-
-# Register the Claude Code skill
 npx skills add yusukebe/ax
 ```
 
-## Optional tooling — mdq (jq for Markdown)
+### mdq (jq for Markdown)
 
 [mdq](https://github.com/yshavit/mdq) queries Markdown documents the
 way jq queries JSON — extract sections, lists, tables, links, and code
@@ -717,7 +520,7 @@ output.
 brew install mdq
 ```
 
-## Optional tooling — textlint (Japanese reports only)
+### textlint (Japanese reports only)
 
 Not an MCP server, and not required: `scripts/prosecheck.py` shells out to
 textlint only for `report_language: ja` cases, and degrades to a notice
@@ -736,6 +539,209 @@ The config ships with the plugin at
 itself stays stdlib-only, CI needs no npm install, and `npx` is invoked
 with `--no-install` so nothing is ever downloaded mid-investigation.
 
+## Working method (model-agnostic quality)
+
+Investigation quality is enforced by explicit discipline, not by the
+model in the seat:
+
+- **Model provenance** — the claim above is only worth as much as your
+  ability to check it, so every findings file records `model:` — the
+  model that *actually* ran that stage — and the report's Execution
+  Metadata carries the roll-up. The Model strategy table states what was
+  *assigned*; the cost and refusal ladders substitute a different model
+  without announcing it, so the table cannot be read backwards. A stage
+  that cannot tell writes `unrecorded` rather than guessing.
+  `validate.py` keeps the assigned side honest: every agent's declared
+  model must match SKILL.md's roster, and the Model strategy table must
+  not contradict it.
+- **Evidence-basis labels** — every finding carries
+  `Basis: VERIFIED | REASONED | ASSUMED` (tool output observed vs.
+  inferred from reading vs. carried in) alongside its confidence, and a
+  label is only promoted by new evidence.
+- **Named acceptance gates** — the lead checks each report against two
+  judgment gates: **C1 GROUNDING** (references, public URLs, no
+  speculation language, basis integrity) and **C2 COMPLETENESS &
+  FIDELITY** (completeness, verbatim artifact names, verbatim evidence
+  quotes). Failures go back to synthesize by sub-code (`C1/basis`,
+  `C2/quote-absent`, …); a HIGH hypothesis needs at least one VERIFIED
+  finding behind it.
+  Three of these checks are mechanical — reference liveness, quote
+  fidelity, and the evidence chain (see **Integrity checks** below).
+- **Causation gate** — crash-analyze may not record a crash cause
+  without "X causes Y because Z" where X and Y are observations from
+  this vmcore; correlation without a mechanism caps at MEDIUM.
+- **Failure-pattern catalogs** — agents carry
+  `symptom → wrong move → correct move` entries seeded from real cases
+  (e.g. a search timeout means "reduce scope", never "report negative").
+- **Lessons loop** — project-specific lessons are banked (with human
+  approval) in `.claude/skills/janus-lessons/SKILL.md`, which plugin
+  updates never overwrite; the lead injects relevant entries into stage
+  briefs, and recurring ones get promoted into the plugin's own
+  catalogs via the self-improver review queue.
+- **Declared fail direction** — for each check, what it does when it
+  *proves* a defect and what it does when it *cannot tell* are both
+  written down, in SKILL.md's **Fail direction** table. Fail-closed
+  where a defect is provable, fail-open where it is not (an air-gapped
+  install has to stay usable), and across every row: **a notice means
+  *not checked*, never *passed***.
+
+### Integrity checks (mechanical, before any human-level gate)
+
+Four stdlib-only scripts turn "trust the report" into "check the
+report." All run at handoff; a failure sends the report back rather
+than shipping it.
+
+**Evidence chain — `scripts/chain.py`.** Each case carries an
+append-only hash ledger, `cases/<id>/chain.jsonl`. Every record holds
+the sha256 of one evidence file plus the previous record's hash — the
+same linked-hash idea as a blockchain. It makes edits **visible, never
+impossible**: a legitimate revision (a report sent back to synthesize,
+an updated finding) appends a new record and the ledger keeps the full
+history; an edit that bypasses sealing breaks verification.
+
+```
+$ python3 scripts/chain.py verify cases/<id>
+FAIL: TAMPER: results/report.md changed after last seal
+```
+
+Sealing is mostly automatic — a PostToolUse hook
+(`hooks/evidence-chain.py`) seals every write into the evidence set
+(`case.yaml`, findings, report, audit logs, verdict) — and the lead
+also seals explicitly before synthesis and at close (covering
+shell-written files the hook can't see). Deleting a record to cover
+tracks fails too: the broken hash link exposes the gap. The upshot is
+that the audit trail behind a claim can't be quietly rewritten after
+the fact, and the human verdicts self-improver's metrics stand on stay
+ground truth.
+
+The chain detects rewrites; `chain.py lock` prevents the accident in
+the first place. When the lead closes fan-in it drops the write bits on
+the fact base (`case.yaml`, `findings/*.md`, `audit/*`), and a
+PreToolUse hook (`hooks/evidence-lock.py`) denies tracked writes to
+locked files with an explanation instead of a bare permission error —
+so a stage can no longer clobber another stage's findings mid-flight.
+`chain.py unlock` is the lead's explicit escape hatch for a legitimate
+revision (unlock → edit → re-seal → lock).
+
+**Quote fidelity — `scripts/quotecheck.py`.** The telephone-game
+failure the lock can't catch: findings survive intact on disk while a
+fact mutates as synthesize copies it into the report — "reproduced"
+softens into "may reproduce", a version number drifts. The report is a
+legitimately new file, so no hash ledger notices. Instead, the report
+carries its load-bearing facts as attributed verbatim quotes
+(`> …` / `> — findings/<stage>.md`), and quotecheck verifies each one
+appears word-for-word in the file it cites — backing gate C2/quote:
+
+```
+$ python3 scripts/quotecheck.py cases/<id>/results/report.md
+FAIL: report.md:12: quote not found verbatim in findings/doc-search.md: "…"
+```
+
+**Reference liveness — `scripts/urlcheck.py`.** Backs gate C1/url by
+curl-checking every reference URL in the report. A fabricated citation
+(the classic LLM failure) dies as a 404 instead of a footnote nobody
+clicked:
+
+```
+$ python3 scripts/urlcheck.py cases/<id>/results/report.md
+FAIL: https://access.redhat.com/errata/RHSA-2099:9999/ (404)
+```
+
+The check is deliberately honest about what it can't prove. A portal
+that 302-redirects a missing path into an SSO login flow (returns 200)
+is classified **gated**, not live — existence unconfirmable without
+authenticating, so it's flagged for a human rather than passed or
+failed. 401/403/429 fold into the same class. A fully-unreachable
+network downgrades to a notice and passes, so air-gapped okp-mcp
+installs stay usable.
+
+**Version provenance — `scripts/versioncheck.py`.** The drift the quote
+check can't see: a fact observed at one product version reworded into a
+claim about another. Backs gate C2/version. The one hard FAIL is a
+source location cited with no version anywhere in its Ref (no NVR,
+casket path, or commit) — which version was read is unrecoverable. The
+rest are warnings the lead judges: a Detail/Ref pair crossed *within one
+product family* (Detail says 4.16, Ref pins 4.18), or — against the
+`version_scope` a case may declare — a finding or report version in that
+family but off-scope. Family-anchoring keeps kernel `5.14`, image tags,
+and RPM releases from drowning the OCP-minor signal:
+
+```
+$ python3 scripts/versioncheck.py cases/<id>
+FAIL: findings/source-trace.md F2: source location cited with no version pin
+warning: results/report.md: version 4.19 asserted but backed by no finding
+```
+
+**Evidence links — `scripts/linkcheck.py`.** The report is meant to be
+read by clicking: each claim links straight to the finding behind it, so
+a reviewer lands on the evidence instead of grepping for it.
+
+```markdown
+H1 rests on [F3](../findings/crash-analyze.md#f3-sigsegv-in-qemu-kvm)
+and the [lab trace](../audit/lab-1.log).
+```
+
+That affordance creates a new way to lie, which is why the check exists.
+`urlcheck.py` only sees `http(s)://`, so a relative link to a finding
+that was never written — or to an `#anchor` no heading produces —
+renders as an ordinary blue link and resolves to nothing. Backs gate
+C1/link:
+
+```
+$ python3 scripts/linkcheck.py cases/<id>/results/report.md
+FAIL: report.md:8: no such anchor in findings/crash-analyze.md: #f9-does-not-exist
+FAIL: report.md:9: evidence file does not exist: findings/source-trace.md
+```
+
+Anchors are matched the way GitHub and VS Code generate them (lowercase,
+punctuation dropped rather than hyphenated, duplicates suffixed `-1`),
+plus explicit `<a id="…">`. Links inside fenced code blocks are ignored,
+and a target outside the case directory is a FAIL. Unlike urlcheck this
+**never fails open** — local resolution is deterministic and offline, so
+a broken link is always a real defect.
+
+**Japanese prose quality — `scripts/prosecheck.py`.** The other four ask
+whether the report is *true*; none ask whether it is *readable*. For a
+`report_language: ja` case this wraps
+[textlint](https://github.com/textlint/textlint) with the
+[ja-technical-writing](https://github.com/textlint-ja/textlint-rule-preset-ja-technical-writing)
+preset and backs gate C2/prose:
+
+```
+$ python3 scripts/prosecheck.py cases/<id>
+FAIL: report.md:7:47 [ja-technical-writing/no-mix-dearu-desumasu] "である"調 であるべき箇所に "ですます"調
+FAIL: report.md:11:3 [ja-technical-writing/no-hankaku-kana] Disallow to use 半角カタカナ: "ｶﾀﾅ"
+```
+
+Two boundaries make it safe. **It never rewrites** — no `--fix`, because
+that would mutate prose `chain.py` has sealed and `quotecheck.py`
+cross-checks, and would break the rule that the lead never patches the
+report itself; violations go back to synthesize like any other gate.
+And **`ja-no-weak-phrase` is switched off on purpose**: it flags hedging,
+but in JANUS a LOW-confidence hypothesis is *supposed* to read as
+uncertain. Forcing assertive prose would make the report overclaim —
+precisely what the Confidence/Basis labels exist to prevent.
+
+This is the only check that shells out to a non-stdlib tool, so it fails
+open in every direction — English case, textlint not installed, preset
+missing, no report yet — with a notice and exit 0. **A notice means *not
+checked*, never *passed***; the script refuses to print OK for a run that
+did not happen. Quoted evidence, code blocks, tables and headings are
+excluded from linting (`textlint-filter-rule-node-types`), though note
+that the preset's own rules already skip those node types — the filter is
+a backstop for rules added later, such as `prh` for terminology, which do
+match inside blockquotes.
+
+All six scripts and the lock hook have offline self-tests
+(`scripts/selftest.py`) exercising tamper detection, ledger-edit
+detection, lock/deny/unlock, quote-mutation detection, the
+gated-vs-dead URL split, version-provenance drift, evidence-link
+resolution, and prosecheck's
+fail-open paths (including the regression that once printed OK when
+textlint was absent); `.github/workflows/ci.yml` runs them with
+`validate.py` on every push and PR — no npm install needed, because the
+prose check degrades to a notice there.
+
 ## Safety
 
 Read-only. Dead-artifact analysis (vmcore) is autonomous-safe; live-target work
@@ -746,3 +752,5 @@ root-cause call is the human's.
 ## License
 
 MIT License - see the [LICENSE](LICENSE) file for details.
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
