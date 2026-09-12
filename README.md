@@ -140,7 +140,7 @@ dependencies** below for setup commands).
 | Server | Used by | Required? |
 |--------|---------|-----------|
 | [okp-mcp](https://github.com/rhel-lightspeed/okp-mcp) | doc-search (CVE / errata / KB) | Recommended |
-| [casket-mcp](https://github.com/nogunix/ocp-source-collector) | source-trace (versioned source) | Optional |
+| [casket-mcp](https://github.com/nogunix/ocp-source-collector/blob/main/mcp/README.md) | source-trace (versioned source) | Optional |
 | [drgn-mcp](https://github.com/walac/drgn-mcp) | crash-analyze (vmcore) | For crash cases |
 | [GitHub MCP](https://github.com/github/github-mcp-server) | github-trace, upstream-adviser | Optional |
 | [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) | jira-trace | Optional |
@@ -540,6 +540,26 @@ spec:
       persistentVolumeClaim:
         claimName: redhat-okp-data
   restartPolicy: Always
+```
+
+### casket-mcp — versioned OpenShift / RHEL / CNV source code
+Used by source-trace to search and read the exact source behind a
+specific OCP release — component git trees, operator bundles, SRPMs, and
+layered-product operands. Optional: without it, source-trace is skipped
+and the report notes a gap.
+
+casket-mcp is part of
+[ocp-source-collector](https://github.com/nogunix/ocp-source-collector).
+Full setup (venv, registration, LAN access):
+[mcp/README.md](https://github.com/nogunix/ocp-source-collector/blob/main/mcp/README.md).
+
+```bash
+# Local (stdio) — run from the ocp-source-collector checkout
+claude mcp add casket -- "$CASKET_WORK"/mcp/.venv/bin/python \
+  "$CASKET_WORK"/mcp/casket_mcp.py
+
+# Or from another machine on the LAN (HTTP, casket-host runs the server)
+claude mcp add --transport http casket http://<CASKET_HOST_IP>:8765/mcp
 ```
 
 ### mslearn — Microsoft Learn docs for the ARO/Azure layer
