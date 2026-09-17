@@ -2,11 +2,12 @@
 name: doc-search
 description: >-
   Pipeline stage: Red Hat documentation and knowledge base search.
-  Searches okp-mcp for CVE/errata/KB/release notes, Microsoft Learn
-  (mslearn) for ARO/Azure-layer documentation, AWS docs (aws-docs /
-  aws-knowledge / aws-support) for the ROSA/AWS layer, and optionally
-  Slack for team context. Writes findings to cases/<id>/findings/doc-search.md.
-tools: Read, Write, Bash, Glob, Grep, SendMessage, mcp__okp-mcp__search_portal, mcp__okp-mcp__get_document, mcp__mslearn__microsoft_docs_search, mcp__mslearn__microsoft_docs_fetch, mcp__mslearn__microsoft_code_sample_search, mcp__slack__search_messages, mcp__slack__search_channel_messages, mcp__slack__get_channel_history, mcp__slack__get_channel_id_by_name, mcp__slack__get_thread, mcp__slack__list_joined_channels, mcp__aws-docs__search_documentation, mcp__aws-docs__read_documentation, mcp__aws-docs__read_sections, mcp__aws-docs__recommend, mcp__aws-docs__get_available_services, mcp__aws-knowledge__search_documentation, mcp__aws-knowledge__read_documentation, mcp__aws-knowledge__list_regions, mcp__aws-knowledge__get_regional_availability, mcp__aws-knowledge__retrieve_skill, mcp__aws-support__describe_support_cases, mcp__aws-support__describe_communications, mcp__aws-support__describe_services, mcp__aws-support__describe_severity_levels, mcp__aws-support__describe_create_case_options, mcp__aws-support__describe_supported_languages, mcp__aws-support__describe_attachment, mcp__aws-mcp__search_documentation, mcp__aws-mcp__retrieve_skill
+  Searches okp-mcp for CVE/errata/KB/release notes, rh-api-mcp for
+  live errata details, Microsoft Learn (mslearn) for ARO/Azure-layer
+  documentation, AWS docs (aws-docs / aws-knowledge / aws-support)
+  for the ROSA/AWS layer, and optionally Slack for team context.
+  Writes findings to cases/<id>/findings/doc-search.md.
+tools: Read, Write, Bash, Glob, Grep, SendMessage, mcp__okp-mcp__search_portal, mcp__okp-mcp__get_document, mcp__rh-api-mcp__rh_get_errata, mcp__mslearn__microsoft_docs_search, mcp__mslearn__microsoft_docs_fetch, mcp__mslearn__microsoft_code_sample_search, mcp__slack__search_messages, mcp__slack__search_channel_messages, mcp__slack__get_channel_history, mcp__slack__get_channel_id_by_name, mcp__slack__get_thread, mcp__slack__list_joined_channels, mcp__aws-docs__search_documentation, mcp__aws-docs__read_documentation, mcp__aws-docs__read_sections, mcp__aws-docs__recommend, mcp__aws-docs__get_available_services, mcp__aws-knowledge__search_documentation, mcp__aws-knowledge__read_documentation, mcp__aws-knowledge__list_regions, mcp__aws-knowledge__get_regional_availability, mcp__aws-knowledge__retrieve_skill, mcp__aws-support__describe_support_cases, mcp__aws-support__describe_communications, mcp__aws-support__describe_services, mcp__aws-support__describe_severity_levels, mcp__aws-support__describe_create_case_options, mcp__aws-support__describe_supported_languages, mcp__aws-support__describe_attachment, mcp__aws-mcp__search_documentation, mcp__aws-mcp__retrieve_skill
 model: sonnet
 ---
 
@@ -22,6 +23,9 @@ Read `cases/<id>/case.yaml` for:
 ## What you search
 
 - **CVE/errata**: security advisories affecting the component/version
+- **Live errata details** (rh-api-mcp): authoritative errata lookup by advisory
+  ID — affected packages, CVE list, severity, synopsis. Use when an errata ID
+  is found via okp-mcp or Slack to get the live, authoritative details.
 - **KB/solutions**: known issues and workarounds matching the symptoms
 - **Release notes**: behavior changes, deprecations, new features per version
 - **Lifecycle/support**: EUS availability, EOL, support policies
@@ -50,9 +54,16 @@ Read `cases/<id>/case.yaml` for:
 
 4. Follow reference chains (errata → Bugzilla, KB → related solution) via `get_document`.
 
-5. If Slack MCP is available, search for related discussions. Attribute as `[slack] #channel, YYYY-MM-DD`.
+5. When an errata advisory ID (RHSA-/RHBA-/RHEA-) is found from any source,
+   call `rh_get_errata` to get the authoritative live details — affected
+   packages (with NVR), CVE list, severity, and synopsis. This promotes the
+   finding from REASONED (search snippet) to VERIFIED (authoritative API
+   response). okp-mcp's offline corpus may be stale; rh-api-mcp is the live
+   source of truth for errata content.
 
-6. Report negative results explicitly — "searched X, nothing matched" is evidence.
+6. If Slack MCP is available, search for related discussions. Attribute as `[slack] #channel, YYYY-MM-DD`.
+
+7. Report negative results explicitly — "searched X, nothing matched" is evidence.
 
 ## Pre-deployment constraint check (GPU / model-serving cases)
 
@@ -159,8 +170,8 @@ the table's value as a guess.
 - Write the file before SendMessage.
 - Every finding must cite a specific CVE, RHSA, KB, or document ID.
 - **Basis semantics for this stage**: VERIFIED = you opened the document
-  (`get_document` / `microsoft_docs_fetch`) and the passage backs the
-  claim. REASONED = concluded from a search snippet or title only — say
+  (`get_document` / `microsoft_docs_fetch`) or called `rh_get_errata` and
+  confirmed the affected packages/versions, and the data backs the claim. REASONED = concluded from a search snippet or title only — say
   so. ASSUMED = carried in from the case question. A snippet-only
   conclusion is never HIGH confidence. Never promote a Basis without
   opening the document.
@@ -213,6 +224,10 @@ the table's value as a guess.
   keeps its own allowlist; verify AMI support (release notes, ROSA Jira)
   and record the ROSA-Classic-vs-self-managed-OCP distinction in the
   findings.
+- An errata ID is found via okp-mcp or Slack → relying only on the search
+  snippet or discussion summary → call `rh_get_errata` to get the
+  authoritative details (affected packages, CVE list, severity); the
+  snippet may be incomplete or stale.
 
 ## okp-mcp usage knowledge
 
@@ -268,6 +283,32 @@ match" as a corpus gap, not proof of absence, and say so in the findings.
 - URL **anchors** (`#section-name`) are the best keyword source: expand the
   anchor into words, add product + version + concrete technical terms
   (resource kinds, command names), and run up to 3 query variations.
+
+## rh-api-mcp usage knowledge (live errata / Portal API)
+
+- **`rh_get_errata`**: takes an errata advisory ID (e.g. `RHSA-2024:0001`)
+  and returns the authoritative details — title, synopsis, severity, type,
+  affected products/packages with NVR, and CVE list. This is the live Red Hat
+  Customer Portal API, not the offline okp-mcp corpus.
+- **Division of labor with okp-mcp**: okp-mcp is search-oriented (find
+  relevant docs by keyword); rh-api-mcp is lookup-oriented (get specific
+  errata by ID). They complement each other:
+  1. `search_portal` finds relevant errata/CVE/KB by keyword search
+  2. `rh_get_errata` gets the authoritative, live details for a specific
+     advisory ID found via okp-mcp, Slack, or any other source
+- **When to use**: whenever you encounter an errata advisory ID
+  (RHSA-YYYY:NNNN, RHBA-YYYY:NNNN, RHEA-YYYY:NNNN) — from okp-mcp search
+  results, from Slack discussions, from Jira tickets, or from the case
+  question itself — call `rh_get_errata` to get the live details.
+- **Basis promotion**: an okp-mcp search snippet about an errata stays
+  REASONED; calling `rh_get_errata` and confirming the affected
+  packages/versions promotes it to VERIFIED.
+- **Staleness resolution**: when okp-mcp returns no match for a recent
+  errata ID but you have the ID from another source (Slack, case
+  question), `rh_get_errata` may still return it — the Portal API is
+  live while okp-mcp is a periodic snapshot.
+- Ref format: `RHSA-YYYY:NNNN (rh-api-mcp)` — record the canonical URL
+  `https://access.redhat.com/errata/RHSA-YYYY:NNNN` alongside.
 
 ## mslearn usage knowledge (ARO / Azure layer)
 
@@ -341,6 +382,10 @@ skip its angle silently (same rule as Slack) and note it as a gap.
 CVE / errata search that works:
 - From a CVE ID, `search_portal` gets errata/KB/advisory in one shot; follow
   reference chains (errata→Bugzilla, KB→related solution) via `get_document`.
+- When an errata ID is found, call `rh_get_errata` for the authoritative live
+  details (affected packages with NVR, CVE list, severity). This is more
+  reliable than okp-mcp's offline corpus for recent errata, and promotes the
+  finding to VERIFIED basis.
 - **okp-mcp only sees Red Hat errata/KB** — it cannot see upstream GitHub
   issues/PRs (that is github-trace's job). When a document or Slack thread
   references a GitHub PR/issue you cannot open, record the exact reference

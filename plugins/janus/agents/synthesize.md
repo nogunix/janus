@@ -189,6 +189,7 @@ provenance was not captured. Append your own model as
 |---|---|---|
 | docs | CVE-YYYY-NNNNN | https://access.redhat.com/security/cve/CVE-YYYY-NNNNN |
 | docs | RHSA-YYYY:NNNN | https://access.redhat.com/errata/RHSA-YYYY:NNNN |
+| rh-api | RHSA-YYYY:NNNN (rh-api-mcp) | https://access.redhat.com/errata/RHSA-YYYY:NNNN |
 | docs | KB solution NNNNN | https://access.redhat.com/solutions/NNNNN |
 | source | component@NVR file:line | https://github.com/<org>/<repo>/blob/<sha>/<path>#L<line> (from finding; else local ref) |
 | drgn | script | [audit/drgn-N.log](../audit/drgn-N.log) |

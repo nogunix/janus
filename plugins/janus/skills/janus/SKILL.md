@@ -38,7 +38,7 @@ connects, it does not process.
 
 | Stage | Role | Output | Tools | Safety | Model |
 |---|---|---|---|---|---|
-| **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure, AWS docs for ROSA/AWS) | findings/doc-search.md | okp-mcp + slack + mslearn + aws | Static | sonnet |
+| **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure, AWS docs for ROSA/AWS) | findings/doc-search.md | okp-mcp + rh-api-mcp + slack + mslearn + aws | Static | sonnet |
 | **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp (optional) | Static | sonnet |
 | **github-trace** | Upstream GitHub PR/issue/commit deep-dive | findings/github-trace.md | github MCP (read-only) | Static | sonnet |
 | **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | mcp-atlassian (read-only) | Static | sonnet |
@@ -205,9 +205,10 @@ mode = artifact → includes crash-analyze
 
 Then check each composed stage's required MCP server with
 `claude mcp list` (`✔ Connected` — a tool being advertised is not the
-server being reachable): doc-search → okp-mcp, source-trace → casket,
-github-trace → github, jira-trace → mcp-atlassian, crash-analyze →
-drgn, iac-author → terraform and/or ansible, lab-verify → linux.
+server being reachable): doc-search → okp-mcp (+ rh-api-mcp for live
+errata), source-trace → casket, github-trace → github, jira-trace →
+mcp-atlassian, crash-analyze → drgn, iac-author → terraform and/or
+ansible, lab-verify → linux.
 A stage whose server is not connected is **dropped from the composition
 and recorded as a gap** (note it in the step-2 presentation; synthesize
 reports it under Investigation Gaps) — never launched to fail at
@@ -215,7 +216,10 @@ runtime. iac-author is the one exception to the all-or-nothing rule: it
 runs with **either** `terraform` or `ansible` connected, in reduced
 scope, recording the missing half as a gap; drop it only when neither is
 there. Without `terraform` its version pins are REASONED at best, and it
-must label them so.
+must label them so. rh-api-mcp is optional for doc-search: okp-mcp alone
+is sufficient to run the stage, but when rh-api-mcp is not connected
+doc-search records the absence as a gap in cases where live errata lookup
+would have strengthened a finding.
 
 ### 2. Present the pipeline to the human
 
@@ -589,6 +593,7 @@ contradiction — synthesize and the lead's gates reject it.
 | Source | Format | Example |
 |---|---|---|
 | docs | CVE / RHSA / KB ID | `CVE-2024-1086` |
+| rh-api | errata advisory ID (live) | `RHSA-2024:0001 (via rh-api-mcp)` |
 | source | `component@NVR file:line` | `hyperkube@4.20.0 pkg/…/eviction.go:414` |
 | drgn | script + output path | `audit/drgn-1.py → audit/drgn-1.log` |
 | lab | command + cluster ver | `oc get pods (OCP 4.20.0) → audit/lab-1.log` |
@@ -871,7 +876,15 @@ launches self-improver.
 ## MCP dependencies
 
 `casket` (versioned source — optional; source-trace activates only when
-this server is registered, and its absence is normal), `okp-mcp` (Red Hat docs/CVE/errata/KB), `mslearn`
+this server is registered, and its absence is normal), `okp-mcp` (Red Hat docs/CVE/errata/KB),
+`rh-api-mcp` (live Red Hat Customer Portal API — authoritative errata
+lookup by advisory ID via `rh_get_errata`, complementing okp-mcp's offline
+corpus; also provides subscription/system inventory via
+`rh_list_subscriptions`, `rh_list_systems`, `rh_get_system` for cases that
+need entitlement or registration context. Read-only — JANUS never modifies
+subscriptions or system registrations. Optional: doc-search runs without it
+but records the absence as a gap when live errata lookup would have helped),
+`mslearn`
 (Microsoft Learn docs — ARO/Azure layer for doc-search; public remote server,
 no auth: `claude mcp add --transport http mslearn
 https://learn.microsoft.com/api/mcp`), `aws-docs` / `aws-knowledge` /
