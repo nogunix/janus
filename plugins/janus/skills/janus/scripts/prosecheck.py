@@ -55,12 +55,23 @@ chain.py has sealed and quotecheck.py cross-checks, and it would break
 the standing rule that the lead never patches the report itself.
 Violations go back to synthesize under C2/prose, like every other gate.
 
-Setup (once, per machine):
-    npm install -g textlint textlint-rule-preset-ja-technical-writing \\
-        textlint-filter-rule-node-types
+Two backends, tried in order:
+
+  Sonnet  Primary. Uses `claude -p` (the Claude Code CLI). Always
+          available in a JANUS session, no extra setup, fast. Degrades to
+          the next backend when the claude binary is absent (air-gapped
+          installs without the CLI, CI).
+
+  textlint  Fallback. npm-based rule engine. Requires:
+              npm install -g textlint textlint-rule-preset-ja-technical-writing
+                  textlint-filter-rule-node-types
+            Degrades to a notice when absent, exactly as before.
+
+If neither backend is available the check fails open with a notice, so
+air-gapped installs and CI remain usable.
 
 Usage: python3 prosecheck.py cases/<id>
-Stdlib-only itself, like chain.py; textlint is an optional external tool.
+Stdlib-only itself, like chain.py; external tools are optional.
 """
 
 import json
@@ -74,11 +85,47 @@ CONFIG = Path(__file__).resolve().parent / "textlintrc.json"
 TIMEOUT = 120
 DEFAULT_LANGUAGE = "en"
 SEVERITY_ERROR = 2
+SONNET_MODEL = "claude-sonnet-4-6"
+
+# Reports are truncated to this length before sending to Sonnet to stay
+# within practical CLI arg limits and keep costs low. Prose issues appear
+# throughout the text, so checking the first 30 KB catches the vast
+# majority while keeping the call fast.
+SONNET_MAX_CHARS = 30_000
 
 INSTALL_HINT = (
     "npm install -g textlint textlint-rule-preset-ja-technical-writing "
     "textlint-filter-rule-node-types"
 )
+
+_SONNET_PROMPT = """\
+You are a Japanese technical writing checker for Red Hat support investigation reports.
+
+Examine ONLY the paragraph prose. Skip:
+- Blockquote lines (starting with >)  — verbatim evidence quotes
+- Fenced or indented code blocks
+- ATX headers (lines starting with #)
+- Table rows (lines containing |)
+- Inline code (text between backticks)
+
+Check each paragraph for exactly these three rules:
+
+[no-mix-dearu-desumasu]
+  ですます体（です・ます・ません・ました）とである体（である・だ・だった）が
+  同一段落内に混在している場合のみ報告する。
+
+[sentence-length]
+  句点（。！？）で終わる1文が100文字を超える場合。Markdown記法を除いた文字数で計算。
+
+[no-hankaku-kana]
+  半角カタカナ（Unicode U+FF65–U+FF9F: ｦｧ…ﾝﾞﾟ）が含まれる行。
+
+Output format — one line per violation, nothing else:
+  report.md:<line_number>:0 [<rule_id>] <short Japanese description>
+
+If there are NO violations, output exactly: OK
+No preamble, no explanation, no summary.\
+"""
 
 
 def report_language(case_dir):
@@ -95,6 +142,61 @@ def report_language(case_dir):
         re.M,
     )
     return m.group(1).lower() if m else DEFAULT_LANGUAGE
+
+
+def sonnet_command():
+    """Return the claude CLI command prefix for Sonnet, or None if absent."""
+    if shutil.which("claude"):
+        return ["claude", "--model", SONNET_MODEL, "-p"]
+    return None
+
+
+def parse_sonnet_results(output):
+    """Turn Sonnet's plain-text output into (problems, warnings).
+
+    Sonnet outputs either "OK" or one violation line per finding.
+    All Sonnet-reported violations are treated as errors (no severity 1)."""
+    output = (output or "").strip()
+    if not output or output == "OK":
+        return [], []
+    problems = [line.strip() for line in output.splitlines() if line.strip()]
+    return problems, []
+
+
+def run_sonnet(report_path):
+    """Run the Sonnet prose checker.
+
+    Returns (problems, warnings) on success, or (None, None) when the
+    check could not run (claude absent, API error, unexpected output)."""
+    cmd = sonnet_command()
+    if cmd is None:
+        return None, None
+
+    try:
+        text = Path(report_path).read_text(encoding="utf-8")
+    except OSError:
+        return None, None
+
+    if len(text) > SONNET_MAX_CHARS:
+        text = text[:SONNET_MAX_CHARS] + "\n[... report truncated for prose check ...]"
+
+    prompt = _SONNET_PROMPT + "\n\nReport:\n\n" + text
+
+    try:
+        proc = subprocess.run(
+            cmd + [prompt],
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None, None
+
+    stdout = (proc.stdout or "").strip()
+    if proc.returncode not in (0, 1) or not stdout:
+        return None, None
+
+    return parse_sonnet_results(stdout)
 
 
 def textlint_command():
@@ -133,7 +235,13 @@ def parse_results(payload):
 def run(case_dir):
     """Returns (problems, warnings, notices).
 
-    A notice means "not checked, and that is fine" — the caller exits 0."""
+    A notice means "not checked, and that is fine" — the caller exits 0.
+
+    Backend priority:
+      1. Sonnet  (claude CLI, always available in a JANUS session)
+      2. textlint (npm-based, for air-gapped / offline installs)
+      3. notice  (fail open — neither backend is available)
+    """
     case_dir = Path(case_dir)
     report = case_dir / "results" / "report.md"
 
@@ -144,12 +252,22 @@ def run(case_dir):
         return [], [], [f"report_language: {language} — Japanese prose check skipped"]
     if not report.is_file():
         return [], [], [f"no report yet at {report} — prose check skipped"]
+
+    # --- Backend 1: Sonnet ---
+    problems, warnings = run_sonnet(report)
+    if problems is not None:
+        return problems, warnings, []
+
+    # --- Backend 2: textlint ---
     if not CONFIG.is_file():
         return [], [], [f"missing textlint config: {CONFIG} — prose check skipped"]
 
     cmd = textlint_command()
     if cmd is None:
-        return [], [], [f"textlint not installed — prose check skipped ({INSTALL_HINT})"]
+        return [], [], [
+            "claude CLI and textlint both unavailable — prose check skipped "
+            f"(install either: {INSTALL_HINT})"
+        ]
 
     try:
         proc = subprocess.run(

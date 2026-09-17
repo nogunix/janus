@@ -517,10 +517,10 @@ def test_anchors():
 
 
 def test_prosecheck():
-    """prosecheck shells out to textlint, which CI does not have. Every
-    assertion here must therefore hold with textlint absent — which is
-    itself the property under test: the check degrades to a notice rather
-    than failing an English case or an offline box."""
+    """prosecheck shells out to claude (Sonnet) then textlint, neither of
+    which CI has. Every assertion must hold with both backends absent —
+    that is itself the property under test: the check degrades to a notice
+    rather than failing an English case or an offline box."""
     prose = load("prosecheck")
 
     with tempfile.TemporaryDirectory() as td:
@@ -549,21 +549,22 @@ def test_prosecheck():
             "report_language is case-insensitive and quote-tolerant",
         )
 
-        # With textlint absent (CI) this notices; with it installed the
-        # report above is clean. Either way it must not FAIL.
+        # With both backends absent (CI) this notices; with either installed
+        # the report above is clean. Either way it must not FAIL.
         problems, _, notices = prose.run(case)
         check(not problems, "a clean/uncheckable Japanese report does not FAIL")
-        if prose.textlint_command() is None:
+        if prose.sonnet_command() is None and prose.textlint_command() is None:
             check(
-                any("textlint not installed" in n for n in notices),
-                "a missing textlint degrades to an actionable notice",
+                any("skipped" in n for n in notices),
+                "both backends absent degrades to an actionable notice",
             )
 
-        # Regression: `npx --no-install textlint` with no textlint present
-        # exits non-zero with empty stdout. That once parsed as "no
-        # problems" and printed OK — a check that never ran claiming to
-        # pass. Every not-actually-run path must yield a notice.
-        original = prose.textlint_command
+        # Regression: bad textlint commands must fail open to a notice.
+        # Pin Sonnet to None so the textlint fallback path is exercised
+        # regardless of whether claude is installed in this environment.
+        original_sonnet = prose.sonnet_command
+        original_textlint = prose.textlint_command
+        prose.sonnet_command = lambda: None
         try:
             for label, cmd in (
                 ("a non-zero exit with no output", ["false"]),
@@ -581,7 +582,8 @@ def test_prosecheck():
                     f"{label} says the check was skipped",
                 )
         finally:
-            prose.textlint_command = original
+            prose.sonnet_command = original_sonnet
+            prose.textlint_command = original_textlint
 
         (case / "case.yaml").write_text("id: prose\nreport_language: ja\n")
         report.unlink()
@@ -591,6 +593,26 @@ def test_prosecheck():
             "a case with no report yet is a notice, not a FAIL",
         )
 
+    # parse_sonnet_results unit tests
+    check(
+        prose.parse_sonnet_results("OK") == ([], []),
+        "Sonnet 'OK' output is no problems",
+    )
+    check(
+        prose.parse_sonnet_results("") == ([], []),
+        "Sonnet empty output is no problems",
+    )
+    p, w = prose.parse_sonnet_results(
+        "report.md:5:0 [no-mix-dearu-desumasu] ですます/である混在\n"
+        "report.md:12:0 [sentence-length] 100文字超"
+    )
+    check(len(p) == 2 and len(w) == 0, "Sonnet violations become problems, not warnings")
+    check(
+        "no-mix-dearu-desumasu" in p[0] and "sentence-length" in p[1],
+        "Sonnet rule ids are preserved",
+    )
+
+    # parse_results (textlint JSON) unit tests — unchanged behaviour
     payload = json.dumps(
         [
             {
