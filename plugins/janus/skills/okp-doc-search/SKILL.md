@@ -67,7 +67,7 @@ already the exact doc_id, so URLs are not a shortcut around the rules below.
 |---|---|---|
 | solutions | `/solutions/{number}/index.html` | `/solutions/6509691/index.html` |
 | articles | `/articles/{number}/index.html` | `/articles/3009361/index.html` |
-| documentation | `/documentation/en-us/{product}/{version}/html-single/{guide}/index/index.html` | `/documentation/en-us/openshift_container_platform/4.18/html-single/release_notes/index/index.html` |
+| documentation | `/documentation/en-us/{product}/{version}/html-single/{guide}/index/index.html` | `/documentation/en-us/openshift_container_platform/4.20/html-single/release_notes/index/index.html` |
 | errata | `/errata/{RHSA-YYYY:NNNNN}/` | `/errata/RHSA-2026:34927/` |
 | CVE | `/security/cve/{CVE-ID}/` | `/security/cve/CVE-2024-1086/` |
 
@@ -84,7 +84,7 @@ append `/index.html` only if it does not already end in `/`**:
 Converting a docs.redhat.com URL to a doc_id:
 
 ```
-https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/hosted_control_planes/deploying-hosted-control-planes-in-a-disconnected-environment
+https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/hosted_control_planes/deploying-hosted-control-planes-in-a-disconnected-environment
 
   drop the domain
   /en/   → /en-us/
@@ -92,7 +92,7 @@ https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/
   replace the page-specific slug with index
   append /index.html
 
-→ /documentation/en-us/openshift_container_platform/4.18/html-single/hosted_control_planes/index/index.html
+→ /documentation/en-us/openshift_container_platform/4.20/html-single/hosted_control_planes/index/index.html
 ```
 
 Converting a search_portal result URL (to drill into a hit): take the path

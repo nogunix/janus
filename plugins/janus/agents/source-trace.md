@@ -22,7 +22,7 @@ Read `cases/<id>/case.yaml` for:
 ## What you investigate
 
 - Implementation tracing (how does X work?)
-- Version comparison (what changed between 4.18 and 4.20?)
+- Version comparison (what changed between 4.19 and 4.20?)
 - Crash symbol lookup (where is this function defined?)
 - Feature gate analysis
 - Operator internals (OLM, CNV/KubeVirt, MCE, ACM, etc.)

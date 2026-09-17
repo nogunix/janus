@@ -148,8 +148,8 @@ A scope entry matches its own z-streams (`4.16` covers `4.16.55`):
 
 ```yaml
 version_scope:
-  OCP: ["4.16"]
-  RHEL: ["9.4"]
+  OCP: ["4.20"]
+  RHEL: ["9.6"]
 ```
 
 Absent it, versioncheck still hard-fails an unpinned source citation but
@@ -466,8 +466,8 @@ in `scripts/` next to this file):
    casket path, or commit) — which version was read is unrecoverable:
    send back **under C2/version**, quoting the Ref. Everything else is a
    warning the lead judges against **C2/version**: a Detail/Ref pair
-   crossed *within one product family* (Detail says 4.16, Ref pins
-   4.18), or — when `version_scope` is declared — a finding or report
+   crossed *within one product family* (Detail says 4.19, Ref pins
+   4.20), or — when `version_scope` is declared — a finding or report
    version in that family but off-scope (a neighbouring version drifted
    in). Warnings never block; they feed the judgment call below.
 5. `python3 <skill-dir>/scripts/linkcheck.py cases/<id>/results/report.md`
@@ -589,9 +589,9 @@ contradiction — synthesize and the lead's gates reject it.
 | Source | Format | Example |
 |---|---|---|
 | docs | CVE / RHSA / KB ID | `CVE-2024-1086` |
-| source | `component@NVR file:line` | `hyperkube@4.18.41 pkg/…/eviction.go:414` |
+| source | `component@NVR file:line` | `hyperkube@4.20.0 pkg/…/eviction.go:414` |
 | drgn | script + output path | `audit/drgn-1.py → audit/drgn-1.log` |
-| lab | command + cluster ver | `oc get pods (OCP 4.18.45) → audit/lab-1.log` |
+| lab | command + cluster ver | `oc get pods (OCP 4.20.0) → audit/lab-1.log` |
 | terraform | `namespace/provider@version resource` or `module@version` | `hashicorp/azurerm@4.14.0 azurerm_redhat_openshift_cluster` |
 | iac | file + static-check output | `iac/terraform/main.tf → audit/iac-1.log` |
 | slack | `#channel, YYYY-MM-DD` | `#forum-kubevirt, 2026-06-15` |

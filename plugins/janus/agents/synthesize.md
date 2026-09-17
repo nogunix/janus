@@ -308,7 +308,7 @@ support them — do not generate empty sections.
   ```
 
   Copy the `#fragment` column verbatim. Hand-computed slugs break on
-  version strings (`4.18→4.19` → `418419`, not `41819`), Japanese
+  version strings (`4.19→4.20` → `419420`, not `41920`), Japanese
   text, and punctuation removal. `linkcheck.py` re-derives every
   anchor with the same algorithm and FAILs on any mismatch.
 
@@ -347,7 +347,7 @@ support them — do not generate empty sections.
   markdown blockquote whose last line attributes the source file:
 
   ```markdown
-  > VM live migration fails on OCP 4.18.41 with SIGSEGV in qemu-kvm
+  > VM live migration fails on OCP 4.20.0 with SIGSEGV in qemu-kvm
   > — findings/crash-analyze.md
   ```
 
