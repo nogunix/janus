@@ -32,7 +32,7 @@ drafts the contribution proposal to carry it home.
 Invoke `/janus` with a question or an artifact. The lead classifies the
 case, shows you the pipeline it intends to run, fans the stages out on
 approval, and hands you a ranked-hypothesis report at
-`cases/<id>/results/report.md`.
+`cases/<id>/results/synthesis.md`.
 
 **CVE impact assessment** (needs okp-mcp):
 
@@ -139,7 +139,7 @@ flowchart TD
     follow -.->|"findings/&lt;stage&gt;.md"| fanin
 
     fanin --> syn["synthesize — cross-reference all findings"]
-    syn --> report[("results/report.md<br/>ranked hypotheses · Confidence + Basis + refs")]
+    syn --> report[("results/synthesis.md<br/>ranked hypotheses · Confidence + Basis + refs")]
     report --> qc["4&nbsp;· Quality check<br/>chain verify · urlcheck · quotecheck · versioncheck · linkcheck · prosecheck (ja) · two judgment gates (C1/C2)"]
     qc -.->|"send-back, by sub-code"| syn
     qc -->|"handoff"| human2(["Human — final call, writes verdict.md"])
@@ -155,7 +155,7 @@ flowchart LR
 
     verdicts[("verdict.md × 10<br/>or weekly")] --> si["self-improver<br/>metrics: hit rate, escalation<br/>precision/recall, calibration"]
     lessons -->|"recurs across ≥2 cases"| si
-    report[("results/report.md<br/>high-confidence upstream defect")] --> ua["upstream-adviser<br/>advisory only — never<br/>opens issues/PRs itself"]
+    report[("results/synthesis.md<br/>high-confidence upstream defect")] --> ua["upstream-adviser<br/>advisory only — never<br/>opens issues/PRs itself"]
 
     si -->|"IMPROVE_&lt;date&gt;.md"| rq[("review-queue/")]
     ua -->|"contribution drafts"| rq
@@ -601,7 +601,7 @@ history; an edit that bypasses sealing breaks verification.
 
 ```
 $ python3 scripts/chain.py verify cases/<id>
-FAIL: TAMPER: results/report.md changed after last seal
+FAIL: TAMPER: results/synthesis.md changed after last seal
 ```
 
 Sealing is mostly automatic — a PostToolUse hook
@@ -633,7 +633,7 @@ carries its load-bearing facts as attributed verbatim quotes
 appears word-for-word in the file it cites — backing gate C2/quote:
 
 ```
-$ python3 scripts/quotecheck.py cases/<id>/results/report.md
+$ python3 scripts/quotecheck.py cases/<id>/results/synthesis.md
 FAIL: report.md:12: quote not found verbatim in findings/doc-search.md: "…"
 ```
 
@@ -643,7 +643,7 @@ curl-checking every reference URL in the report. A fabricated citation
 clicked:
 
 ```
-$ python3 scripts/urlcheck.py cases/<id>/results/report.md
+$ python3 scripts/urlcheck.py cases/<id>/results/synthesis.md
 FAIL: https://access.redhat.com/errata/RHSA-2099:9999/ (404)
 ```
 
@@ -669,7 +669,7 @@ and RPM releases from drowning the OCP-minor signal:
 ```
 $ python3 scripts/versioncheck.py cases/<id>
 FAIL: findings/source-trace.md F2: source location cited with no version pin
-warning: results/report.md: version 4.19 asserted but backed by no finding
+warning: results/synthesis.md: version 4.19 asserted but backed by no finding
 ```
 
 **Evidence links — `scripts/linkcheck.py`.** The report is meant to be
@@ -688,7 +688,7 @@ renders as an ordinary blue link and resolves to nothing. Backs gate
 C1/link:
 
 ```
-$ python3 scripts/linkcheck.py cases/<id>/results/report.md
+$ python3 scripts/linkcheck.py cases/<id>/results/synthesis.md
 FAIL: report.md:8: no such anchor in findings/crash-analyze.md: #f9-does-not-exist
 FAIL: report.md:9: evidence file does not exist: findings/source-trace.md
 ```

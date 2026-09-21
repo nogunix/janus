@@ -121,7 +121,7 @@ Check each paragraph for exactly these three rules:
   半角カタカナ（Unicode U+FF65–U+FF9F: ｦｧ…ﾝﾞﾟ）が含まれる行。
 
 Output format — one line per violation, nothing else:
-  report.md:<line_number>:0 [<rule_id>] <short Japanese description>
+  synthesis.md:<line_number>:0 [<rule_id>] <short Japanese description>
 
 If there are NO violations, output exactly: OK
 No preamble, no explanation, no summary.\
@@ -219,7 +219,7 @@ def parse_results(payload):
     "message", "ruleId", "severity"}]}]."""
     problems, warnings = [], []
     for result in json.loads(payload or "[]"):
-        name = Path(result.get("filePath", "report.md")).name
+        name = Path(result.get("filePath", "synthesis.md")).name
         for msg in result.get("messages", []):
             where = f"{name}:{msg.get('line', '?')}:{msg.get('column', '?')}"
             rule = msg.get("ruleId") or "textlint"
@@ -243,7 +243,7 @@ def run(case_dir):
       3. notice  (fail open — neither backend is available)
     """
     case_dir = Path(case_dir)
-    report = case_dir / "results" / "report.md"
+    report = case_dir / "results" / "synthesis.md"
 
     language = report_language(case_dir)
     if language is None:

@@ -112,7 +112,7 @@ def test_lock():
             "hook denies Write/Edit to locked evidence",
         )
         check(
-            lock_hook.locked_reason("Write", str(case / "results" / "report.md"))
+            lock_hook.locked_reason("Write", str(case / "results" / "synthesis.md"))
             is None,
             "hook allows writing the (not yet existing) report",
         )
@@ -144,7 +144,7 @@ def test_quotecheck():
             "- **Detail**: The VM fails on OCP 4.18.41 because the\n"
             "  livenessProbe times out after 30s.\n"
         )
-        report = case / "results" / "report.md"
+        report = case / "results" / "synthesis.md"
 
         report.write_text(
             "# Report\n\n"
@@ -362,7 +362,7 @@ def test_versioncheck():
             "### F3: crossed within family\n"
             "- **Detail**: on OCP 4.16 the operator differs.\n"
             "- **Ref**: cluster-network-operator@4.18.9 pkg/network/render.go:88\n")
-        (case / "results" / "report.md").write_text(
+        (case / "results" / "synthesis.md").write_text(
             "# Report\nSeen on OCP 4.19 and also 4.16. Kernel 5.14.0 base.\n")
 
         problems, warnings, notes, ok = version.run(case)
@@ -421,7 +421,7 @@ def test_linkcheck():
             "### F3: SIGSEGV in qemu-kvm\ndetail\n", encoding="utf-8"
         )
         (case / "audit" / "lab-1.log").write_text("out\n")
-        report = case / "results" / "report.md"
+        report = case / "results" / "synthesis.md"
 
         report.write_text(
             "# R\n\n"
@@ -526,7 +526,7 @@ def test_prosecheck():
     with tempfile.TemporaryDirectory() as td:
         case = Path(td) / "cases" / "2026-01-01-prose"
         (case / "results").mkdir(parents=True)
-        report = case / "results" / "report.md"
+        report = case / "results" / "synthesis.md"
         report.write_text("# report\n\n本文である。\n", encoding="utf-8")
 
         check(prose.report_language(case) is None, "a missing case.yaml reads as None")
@@ -603,8 +603,8 @@ def test_prosecheck():
         "Sonnet empty output is no problems",
     )
     p, w = prose.parse_sonnet_results(
-        "report.md:5:0 [no-mix-dearu-desumasu] ですます/である混在\n"
-        "report.md:12:0 [sentence-length] 100文字超"
+        "synthesis.md:5:0 [no-mix-dearu-desumasu] ですます/である混在\n"
+        "synthesis.md:12:0 [sentence-length] 100文字超"
     )
     check(len(p) == 2 and len(w) == 0, "Sonnet violations become problems, not warnings")
     check(
@@ -616,7 +616,7 @@ def test_prosecheck():
     payload = json.dumps(
         [
             {
-                "filePath": "/x/results/report.md",
+                "filePath": "/x/results/synthesis.md",
                 "messages": [
                     {
                         "line": 12,
@@ -638,7 +638,7 @@ def test_prosecheck():
     )
     problems, warnings = prose.parse_results(payload)
     check(
-        len(problems) == 1 and "report.md:12:3" in problems[0],
+        len(problems) == 1 and "synthesis.md:12:3" in problems[0],
         "severity 2 becomes a problem, anchored at file:line:column",
     )
     check(

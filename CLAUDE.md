@@ -38,8 +38,8 @@ The four integrity scripts are also CLIs, run against a case directory:
 ```bash
 python3 plugins/janus/skills/janus/scripts/chain.py verify cases/<id>
 python3 plugins/janus/skills/janus/scripts/chain.py seal|lock|unlock cases/<id> [file ...]
-python3 plugins/janus/skills/janus/scripts/quotecheck.py cases/<id>/results/report.md
-python3 plugins/janus/skills/janus/scripts/urlcheck.py cases/<id>/results/report.md
+python3 plugins/janus/skills/janus/scripts/quotecheck.py cases/<id>/results/synthesis.md
+python3 plugins/janus/skills/janus/scripts/urlcheck.py cases/<id>/results/synthesis.md
 python3 plugins/janus/skills/janus/scripts/versioncheck.py cases/<id>
 ```
 

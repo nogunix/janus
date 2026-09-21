@@ -2,6 +2,16 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.26.1 — 2026-09-21
+
+- **Rename `results/report.md` → `results/synthesis.md`** (and
+  `report-en.md` → `synthesis-en.md`). Claude Code v2.1.278 blocks
+  subagent Write calls to files whose name contains "report" — a
+  built-in heuristic that conflicts with synthesize's stage contract.
+  The rename avoids the heuristic while preserving the same data-plane
+  contract. All agents, SKILL.md, quality-check scripts, selftest, and
+  README updated in lockstep.
+
 ## 0.26.0 — 2026-09-08
 
 Two provenance and safety properties that JANUS relied on but never

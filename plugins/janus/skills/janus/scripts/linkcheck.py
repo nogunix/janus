@@ -29,7 +29,7 @@ Anchors are matched the way GitHub and VS Code generate them from
 headings (lowercase, punctuation dropped, spaces to hyphens, duplicates
 suffixed `-1`, `-2`), plus any explicit `<a id="…">` / `<a name="…">`.
 
-Usage: python3 linkcheck.py cases/<id>/results/report.md
+Usage: python3 linkcheck.py cases/<id>/results/synthesis.md
 Stdlib-only, offline, like chain.py.
 """
 
@@ -162,7 +162,7 @@ def run(report_path):
 
 def main(argv):
     if len(argv) != 2:
-        print("usage: linkcheck.py cases/<id>/results/report.md")
+        print("usage: linkcheck.py cases/<id>/results/synthesis.md")
         return 2
     report = Path(argv[1])
     if not report.is_file():

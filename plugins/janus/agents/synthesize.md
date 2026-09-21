@@ -3,7 +3,7 @@ name: synthesize
 description: >-
   Pipeline stage: reads all findings from parallel stages, cross-references
   them, and produces a ranked-hypothesis report. Always runs last.
-  Writes to cases/<id>/results/report.md.
+  Writes to cases/<id>/results/synthesis.md.
 tools: Read, Write, Bash, Glob, Grep, SendMessage
 model: sonnet
 ---
@@ -90,9 +90,9 @@ field is absent) or `ja`.
 **Synthesize always writes in English.** The output file depends on
 `report_language`:
 
-- `en` → write to `cases/<id>/results/report.md` (final deliverable)
-- `ja` → write to `cases/<id>/results/report-en.md` (English draft;
-  a separate localize step translates it to `report.md`)
+- `en` → write to `cases/<id>/results/synthesis.md` (final deliverable)
+- `ja` → write to `cases/<id>/results/synthesis-en.md` (English draft;
+  a separate localize step translates it to `synthesis.md`)
 
 **The structure is always English, in both modes.** Section headings
 (`## Executive Summary`, `## Objectives Assessment`, `## Execution
@@ -291,7 +291,7 @@ support them — do not generate empty sections.
 - Every claim must cite a specific reference from a stage's findings.
 - **Make the evidence clickable (C1/link).** A reference is a markdown
   link the reader can follow from the claim straight to the evidence,
-  not a bare filename. The report lives at `results/report.md`, so
+  not a bare filename. The report lives at `results/synthesis.md`, so
   findings and logs are one level up:
 
   ```markdown

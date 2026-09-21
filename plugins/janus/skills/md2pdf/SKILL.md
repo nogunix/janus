@@ -17,7 +17,7 @@ styled tables, syntax-highlighted code blocks, and embedded images/SVGs.
 - "PDFにして", "PDF作成して", "mdからPDF生成"
 - "このマークダウンをPDFに変換"
 - "レポートをPDFで出力"
-- janus synthesize の `report.md` → `report.pdf` 最終出力
+- janus synthesize の `synthesis.md` → `synthesis.pdf` 最終出力
 
 ## Prerequisites (install if missing)
 - `pandoc` (brew / apt)

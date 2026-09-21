@@ -45,8 +45,8 @@ connects, it does not process.
 | **crash-analyze** | vmcore/coredump analysis | findings/crash-analyze.md | drgn-mcp + gdb | Static | opus |
 | **iac-author** | Authors + statically validates the lab's IaC | findings/iac-author.md + `iac/` | terraform-mcp + ansible-mcp (authoring subset) | Static | sonnet |
 | **lab-verify** | Live cluster verification | findings/lab-verify.md | oc, terraform CLI, bpftrace, linux-mcp | Dynamic | opus |
-| **synthesize** | All findings → English report | results/report.md (en) or results/report-en.md (ja) | Read only | Static | sonnet |
-| **localize** | English report → Japanese report | results/report.md | Read only | Static | sonnet |
+| **synthesize** | All findings → English report | results/synthesis.md (en) or results/synthesis-en.md (ja) | Read only | Static | sonnet |
+| **localize** | English report → Japanese report | results/synthesis.md | Read only | Static | sonnet |
 
 github-trace and jira-trace are normally **conditional follow-up
 stages**: the lead launches them at fan-in when another stage's
@@ -122,7 +122,7 @@ cases/<id>/
     iac-author.md
     lab-verify.md
   results/
-    report.md        ← synthesize's final output
+    synthesis.md     ← synthesize's final output
   verdict.md         ← human post-hoc evaluation
   chain.jsonl        ← append-only evidence hash ledger (see Evidence chain)
 ```
@@ -415,8 +415,8 @@ Instruct synthesize to read all of `findings/*.md` and write the
 report. **Synthesize always writes in English:**
 
 - `report_language: en` (or absent) → synthesize writes
-  `results/report.md` directly. Done.
-- `report_language: ja` → synthesize writes `results/report-en.md`
+  `results/synthesis.md` directly. Done.
+- `report_language: ja` → synthesize writes `results/synthesis-en.md`
   (English draft). Then launch the **localize** step (see 6a below).
 
 synthesize works with whatever findings exist — it reports missing ones
@@ -424,15 +424,15 @@ as gaps.
 
 ### 6a. Launch localize (only when `report_language` ≠ `en`)
 
-After synthesize completes and `results/report-en.md` exists, launch
+After synthesize completes and `results/synthesis-en.md` exists, launch
 the **localize** agent (`janus:localize` / `localize`). Include in
 its brief:
 
 1. The case directory path
 2. The same **Anchor Map** from step 6 (or regenerate it)
 
-localize reads `report-en.md`, translates prose to Japanese, applies
-the anchor map to all evidence links, and writes `results/report.md`.
+localize reads `synthesis-en.md`, translates prose to Japanese, applies
+the anchor map to all evidence links, and writes `results/synthesis.md`.
 
 This two-pass process (English → Japanese) avoids the chronic
 prosecheck failures that occur when synthesize writes Japanese
@@ -448,14 +448,14 @@ in `scripts/` next to this file):
    means evidence changed after it was sealed; do not hand off. Record
    the mismatch in `cases/<id>/audit/` and write
    `review-queue/NEEDS_HUMAN_<id>.md` quoting the failing entries.
-2. `python3 <skill-dir>/scripts/urlcheck.py cases/<id>/results/report.md`
+2. `python3 <skill-dir>/scripts/urlcheck.py cases/<id>/results/synthesis.md`
    — curl-level liveness for every reference URL. A FAIL (404/410 or
    unresolvable host) is a provably dead citation: send the report back
    to synthesize **under C1/url**, quoting the dead URL. 401/403/429
    count as reachable (login-walled is normal for access.redhat.com);
    warnings (5xx/timeout) don't block. If the network itself is down
    the script says so and passes — offline installs are normal.
-3. `python3 <skill-dir>/scripts/quotecheck.py cases/<id>/results/report.md`
+3. `python3 <skill-dir>/scripts/quotecheck.py cases/<id>/results/synthesis.md`
    — every attributed blockquote in the report (`> …` ending in
    `> — findings/<stage>.md`) must appear verbatim
    (whitespace-normalized) in the file it cites. A FAIL is a fact that
@@ -474,7 +474,7 @@ in `scripts/` next to this file):
    4.20), or — when `version_scope` is declared — a finding or report
    version in that family but off-scope (a neighbouring version drifted
    in). Warnings never block; they feed the judgment call below.
-5. `python3 <skill-dir>/scripts/linkcheck.py cases/<id>/results/report.md`
+5. `python3 <skill-dir>/scripts/linkcheck.py cases/<id>/results/synthesis.md`
    — every local evidence link in the report resolves: the target file
    exists, sits inside the case directory, and any `#fragment` matches a
    heading in it. urlcheck only sees `http(s)://`, so a relative link to
@@ -503,7 +503,7 @@ Each check's behaviour when it *cannot* decide — and what a notice
 means — is the Fail direction table below; read it before trusting a
 pass.
 
-Read `results/report.md` and check it against these two judgment gates
+Read `results/synthesis.md` and check it against these two judgment gates
 (the six mechanical pre-checks above already cover the rest). **A
 failed gate = send the report back to synthesize, naming the sub-code
 and quoting the offending line** — the lead never patches the report
@@ -644,7 +644,7 @@ set (`case.yaml`, `findings/*.md`, `results/*.md`, `audit/*`,
   sealed verdict is the ground truth self-improver's metrics stand on.
 
 `verify` checks each file against its **newest** record, so send-back
-revisions of `report.md` are normal, and the ledger keeps the full
+revisions of `synthesis.md` are normal, and the ledger keeps the full
 revision history. Warnings (`unsealed: …`) mean a file exists but was
 never sealed — run `seal`; FAILs mean the ledger or a sealed file was
 altered — that is a human matter, never something to quietly repair.
@@ -756,7 +756,7 @@ way, move the row in this table in the same commit.
 | crash-analyze | `cases/<id>/findings/crash-analyze.md` |
 | iac-author | `cases/<id>/findings/iac-author.md` (+ `cases/<id>/iac/`) |
 | lab-verify | `cases/<id>/findings/lab-verify.md` |
-| synthesize | `cases/<id>/results/report.md` |
+| synthesize | `cases/<id>/results/synthesis.md` |
 
 ### File-write-first rule
 

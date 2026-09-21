@@ -32,7 +32,7 @@ file is a fabricated citation; both FAIL (exit 1) → send back under
 C2/quote-mismatch. A report with no attributed quotes gets a warning,
 not a FAIL (that residue is the lead's C2/quote-absent judgment call).
 
-Usage: python3 quotecheck.py cases/<id>/results/report.md
+Usage: python3 quotecheck.py cases/<id>/results/synthesis.md
 Stdlib-only, offline, like chain.py.
 """
 
@@ -151,7 +151,7 @@ def run(report_path):
 
 def main(argv):
     if len(argv) != 2:
-        print("usage: quotecheck.py cases/<id>/results/report.md")
+        print("usage: quotecheck.py cases/<id>/results/synthesis.md")
         return 2
     report = Path(argv[1])
     if not report.is_file():

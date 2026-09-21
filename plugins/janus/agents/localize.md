@@ -2,8 +2,8 @@
 name: localize
 description: >-
   Pipeline stage: translates the English report draft into the target
-  language (currently Japanese only). Reads results/report-en.md and
-  the anchor map, writes results/report.md. Always runs after
+  language (currently Japanese only). Reads results/synthesis-en.md and
+  the anchor map, writes results/synthesis.md. Always runs after
   synthesize when report_language != en.
 tools: Read, Write, Bash, Glob, Grep, SendMessage
 model: sonnet
@@ -14,7 +14,7 @@ Japanese and fix all evidence links using the anchor map.
 
 ## Input
 
-1. `cases/<id>/results/report-en.md` — the English report draft from
+1. `cases/<id>/results/synthesis-en.md` — the English report draft from
    synthesize
 2. The **Anchor Map** provided in your brief (tab-separated lines:
    `file  #slug  heading`)
@@ -24,7 +24,7 @@ Japanese and fix all evidence links using the anchor map.
 
 ### 1. Read the English draft
 
-Read `results/report-en.md` in full. This is your source of truth.
+Read `results/synthesis-en.md` in full. This is your source of truth.
 
 ### 2. Translate prose to Japanese
 
@@ -91,7 +91,7 @@ ja-technical-writing). Follow these rules to pass on the first try:
 
 ## Output
 
-Write to `cases/<id>/results/report.md`.
+Write to `cases/<id>/results/synthesis.md`.
 
 Notify the lead via SendMessage when done.
 

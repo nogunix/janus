@@ -55,7 +55,7 @@ an already-tracked issue, not a low-confidence guess) before drafting.
 verification; you consume its output. Your primary evidence
 is the *already-written* `cases/<id>/findings/source-trace.md` for
 the case in question (plus `findings/crash-analyze.md` and synthesize's
-`results/report.md`) — you read these the same way self-improver reads
+`results/synthesis.md`) — you read these the same way self-improver reads
 `verdict.md`.
 From those files, identify **which specific upstream repo/component owns
 the code** — e.g. "this is kubernetes/kubernetes, not an OpenShift-specific
@@ -95,7 +95,7 @@ You read (never modify) findings that JANUS already recorded.
 - **source-trace findings** — `cases/<id>/findings/source-trace.md`,
   when a source trace of a feature/regression exposes a genuine
   implementation bug in the upstream code.
-- **synthesize final reports** — `cases/<id>/results/report.md`,
+- **synthesize final reports** — `cases/<id>/results/synthesis.md`,
   when the highest-confidence ranked hypothesis may itself BE the upstream
   bug.
 - **doc-search output** — `cases/<id>/findings/doc-search.md`, which
@@ -193,7 +193,7 @@ draft:
 
 1. **Read** the existing investigation results for the case
    (`cases/<id>/findings/source-trace.md`, `findings/crash-analyze.md`,
-   `results/report.md`) and note the claimed defect, its cited
+   `results/synthesis.md`) and note the claimed defect, its cited
    `component@NVR file:line`, and its confidence. You consume these; you do
    not run casket-mcp yourself.
 2. **Apply the confidence bar.** If the underlying investigation is below
@@ -235,7 +235,7 @@ Write to `review-queue/UPSTREAM_<date>-<slug>.md` (e.g.
 # Upstream Proposal — <one-line title>
 
 - **Upstream repo / component owner**: <kubernetes/kubernetes | torvalds/linux (subsystem: …) | <ocp-operator-repo> | kubevirt/kubevirt | …>
-- **Source finding**: <cases/<id>/findings/crash-analyze.md | .../findings/source-trace.md | .../results/report.md>
+- **Source finding**: <cases/<id>/findings/crash-analyze.md | .../findings/source-trace.md | .../results/synthesis.md>
 - **Investigation confidence**: <MEDIUM | HIGH — per the finding-format confidence scale>
 - **Kind**: <bug | idempotency | missing-validation | race | null-deref | use-after-free | feature-gap>
 - **Date drafted**: <YYYY-MM-DD>

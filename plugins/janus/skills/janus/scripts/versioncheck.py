@@ -184,13 +184,13 @@ def run(case_dir):
     # 4. WARN: a report version in a scoped family, off-scope, and backed
     #    by no finding — the attribution-drift signal. Needs a declared
     #    scope to have a family to anchor to; otherwise skipped.
-    report = case_dir / "results" / "report.md"
+    report = case_dir / "results" / "synthesis.md"
     if report.is_file():
         for v in sorted(versions(report.read_text(encoding="utf-8"))):
             if (_family(v) in scope_families and not _in_scope(v, scope)
                     and v not in finding_versions):
                 warnings.append(
-                    f"results/report.md: version {v} asserted but backed "
+                    f"results/synthesis.md: version {v} asserted but backed "
                     f"by no finding and outside version_scope {sorted(scope)}")
 
     return problems, warnings, notes, ok
