@@ -66,6 +66,8 @@ is a fabricated quote.
 For every `[text](../findings/<file>.md#<slug>)` link in the report,
 look up the correct `#slug` in the anchor map provided in your brief.
 Copy the slug verbatim from the map. Never compute slugs by hand.
+If a slug is tagged `(file-only)` in the anchor map (non-ASCII slug),
+keep the link as file-path-only — do not add the `#fragment`.
 
 ### 6. Japanese prose quality rules
 

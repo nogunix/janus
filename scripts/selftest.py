@@ -515,6 +515,15 @@ def test_anchors():
             "duplicate headings get -1 suffix (same as linkcheck)",
         )
 
+    check(
+        not anchors_mod._has_nonascii("f1-probe-timeout"),
+        "_has_nonascii returns False for ASCII-only slugs",
+    )
+    check(
+        anchors_mod._has_nonascii("f1-管理者-ack-が必須"),
+        "_has_nonascii returns True for Japanese slugs",
+    )
+
 
 def test_prosecheck():
     """prosecheck shells out to claude (Sonnet) then textlint, neither of

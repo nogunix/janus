@@ -12,7 +12,11 @@ Usage:
     python3 anchors.py cases/<id>/findings/doc-search.md
 
 Output (one per heading, tab-separated):
-    findings/doc-search.md	#f1-管理者-ack-が必須-kubernetes-132-api-削除への対応	F1: 管理者 ACK が必須 — Kubernetes 1.32 API 削除への対応
+    findings/doc-search.md	#f1-管理者-ack-が必須-kubernetes-132-api-削除への対応	F1: 管理者 ACK が必須 — Kubernetes 1.32 API 削除への対応	(file-only)
+
+Non-ASCII slugs are tagged ``(file-only)`` in a fourth column because
+slug generation for non-ASCII text is renderer-dependent.  synthesize
+should link to the file path alone for these headings.
 
 Stdlib-only, offline.
 """
@@ -30,6 +34,11 @@ def slug(title):
     s = re.sub(r"[^\w\s-]", "", s, flags=re.UNICODE)
     s = re.sub(r"\s+", "-", s)
     return s.strip("-")
+
+
+def _has_nonascii(s):
+    """True if s contains any character outside ASCII."""
+    return any(ord(c) > 127 for c in s)
 
 
 def extract(path):
@@ -69,7 +78,8 @@ def main(argv):
         if f.parent.name:
             rel = f"{f.parent.name}/{f.name}"
         for anchor, title in extract(f):
-            print(f"{rel}\t#{anchor}\t{title}")
+            tag = "\t(file-only)" if _has_nonascii(anchor) else ""
+            print(f"{rel}\t#{anchor}\t{title}{tag}")
     return 0
 
 

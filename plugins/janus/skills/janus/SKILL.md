@@ -409,7 +409,10 @@ Include the full output as an `## Anchor Map` section at the end of the
 synthesize brief. This gives synthesize a deterministic, pre-computed
 slug for every finding heading — it copies them verbatim instead of
 computing slugs by hand (which breaks on version strings, Japanese
-text, and punctuation).
+text, and punctuation). Slugs containing non-ASCII characters are
+tagged `(file-only)` — synthesize must link to the file path alone
+for those headings because non-ASCII slug generation is
+renderer-dependent.
 
 Instruct synthesize to read all of `findings/*.md` and write the
 report. **Synthesize always writes in English:**

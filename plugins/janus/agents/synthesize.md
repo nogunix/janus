@@ -313,6 +313,14 @@ support them — do not generate empty sections.
   text, and punctuation removal. `linkcheck.py` re-derives every
   anchor with the same algorithm and FAILs on any mismatch.
 
+  **Non-ASCII anchors: use file-only links.** If the anchor map marks
+  a slug as `(file-only)` or if a slug contains Japanese or other
+  non-ASCII characters, drop the `#fragment` and link to the file
+  path alone (`../findings/github-trace.md`). GitHub-style slug
+  generation for non-ASCII text is renderer-dependent — a slug that
+  resolves in one viewer breaks in another. File-level links always
+  resolve; `linkcheck.py` only checks fragments when present.
+
   If no anchor map was provided in the brief, run:
 
   ```bash
