@@ -51,7 +51,7 @@ python3 plugins/janus/skills/janus/scripts/versioncheck.py cases/<id>
 top-level docs actually ship.
 
 This matters constantly: `.claude/agents/` holds ~20 agent files from the
-local install and full-history branch, while **only the 10 files in
+local install and full-history branch, while **only the 11 files in
 `plugins/janus/agents/` are the plugin**. Editing `.claude/agents/*.md`
 changes nothing that ships. Same for `.claude/skills/janus-lessons/` —
 that is deliberately project-local (plugin updates must never overwrite

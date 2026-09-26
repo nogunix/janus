@@ -199,7 +199,7 @@ dependencies** below for setup commands).
 | [casket-mcp](https://github.com/nogunix/ocp-source-collector/blob/main/mcp/README.md) | source-trace (versioned source) | Optional |
 | [drgn-mcp](https://github.com/walac/drgn-mcp) | crash-analyze (vmcore) | For crash cases |
 | [GitHub MCP](https://github.com/github/github-mcp-server) | github-trace, upstream-adviser | Optional |
-| [mcp-atlassian](https://github.com/sooperset/mcp-atlassian) | jira-trace | Optional |
+| [Atlassian Rovo MCP](https://support.atlassian.com/atlassian-rovo-mcp-server/) | jira-trace | Optional |
 | [mslearn](https://github.com/MicrosoftDocs/mcp) | doc-search (ARO/Azure layer) | For ARO cases |
 | [aws-knowledge](https://knowledge-mcp.global.api.aws) | doc-search (ROSA/AWS layer) | For ROSA cases |
 | [terraform-mcp-server](https://github.com/hashicorp/terraform-mcp-server) | iac-author | For lab IaC |
@@ -243,13 +243,13 @@ hook-script paths, and SKILL.md ↔ agents/ stage sync.
 Submitted to Anthropic's community marketplace for review; once approved
 it will also be installable via `/plugin marketplace add
 anthropics/claude-plugins-community` → `janus@claude-community`. Until
-then, use the direct-from-GitHub install above — it already tracks the
-latest release.
+then, use the direct-from-GitHub install above — it tracks `main`, which
+is always the latest plugin version (tagged releases are cut per version).
 
 Restart Claude Code so the skills and agents load, then verify:
 
 - `/plugin` — `janus` shows as installed and enabled
-- `/janus` appears in the skill list; the ten `janus:*` agents appear in
+- `/janus` appears in the skill list; the eleven `janus:*` agents appear in
   the Agent tool list
 
 Day-to-day maintenance:
@@ -411,22 +411,20 @@ only — findings attribute them as `[slack] #channel, YYYY-MM-DD` and
 never rest a conclusion on them alone. Without it, doc-search simply
 skips the Slack angle.
 
-### mcp-atlassian — optional, Jira ticket deep-dive
+### atlassian (Rovo MCP) — optional, Jira ticket deep-dive
 Used by the conditional `jira-trace` stage when another stage surfaces a
 Jira ticket key (e.g. Red Hat Jira `RHEL-NNNNN` / `OCPBUGS-NNNNN`).
-Public OSS: <https://github.com/sooperset/mcp-atlassian>. **Register it
-with `READ_ONLY_MODE=true`** — that disables every write tool at server
-level and is the safety boundary that keeps jira-trace observation-only
-(JANUS never creates, edits, comments on, or transitions tickets):
+This is Atlassian's official remote server (Jira Cloud sites), with
+OAuth 2.1 — no API token to manage. Register it under the name
+`atlassian`, then authenticate once from `/mcp`:
 ```bash
-claude mcp add mcp-atlassian -s user \
-  --env JIRA_URL=https://issues.redhat.com \
-  --env JIRA_PERSONAL_TOKEN=<your-PAT> \
-  --env READ_ONLY_MODE=true \
-  -- uvx mcp-atlassian
+claude mcp add --transport http atlassian -s user https://mcp.atlassian.com/v2/mcp
 ```
-For Jira Cloud, use `JIRA_USERNAME` + `JIRA_API_TOKEN` instead of the
-personal access token. Without this server, jira-trace is skipped and
+The safety boundary is the tool grant, not a server flag: jira-trace is
+granted only `getJiraIssue` / `searchJiraIssuesUsingJql` / `search`, and
+`validate.py` fails the build if any agent is granted `executeWrite` or
+`executeDestructive` (JANUS never creates, edits, comments on, or
+transitions tickets). Without this server, jira-trace is skipped and
 ticket references stay in the report as gaps.
 
 ### drgn — vmcore static analysis
