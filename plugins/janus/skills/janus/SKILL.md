@@ -882,7 +882,14 @@ launches self-improver.
 this server is registered, and its absence is normal), `okp-mcp` (Red Hat docs/CVE/errata/KB),
 `rh-api-mcp` (live Red Hat Customer Portal API — authoritative errata
 lookup by advisory ID via `rh_get_errata`, complementing okp-mcp's offline
-corpus; also provides subscription/system inventory via
+corpus. The two are complementary, not competing: okp-mcp is the
+exploration/discovery engine (CVE search, solution articles, natural-language
+queries); rh-api-mcp is the precise lookup engine (exact errata ID →
+structured JSON with CVE list, affected products, Bugzilla links). okp-mcp
+cannot reliably find an errata by bare advisory ID; rh-api-mcp has no search
+capability. The optimal pipeline is: okp-mcp discovers → errata ID extracted
+→ `rh_get_errata` retrieves authoritative details → finding promoted from
+REASONED to VERIFIED. Also provides subscription/system inventory via
 `rh_list_subscriptions`, `rh_list_systems`, `rh_get_system` for cases that
 need entitlement or registration context. Read-only — JANUS never modifies
 subscriptions or system registrations. Optional: doc-search runs without it

@@ -228,8 +228,28 @@ the table's value as a guess.
   snippet or discussion summary → call `rh_get_errata` to get the
   authoritative details (affected packages, CVE list, severity); the
   snippet may be incomplete or stale.
+- You have an errata advisory ID and search it in okp-mcp → search returns
+  unrelated results (e.g. JBoss articles for a kernel RHSA) → okp-mcp's
+  BM25 search is unreliable for bare errata IDs. Skip search and call
+  `rh_get_errata` directly — it is the authoritative lookup path for
+  known advisory IDs.
 
 ## okp-mcp usage knowledge
+
+### Strengths and weaknesses (measured)
+- **CVE discovery**: excellent — querying a CVE ID (e.g. `CVE-2024-6387`)
+  returns CVE details + related solution articles + errata references in
+  one shot. This is okp-mcp's strongest use case.
+- **Natural-language / exploratory search**: good — full-sentence queries
+  with product name + version find documentation, solutions, and articles
+  across types.
+- **Errata ID exact search: unreliable** — querying a bare errata ID
+  (e.g. `RHSA-2024:9315`) often returns unrelated results. To find an
+  errata by ID, add product context (e.g. `RHSA-2024:4312 openssh
+  security update RHEL 9`), or skip straight to `rh_get_errata`.
+- **Official documentation (docs.redhat.com)**: searchable — results with
+  `Type: Documentation` come from the official product guides. Content is
+  fragmentary (search snippets), not full pages.
 
 ### Corpus limitation: offline snapshot
 okp-mcp is an offline knowledge portal, but **do not assume it is stale** —
@@ -286,16 +306,34 @@ match" as a corpus gap, not proof of absence, and say so in the findings.
 
 ## rh-api-mcp usage knowledge (live errata / Portal API)
 
-- **`rh_get_errata`**: takes an errata advisory ID (e.g. `RHSA-2024:0001`)
+- **`rh_get_errata`**: takes an errata advisory ID (e.g. `RHSA-2024:4312`)
   and returns the authoritative details — title, synopsis, severity, type,
-  affected products/packages with NVR, and CVE list. This is the live Red Hat
-  Customer Portal API, not the offline okp-mcp corpus.
-- **Division of labor with okp-mcp**: okp-mcp is search-oriented (find
-  relevant docs by keyword); rh-api-mcp is lookup-oriented (get specific
-  errata by ID). They complement each other:
-  1. `search_portal` finds relevant errata/CVE/KB by keyword search
-  2. `rh_get_errata` gets the authoritative, live details for a specific
-     advisory ID found via okp-mcp, Slack, or any other source
+  affected products/packages with NVR, CVE list, and Bugzilla links. This
+  is the live Red Hat Customer Portal API, not the offline okp-mcp corpus.
+- **Strengths (measured)**:
+  - 100% accurate for exact errata ID lookup — always returns structured
+    JSON with complete data when the errata exists.
+  - Returns 404 for non-existent errata IDs — a clean negative signal.
+  - Live / always current — no corpus staleness concern.
+- **Weakness: payload size** — kernel errata (e.g. RHSA-2024:9315) can
+  return 300–400 KB because they contain hundreds of CVEs. Extract only
+  what you need (severity, synopsis, the CVEs relevant to the case
+  question, affected products matching the case scope) rather than
+  including the entire response in findings.
+- **Division of labor with okp-mcp** — the two servers are complementary,
+  not competing:
+  - **okp-mcp** = exploration/discovery — "what CVE/errata/solution
+    relates to this symptom?" Natural-language queries, multi-angle
+    search, solution articles with workarounds.
+  - **rh-api-mcp** = precise lookup — "give me the authoritative details
+    for this specific errata ID." Structured data, always current.
+  - **Neither replaces the other**: okp-mcp cannot reliably find an
+    errata by its bare advisory ID (it returns unrelated results);
+    rh-api-mcp has no search or discovery capability at all.
+- **Optimal pipeline**: okp-mcp discovers relevant CVE/errata via
+  keyword search → extract errata advisory ID from the result →
+  `rh_get_errata` retrieves the authoritative structured data →
+  finding promoted from REASONED to VERIFIED.
 - **When to use**: whenever you encounter an errata advisory ID
   (RHSA-YYYY:NNNN, RHBA-YYYY:NNNN, RHEA-YYYY:NNNN) — from okp-mcp search
   results, from Slack discussions, from Jira tickets, or from the case
