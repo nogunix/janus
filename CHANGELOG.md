@@ -2,6 +2,20 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.27.0 — 2026-09-25
+
+- **jira-trace: migrate from `mcp-atlassian` to Atlassian Rovo MCP.**
+  The Jira integration now uses the official Atlassian Rovo MCP server
+  (`mcp.atlassian.com/v2/mcp`) with OAuth 2.1 authentication, replacing
+  the community `mcp-atlassian` Podman container that required a
+  manually managed API token. Server name changes from `mcp-atlassian`
+  to `atlassian`; tools change from `jira_get_issue` /
+  `jira_search` to `getJiraIssue` / `searchJiraIssuesUsingJql` /
+  `search`. The old `READ_ONLY_MODE=true` server flag is replaced by a
+  tool-grant boundary: `executeWrite` and `executeDestructive` are
+  added to `validate.py`'s `FORBIDDEN_TOOL_GRANTS` so the build fails
+  if any agent is granted them.
+
 ## 0.26.1 — 2026-09-21
 
 - **Rename `results/report.md` → `results/synthesis.md`** (and

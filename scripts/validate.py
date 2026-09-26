@@ -277,6 +277,13 @@ FORBIDDEN_TOOL_GRANTS = {
         "enables the server's enterprise tools with a Terraform token; "
         "enumerate the read-only registry tools instead"
     ),
+    "mcp__atlassian__executeWrite": (
+        "Rovo MCP write tool — jira-trace is read-only; the tool-grant "
+        "boundary replaces the old READ_ONLY_MODE server flag"
+    ),
+    "mcp__atlassian__executeDestructive": (
+        "Rovo MCP destructive tool — jira-trace is read-only"
+    ),
 }
 
 

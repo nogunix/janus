@@ -41,7 +41,7 @@ connects, it does not process.
 | **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure, AWS docs for ROSA/AWS) | findings/doc-search.md | okp-mcp + rh-api-mcp + slack + mslearn + aws | Static | sonnet |
 | **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp (optional) | Static | sonnet |
 | **github-trace** | Upstream GitHub PR/issue/commit deep-dive | findings/github-trace.md | github MCP (read-only) | Static | sonnet |
-| **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | mcp-atlassian (read-only) | Static | sonnet |
+| **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | atlassian (Rovo MCP, read-only) | Static | sonnet |
 | **crash-analyze** | vmcore/coredump analysis | findings/crash-analyze.md | drgn-mcp + gdb | Static | opus |
 | **iac-author** | Authors + statically validates the lab's IaC | findings/iac-author.md + `iac/` | terraform-mcp + ansible-mcp (authoring subset) | Static | sonnet |
 | **lab-verify** | Live cluster verification | findings/lab-verify.md | oc, terraform CLI, bpftrace, linux-mcp | Dynamic | opus |
@@ -207,7 +207,7 @@ Then check each composed stage's required MCP server with
 `claude mcp list` (`✔ Connected` — a tool being advertised is not the
 server being reachable): doc-search → okp-mcp (+ rh-api-mcp for live
 errata), source-trace → casket, github-trace → github, jira-trace →
-mcp-atlassian, crash-analyze → drgn, iac-author → terraform and/or
+atlassian, crash-analyze → drgn, iac-author → terraform and/or
 ansible, lab-verify → linux.
 A stage whose server is not connected is **dropped from the composition
 and recorded as a gap** (note it in the step-2 presentation; synthesize
@@ -904,9 +904,11 @@ awslabs servers' successor: if its managed `aws-mcp` server is registered,
 doc-search prefers its no-auth `search_documentation` / `retrieve_skill`
 over aws-docs — its `call_aws` / `run_script` tools are never granted),
 `drgn` (vmcore), `github` (upstream
-PR/issue/commit — github-trace and upstream-adviser), `mcp-atlassian`
-(Jira tickets — jira-trace; register with `READ_ONLY_MODE=true` so all
-write tools stay disabled — that is the safety boundary), `linux` (read-only
+PR/issue/commit — github-trace and upstream-adviser), `atlassian`
+(Atlassian Rovo MCP at `mcp.atlassian.com/v2/mcp` — Jira tickets for
+jira-trace; uses OAuth 2.1 authentication, no API token needed.
+`executeWrite` / `executeDestructive` are never granted — that is the
+safety boundary), `linux` (read-only
 RHEL node/VM diagnostics, local or over SSH — lab-verify; register with
 `LINUX_MCP_TOOLSET=fixed` so `run_script` stays disabled), `terraform`
 (the HashiCorp [terraform-mcp-server](https://github.com/hashicorp/terraform-mcp-server)
