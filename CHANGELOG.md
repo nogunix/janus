@@ -2,6 +2,19 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.27.1 — 2026-09-27
+
+- **doc-search: document okp-mcp vs rh-api-mcp strengths and optimal
+  pipeline.** Based on measured performance comparison — okp-mcp excels
+  at CVE discovery and natural-language search but cannot reliably find
+  errata by bare advisory ID; rh-api-mcp is 100% accurate for exact ID
+  lookup but has no search capability. The optimal pipeline (okp-mcp
+  discovers → errata ID extracted → `rh_get_errata` for authoritative
+  data → REASONED promoted to VERIFIED) is now documented in
+  doc-search's usage knowledge sections and SKILL.md's MCP dependencies.
+  Added failure pattern for errata ID search in okp-mcp and payload
+  size warning for kernel errata via rh-api-mcp.
+
 ## 0.27.0 — 2026-09-25
 
 - **jira-trace: migrate from `mcp-atlassian` to Atlassian Rovo MCP.**
