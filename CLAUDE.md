@@ -147,6 +147,10 @@ stay usable. Preserve that property when touching them.
   and `plugin.json`'s description.
 - **Versioning**: bump `plugins/janus/.claude-plugin/plugin.json` and add a
   `CHANGELOG.md` entry in the same commit — these have drifted before.
+  `validate.py` fails when the current version has no CHANGELOG section.
+  Do not tag by hand: `.github/workflows/release.yml` tags `v<version>`
+  and publishes that CHANGELOG section as the GitHub release once the
+  bump lands on main.
   Commit subject style: `<area>: <summary> (<version>)`, e.g.
   `source-trace: comment≠fact + snapshot-pinned line numbers (0.19.1)`.
   Omit the version for changes that do not bump the plugin.

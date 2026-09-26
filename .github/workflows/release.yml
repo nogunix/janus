@@ -1,0 +1,54 @@
+name: Release
+
+# Tags v<version> and publishes a GitHub release whenever the plugin version
+# on main has no tag yet. Notes are the version's CHANGELOG.md section
+# (validate.py guarantees it exists). Idempotent: an existing tag is a no-op.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - plugins/janus/.claude-plugin/plugin.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Repo consistency checks
+        run: python3 scripts/validate.py
+
+      - name: Resolve version
+        id: version
+        run: |
+          version=$(python3 -c 'import json; print(json.load(open("plugins/janus/.claude-plugin/plugin.json"))["version"])')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$version is already tagged; nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create tag and release
+        if: steps.version.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python3 scripts/release_notes.py "$VERSION" > "$RUNNER_TEMP/notes.md"
+          gh release create "v$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "JANUS $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md"

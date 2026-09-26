@@ -428,6 +428,17 @@ def validate_okp_doc_id_sync(plugin_dir: Path) -> None:
                 error(f"{rel(md)} repeats a retired okp-mcp claim ({why}): {phrase!r}")
 
 
+def validate_changelog_entry() -> None:
+    """The plugin version must have a CHANGELOG.md section — release.yml
+    publishes that section as the GitHub release notes."""
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    from release_notes import changelog_section, plugin_version
+
+    version = plugin_version()
+    if not changelog_section(version):
+        error(f"CHANGELOG.md has no (or an empty) section for plugin version {version}")
+
+
 def main() -> int:
     print(f"Validating marketplace: .claude-plugin/marketplace.json")
     marketplace = load_json(
@@ -464,6 +475,8 @@ def main() -> int:
         validate_okp_doc_id_sync(plugin_dir)
         validate_readme_agent_sync(plugin_dir)
         validate_prose_counts(plugin_dir)
+
+    validate_changelog_entry()
 
     claude_md = REPO_ROOT / ".claude" / "CLAUDE.md"
     if claude_md.exists():
