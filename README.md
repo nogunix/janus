@@ -352,6 +352,15 @@ specific OCP release — component git trees, operator bundles, SRPMs, and
 layered-product operands. Optional: without it, source-trace is skipped
 and the report notes a gap.
 
+Its release-aware tools answer what GitHub cannot, because they depend on
+what each release **shipped**: `source_for_image` (image digest → built
+commit and source tree), `find_dependency_users` (CVE impact on shipped
+dependencies), `release_diff` (what changed between two payload patches),
+`rpm_source` (RHCOS SRPM with Red Hat patches) and `check_patch_shipped`
+(is a fix's diff in each release's shipped source — backports and
+non-public build commits included). source-trace fetches a fix's diff
+with the GitHub MCP (`get_commit` / `pull_request_read`) for the last one.
+
 casket-mcp is part of
 [ocp-source-collector](https://github.com/nogunix/ocp-source-collector).
 Full setup (venv, registration, LAN access):

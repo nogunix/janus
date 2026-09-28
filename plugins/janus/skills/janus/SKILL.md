@@ -52,7 +52,7 @@ github-trace and jira-trace are normally **conditional follow-up
 stages**: the lead launches them at fan-in when another stage's
 findings reference a GitHub PR/issue/commit or a Jira ticket that no
 other stage can open (doc-search has only okp/slack; source-trace only
-casket). Include one up front only when the case question itself names
+casket, plus fetching a fix's diff for `check_patch_shipped`). Include one up front only when the case question itself names
 an upstream PR/issue or a Jira key.
 
 source-trace is **opportunistic**: casket-mcp is an environment-specific
@@ -325,6 +325,7 @@ synthesize runs:
 | GitHub PR/issue/commit referenced but not investigated | github-trace |
 | Jira ticket (RHEL-/OCPBUGS-/CNV-…) referenced but not opened | jira-trace |
 | casket phase/layer "unexplored (reason: ...)" | source-trace (re-run, scoped to that layer) |
+| `release_diff` range handed off (`{owner, repo, base, head}`) — PRs / Jira keys behind it not yet read | github-trace |
 | Symbol/version question raised by crash-analyze | source-trace |
 
 - **Cap: at most 2 follow-up stages per case, one follow-up round.**

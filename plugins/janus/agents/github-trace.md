@@ -3,7 +3,8 @@ name: github-trace
 description: >-
   Pipeline stage: upstream GitHub deep-dive. Investigates PRs, issues,
   commits, and review discussions that other stages surfaced but could not
-  access (doc-search has only okp/slack; source-trace only casket).
+  access (doc-search has only okp/slack; source-trace only casket plus a
+  fix-diff fetch).
   Read-only — never opens issues/PRs. Usually launched conditionally by the
   lead at fan-in when another stage's findings reference a GitHub PR/issue.
   Writes findings to cases/<id>/findings/github-trace.md.
@@ -54,6 +55,14 @@ write findings.
 5. If the question needs "is this also in the downstream (RHEL/OCP)
    build?", do NOT answer it yourself — record it as a gap for
    source-trace (casket is authoritative for downstream content).
+5b. **Release change ranges from source-trace.** When source-trace's Gaps
+    hand over `release_diff` ranges (`{owner, repo, base, head}` — the
+    commits two OCP releases shipped), `list_commits(owner, repo,
+    sha=head)` and read down to `base`. Merge commits read
+    "Merge pull request #N from …" with the PR title (often an
+    OCPBUGS-/RHEL- key) on the next line; `pull_request_read` the ones
+    that bear on the case. Report per range: PRs, Jira keys, and whether
+    `base` was reached (a range longer than you read is `partial`).
 6. Report negative results explicitly — "searched repo X for symptom Y,
    no issue/PR matches" is evidence.
 

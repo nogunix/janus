@@ -2,6 +2,34 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.28.0 — 2026-09-28
+
+- **source-trace: casket-mcp's release-aware tools.** casket-mcp gained
+  five tools that answer from what each OpenShift release shipped —
+  `source_for_image`, `find_dependency_users`, `release_diff`,
+  `rpm_source`, `check_patch_shipped` (ocp-source-collector `415e0b5`).
+  source-trace is granted them and told when to reach for each: an image
+  in the case goes through `source_for_image` first; CVE impact through
+  `find_dependency_users(selected_only=True)` (go.sum lists every graph
+  version, go.mod decides), then a read of the shipped dependency source;
+  two payload patches through `release_diff`; RHCOS packages through
+  `rpm_source`. "Is the fix in release Y?" is answered by content with
+  `check_patch_shipped` — commit ancestry misses release-branch backports
+  and non-public build commits. The tool alone is REASONED; VERIFIED
+  needs a `read_file` of one hunk on each side of the boundary, and
+  `partial` always needs reading.
+- **source-trace may fetch a fix's diff.** The follow-up cap (one round,
+  no follow-up launching another) rules out github-trace fetching the
+  diff for source-trace to check, so source-trace gets two read-only
+  GitHub tools, `get_commit` and `pull_request_read`, for that fetch
+  only. PR history, review threads and tag availability stay
+  github-trace's.
+- **github-trace reads `release_diff` ranges.** source-trace hands over
+  `{owner, repo, base, head}` ranges in its Gaps; github-trace walks
+  `list_commits(sha=head)` down to `base` for the PRs and Jira keys, and
+  SKILL.md's gap-routing table routes that signal to it.
+- Older casket-mcp without these tools: source-trace falls back to the
+  manual steps and records it as a gap.
 ## 0.27.2 — 2026-09-28
 
 - **lab-verify: add recursive CRD inspection guidance.** Phase 3 now
