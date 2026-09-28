@@ -100,6 +100,17 @@ guess.
   over SSH (multi-host, key-based). Use for SSH-reachable RHEL hosts
   (SNO nodes, lab VMs, handed-off hosts). The server runs the `fixed`
   read-only toolset; `run_script` is disabled.
+- **CRD field inspection**: when diagnosing CRD schema
+  (`oc get crd <name> -o json`), always recursively expand nested
+  objects. A shallow top-level property list misses sub-objects —
+  e.g. listing `spec.federation` properties shows only immediate
+  children, not `bundleEndpoint.profile` two levels down. See the
+  recursive CRD inspection pattern in "Reusable patterns" below.
+- **Minimize residual gaps**: before reporting phase completion,
+  review the verification plan for items that are straightforward to
+  verify in the same session (e.g. TLS certificate inspection, Route
+  generation, CR creation, auto-polling). Only record a Gap when
+  execution is genuinely blocked.
 - Dynamic tracing if needed: bpftrace (kernel), strace (userspace)
   - Always wrap with `timeout 180`
   - On DEMO / managed nodes (ROSA/ARO) where SSH is unavailable:
@@ -224,6 +235,39 @@ Model serving on OpenShift AI (KServe / vLLM):
 - A tool that talks to the model endpoint (e.g. NeMo Guardrails
   `openai_api_base`) must target the vLLM **container port 8080**, not
   the KServe Service port 80.
+
+CRD inspection (Operator-managed resources):
+- **Always use recursive property expansion.** When inspecting a CRD's
+  OpenAPI schema, never list only top-level properties — sub-objects
+  (type=object) must be recursively expanded to verify their children.
+  A top-level field existing does not mean its sub-fields exist in the
+  deployed CRD (or vice versa). Use a script like:
+  ```
+  oc get crd <name> -o json | python3 -c "
+  import json, sys
+  def show(props, indent=0):
+      for k, v in sorted(props.items()):
+          print(' '*indent + f'{k}: type={v.get(\"type\",\"object\")}')
+          if v.get('properties'): show(v['properties'], indent+2)
+          if v.get('items',{}).get('properties'): show(v['items']['properties'], indent+2)
+  crd = json.load(sys.stdin)
+  schema = crd['spec']['versions'][0]['schema']['openAPIV3Schema']['properties']['spec']['properties']
+  show(schema.get('<field>', {}).get('properties', {}))
+  "
+  ```
+- **Cross-check source-code findings.** When github-trace or source-trace
+  found a struct/type in Go source but you report it absent from the
+  deployed CRD, this is a high-risk contradiction that likely indicates
+  a diagnostic error, not a source-vs-deployment divergence. Re-verify
+  with a different diagnostic method before concluding "absent."
+
+Gap minimization:
+- **Attempt to resolve all gaps within the same session.** Do not leave
+  verifiable gaps (e.g. "auto-polling untested", "Route not checked",
+  "TLS cert uninspected") when the cluster is running and accessible.
+  These are not blockers — they are additional test steps. Execute them
+  unless they require resources not available (e.g. external DNS, DMZ
+  infrastructure). Record each gap's resolution as an additional finding.
 
 Safety: provisioning a lab / any live-target intervention is the **dynamic
 track — requires human APPROVE_* before execution**; kind's local disposable

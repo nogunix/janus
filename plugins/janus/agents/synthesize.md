@@ -389,6 +389,17 @@ support them — do not generate empty sections.
 - The report must be self-contained — a reader needs only this file.
 - Keep the executive summary to 2-3 sentences.
 - If no hypothesis reaches HIGH, say so explicitly.
+- **Flag source↔lab contradictions.** When lab-verify reports a CRD
+  field, feature, or API is absent but github-trace or source-trace
+  found the corresponding type/struct/field in the source code, flag
+  this as a diagnostic reliability concern — the lab test may have
+  inspected incompletely (e.g. shallow property listing without
+  recursive expansion). Recommend re-verification in the report's
+  Gaps section before accepting the lab "absent" finding over the
+  source "present" finding. A lab "not found" result only overturns
+  a source "found" result when the lab diagnostic is demonstrably
+  exhaustive (e.g. full CRD schema dump with recursive property
+  expansion, not just top-level field listing).
 
 ## Reusable patterns (inlined)
 
