@@ -2,6 +2,21 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.27.2 — 2026-09-28
+
+- **lab-verify: add recursive CRD inspection guidance.** Phase 3 now
+  requires recursive expansion of nested objects when inspecting CRD
+  schemas. A reusable Python walker pattern is inlined. Prevents
+  misdiagnosis from shallow top-level property listing (root cause of
+  spire-003 F2 false negative).
+- **lab-verify: add gap minimization guidance.** Before reporting phase
+  completion, review the verification plan for items that are
+  straightforward to resolve in the same session.
+- **synthesize: add source↔lab contradiction detection rule.** When
+  lab-verify reports a CRD field absent but source-trace found the
+  corresponding struct in Go source, flag this as a diagnostic
+  reliability concern and recommend re-verification.
+
 ## 0.27.1 — 2026-09-27
 
 - **doc-search: document okp-mcp vs rh-api-mcp strengths and optimal
