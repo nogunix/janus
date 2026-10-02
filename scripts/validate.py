@@ -384,6 +384,42 @@ def validate_model_sync(plugin_dir: Path) -> None:
             )
 
 
+MODEL_ALIASES = {"fable", "opus", "sonnet", "haiku", "inherit"}
+PINNED_MODEL_RE = re.compile(r"\bclaude-(?:opus|sonnet|haiku|fable)-\d[\w.-]*", re.I)
+
+
+def validate_model_aliases(plugin_dir: Path) -> None:
+    """Model choices name a family, never a version.
+
+    An agent's `model:` and any model the bundled scripts request must be a
+    family alias (opus / sonnet / haiku / inherit) that Claude Code resolves
+    to the current release. A pinned ID such as `claude-sonnet-4-6` keeps
+    running a retired model after every release — or fails outright once
+    that ID is withdrawn — and nobody notices, because nothing about the
+    pipeline's output says which version ran. The findings' `model:` key
+    records the resolved model that actually ran; that is the one place a
+    full ID belongs, and it is written at run time, not shipped here.
+    """
+    for agent_md in sorted((plugin_dir / "agents").glob("*.md")):
+        model = (parse_frontmatter(agent_md) or {}).get("model")
+        if model and model not in MODEL_ALIASES:
+            error(
+                f"agents/{agent_md.name}: model '{model}' is not a family alias "
+                f"({' | '.join(sorted(MODEL_ALIASES))})"
+            )
+    shipped = (
+        sorted(plugin_dir.glob("agents/*.md"))
+        + sorted(plugin_dir.glob("skills/**/*.md"))
+        + sorted(plugin_dir.glob("skills/**/*.py"))
+        + sorted(plugin_dir.glob("hooks/*.py"))
+    )
+    for path in shipped:
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            m = PINNED_MODEL_RE.search(line)
+            if m:
+                error(f"{rel(path)}:{n}: pinned model ID '{m.group(0)}' — use a family alias")
+
+
 def validate_tool_grants(plugin_dir: Path) -> None:
     """No agent may hold a tool that provisions infrastructure.
 
@@ -492,6 +528,7 @@ def main() -> int:
         validate_pipeline_stage_sync(plugin_dir)
         validate_skill_references(plugin_dir)
         validate_model_sync(plugin_dir)
+        validate_model_aliases(plugin_dir)
         validate_tool_grants(plugin_dir)
         validate_okp_doc_id_sync(plugin_dir)
         validate_readme_agent_sync(plugin_dir)

@@ -614,6 +614,14 @@ can check after the fact is an assumption, not a property.
 **Refusal handling**: on refusal, record it, then degrade Opus → Sonnet
 → Haiku in order. If all refuse, `NEEDS_HUMAN_*`.
 
+**Families, not versions.** Every assignment here and in the agents'
+`model:` is a family alias (`opus` / `sonnet` / `haiku`) that resolves
+to the current release, so a new model version changes nothing in the
+pipeline and the ladders above step between families, not version
+numbers. Never brief a stage — or pass a script — a versioned model ID;
+`validate.py` rejects one anywhere in the plugin. The findings' `model:`
+key is the exception: it records the resolved model that actually ran.
+
 Either ladder firing changes what the stage's `model:` key must say. The
 substituted model is the one that ran; record it there, and record the
 substitution itself in `cases/<id>/audit/` so the report's Execution

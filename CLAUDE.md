@@ -103,7 +103,11 @@ each other — they are connected only by files on disk.
 
 Model assignment is per stage and deliberate (sonnet for search/tracing,
 opus for crash-analyze / lab-verify / synthesize); see the Model strategy
-table in `SKILL.md` before changing it.
+table in `SKILL.md` before changing it. Assignments name a **family alias**
+(`fable` / `opus` / `sonnet` / `haiku` / `inherit`), never a versioned ID, so a model
+release needs no edit here — `validate.py`'s `validate_model_aliases()`
+fails on an agent `model:` that is not an alias and on any
+`claude-<family>-<N>` ID shipped in agents, skills, scripts or hooks.
 
 ### Quality is enforced by mechanism, not by the model
 

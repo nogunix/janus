@@ -92,7 +92,10 @@ CONFIG = Path(__file__).resolve().parent / "textlintrc.json"
 TIMEOUT = 120
 DEFAULT_LANGUAGE = "en"
 SEVERITY_ERROR = 2
-SONNET_MODEL = "claude-sonnet-4-6"
+# A family alias, never a versioned ID: the claude CLI resolves it to the
+# current Sonnet, so a model release changes nothing here. validate.py
+# rejects pinned IDs anywhere in the plugin.
+SONNET_MODEL = "sonnet"
 
 # Reports are truncated to this length before sending to Sonnet to stay
 # within practical CLI arg limits and keep costs low. The unchecked tail

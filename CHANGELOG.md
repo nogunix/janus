@@ -2,6 +2,18 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.30.1 — 2026-10-02
+
+- **Model choices are version-independent.** prosecheck's Sonnet
+  backend called `claude --model claude-sonnet-4-6`, the one versioned
+  model ID in the plugin; it now passes the `sonnet` alias, which the
+  claude CLI resolves to the current Sonnet. Agents already used family
+  aliases. `validate.py` gains `validate_model_aliases()`: an agent
+  `model:` must be `fable` / `opus` / `sonnet` / `haiku` / `inherit`, and no
+  `claude-<family>-<N>` ID may ship in agents, skills, scripts or hooks.
+  SKILL.md's Model strategy states the rule; the findings' `model:` key
+  still records the resolved model that actually ran.
+
 ## 0.30.0 — 2026-10-02
 
 - **`findings.py digest`: fan-in without reading every file.** At step 5
