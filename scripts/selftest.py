@@ -738,6 +738,60 @@ def test_gates():
         check("1 FAIL (quotecheck)" in out, "gates: the summary names the failing check")
 
 
+def test_findings():
+    fnd = load("findings")
+    good = (
+        "---\nstage: doc-search\ncase: c1\ndate: 2026-01-01\nstatus: complete\n"
+        "model: claude-sonnet\ntool_calls: 3\nduration_s: 60\n---\n\n"
+        "# doc-search — c1\n\n## Findings\n\n"
+        "### F1: probe timeout\n- **Confidence**: HIGH\n- **Basis**: VERIFIED\n"
+        "- **Type**: known-issue\n- **Detail**: d\n- **Ref**: KB 123\n\n"
+        "```markdown\n### F9: inside a fence is not a finding\n```\n\n"
+        "## Gaps\n- casket not connected\n"
+    )
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "c1"
+        (case / "findings").mkdir(parents=True)
+        f = case / "findings" / "doc-search.md"
+        f.write_text(good)
+        problems, warnings = fnd.lint_file(f)
+        check(not problems and not warnings, "findings: a well-formed file lints clean")
+        _, findings, sections = fnd.parse(f)
+        check([x["id"] for x in findings] == ["F1"], "findings: headings inside a code fence are ignored")
+        check(any("casket" in l for l in sections.get("Gaps", [])), "findings: the Gaps section is captured")
+
+        f.write_text(good.replace("model: claude-sonnet\n", ""))
+        problems, _ = fnd.lint_file(f)
+        check(any("`model`" in p for p in problems), "findings: an omitted model key is a FAIL")
+
+        f.write_text(good.replace("**Basis**: VERIFIED", "**Basis**: ASSUMED"))
+        problems, _ = fnd.lint_file(f)
+        check(any("ASSUMED" in p for p in problems), "findings: HIGH on an ASSUMED basis is a FAIL")
+
+        f.write_text(good.replace("status: complete", "status: done"))
+        problems, _ = fnd.lint_file(f)
+        check(any("status" in p for p in problems), "findings: a status outside the vocabulary is a FAIL")
+
+        f.write_text(good.replace("- **Ref**: KB 123\n", "").replace("## Gaps\n- casket not connected\n", ""))
+        problems, warnings = fnd.lint_file(f)
+        check(any("no Ref" in p for p in problems), "findings: a finding with no Ref is a FAIL")
+        check(any("Gaps" in w for w in warnings), "findings: a missing Gaps section only warns")
+
+        f.write_text(good)
+        sup = case / "findings" / "doc-search-slack-supplement.md"
+        sup.write_text(good.replace("model: claude-sonnet\n", "model: claude-sonnet\nsupplement_of: doc-search.md\n"))
+        problems, _ = fnd.lint_file(sup, fnd.case_ids(fnd.findings_files(case)))
+        check(any("reuses F1" in p for p in problems), "findings: a supplement reusing its parent's numbers is a FAIL")
+
+        import contextlib, io
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = fnd.main(["findings.py", "digest", str(case)])
+        out = buf.getvalue()
+        check("F1 [HIGH/VERIFIED] probe timeout" in out, "findings: digest lists one line per finding")
+        check(rc == 1 and "lint FAIL" in out, "findings: digest carries lint verdicts and exits 1 on a FAIL")
+
+
 def main():
     test_chain()
     test_lock()
@@ -748,6 +802,7 @@ def main():
     test_anchors()
     test_prosecheck()
     test_gates()
+    test_findings()
     if failures:
         print(f"{len(failures)} self-test(s) failed")
         return 1

@@ -23,7 +23,7 @@ Both are stdlib-only and offline (no network, no MCP servers).
 `selftest.py` has no test filter. To run one test function in isolation
 (`test_chain`, `test_lock`, `test_quotecheck`, `test_urlcheck`,
 `test_versioncheck`, `test_linkcheck`, `test_anchors`, `test_prosecheck`,
-`test_gates`):
+`test_gates`, `test_findings`):
 
 ```bash
 python3 -c "
@@ -40,6 +40,7 @@ is not a clean pass):
 
 ```bash
 python3 plugins/janus/skills/janus/scripts/gates.py cases/<id> [--skip urlcheck] [--verbose]
+python3 plugins/janus/skills/janus/scripts/findings.py lint|digest cases/<id>
 python3 plugins/janus/skills/janus/scripts/chain.py verify cases/<id>
 python3 plugins/janus/skills/janus/scripts/chain.py seal|lock|unlock cases/<id> [file ...]
 python3 plugins/janus/skills/janus/scripts/quotecheck.py cases/<id>/results/synthesis.md
@@ -143,7 +144,15 @@ stay usable. Preserve that property when touching them.
   Fixing only the skill does not reach the pipeline (that was 0.20.1 →
   0.20.2). `validate.py` now treats the skill's doc_id table as the source
   of truth and fails when the agent lacks a format from it, plus rejects a
-  list of retired okp-mcp claims across all agents and skills.
+  list of retired okp-mcp claims across all agents, skills and skill
+  references.
+  The one deliberate exception is doc-search's **platform layers**: the
+  mslearn (ARO/Azure) and AWS-server (ROSA/AWS, GPU labs) mechanics live in
+  `skills/janus/references/doc-search-{azure,aws}.md`, and the lead passes
+  their absolute path in the doc-search brief only when the case touches
+  that platform. The agent keeps a stub naming both files plus a Glob
+  fallback, so the knowledge still reaches the stage — it just is not paid
+  for on cases that never touch a cloud layer.
 - **`validate.py` enforces SKILL.md ↔ `agents/` sync**: a stage named in
   SKILL.md must have `agents/<stage>.md`, and every agent file must be
   mentioned in SKILL.md. Adding or removing a stage is a multi-file change

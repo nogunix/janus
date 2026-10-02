@@ -2,6 +2,36 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.30.0 — 2026-10-02
+
+- **`findings.py digest`: fan-in without reading every file.** At step 5
+  the lead runs the digest instead of opening each findings file: per
+  file the frontmatter status line, one line per finding
+  (`F3 [HIGH/VERIFIED] <title>`), the Gaps section verbatim, and lint
+  verdicts. On a real case it cut 31.8 KB of findings to a 6.2 KB
+  digest. Synthesize still reads the files in full.
+- **`findings.py lint`: the stage contract's mechanical half.** FAILs on
+  missing frontmatter keys (`model` included — `unrecorded` is the
+  honest value), a status outside the vocabulary, a finding without
+  Confidence / Basis / Ref or with an out-of-vocabulary value, HIGH on
+  ASSUMED, duplicate finding numbers, and a supplement reusing its
+  parent's numbers; warns on missing Detail / Type / Gaps. Every stage
+  runs it before SendMessage, the lead runs it on its own step-5a
+  supplements, and digest repeats its verdicts. The stage contract
+  copied into briefs drops the rules lint now proves and keeps the
+  judgment ones (VERIFIED needs observed output; tool failures and
+  unexplored layers are Gaps, not negatives). Self-tested
+  (`test_findings`).
+- **doc-search loads its cloud layers on demand.** The mslearn
+  (ARO / Azure) and AWS-server (ROSA / AWS, plus the GPU pre-deployment
+  check) sections moved to `skills/janus/references/doc-search-azure.md`
+  and `doc-search-aws.md` (doc-search.md 24.5 KB → 19.7 KB). The lead
+  names the right file in the brief by platform; the agent keeps a stub
+  with the okp-vs-cloud division of labor and a Glob fallback, and
+  records an unfindable layer as a Gap rather than working it from
+  memory. `validate.py`'s retired-okp-claim check now covers skill
+  reference files too.
+
 ## 0.29.1 — 2026-10-02
 
 - **urlcheck: offline runs print only the note.** With the network

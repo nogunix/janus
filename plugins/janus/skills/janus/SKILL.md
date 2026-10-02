@@ -244,25 +244,32 @@ Brief for each stage:
   synthesize (see Reference assets below). Preserve the 🔍/⚠️ tags:
   ⚠️ remediations are report-only recommendations, never executed
   autonomously
+- doc-search only, by platform: an ARO / Azure case gets the absolute
+  path of `references/doc-search-azure.md`, a ROSA / AWS case (or one
+  deploying GPU / large-model serving on a lab) gets
+  `references/doc-search-aws.md` — each with "Read this file before any
+  call to that layer's tools". A case touching neither gets neither;
+  doc-search then never loads that knowledge.
 
-**Copy this stage contract verbatim into every stage brief** (do not
-paraphrase or trim — agent definitions can be skimmed; the brief is
-always read):
+**Copy this stage contract verbatim into every stage brief**, with
+`<skill-dir>` resolved to an absolute path (agent definitions can be
+skimmed; the brief is always read). Its mechanical half — frontmatter
+keys, Confidence / Basis / Ref on every finding, no HIGH on ASSUMED —
+is enforced by `findings.py lint`, so the contract spends its words on
+the judgment half:
 
 ```
 Stage contract:
-1. Write cases/<id>/findings/<stage>.md FIRST; SendMessage is a
-   completion notice, not the result.
-2. Every finding carries Confidence, Basis (VERIFIED | REASONED |
-   ASSUMED), and a verifiable Ref (+ public URL where one exists).
-3. VERIFIED requires tool output you observed in this session. Never
+1. Write cases/<id>/findings/<stage>.md FIRST, then run
+   python3 <skill-dir>/scripts/findings.py lint cases/<id>/findings/<stage>.md
+   and fix every FAIL before SendMessage (a completion notice, not the
+   result).
+2. VERIFIED requires tool output you observed in this session. Never
    promote a Basis without new evidence.
-4. A tool failure (timeout, unreachable, not indexed) is a Gap, not a
-   Negative Result. Attempt at least one scoped fallback before
-   recording either.
-5. An unexplored layer/phase/angle is a Gap with a reason — never a
-   negative.
-6. Negative results are evidence — report them explicitly.
+3. A tool failure (timeout, unreachable, not indexed) or an unexplored
+   layer/phase/angle is a Gap with a reason, never a Negative Result.
+   Attempt at least one scoped fallback before recording either.
+4. Negative results are evidence — report them explicitly.
 ```
 
 ### 4. Gate dynamic stages
@@ -299,7 +306,8 @@ outstanding — a stage notification, or a periodic check — re-run:
 ls cases/<id>/findings/*.md
 ```
 
-and read each present file's frontmatter `status`. Fan in as soon as
+and, once files are present, run the digest (below) rather than opening
+them. Fan in as soon as
 every composed stage has a file, **even if some completion notification
 never arrived**. Never sit waiting for a message about a stage whose
 file is already on disk.
@@ -309,8 +317,22 @@ file is already on disk.
   (no running task, no partial output) → treat as failed: record it in
   `cases/<id>/audit/` and proceed without it
 
-Then read each findings file's frontmatter `status` and its **Gaps
-section** and decide whether another stage can fill a gap before
+Then run the digest — **instead of reading the findings files**:
+
+```bash
+python3 <skill-dir>/scripts/findings.py digest cases/<id>
+```
+
+Per file it prints the frontmatter status line, one line per finding
+(`F3 [HIGH/VERIFIED] <title>`), the **Gaps section** verbatim, and
+`findings.py lint`'s verdicts. That is everything the routing decision
+needs; the full files are synthesize's to read, not the lead's. Open a
+file only when a Gaps line is ambiguous about which follow-up it needs.
+A `lint FAIL` means the stage skipped its own lint: SendMessage it to
+fix the file (nothing is locked before step 6); if it cannot, record
+the failure in `audit/` and let synthesize see it as a gap.
+
+Decide from the digest whether another stage can fill a gap before
 synthesize runs:
 
 | Gap signal in findings | Follow-up stage |
@@ -349,7 +371,8 @@ an exception.
 **Supplement file conventions** (naming `<stage>-<source>-supplement.md`,
 `supplement_of:` / `source:` frontmatter, finding numbers in fresh blocks
 of 10 starting at F20): read `references/findings-format.md` before
-writing one.
+writing one, and run `findings.py lint` on it afterwards — the lead's
+supplements meet the same contract as a stage's file.
 
 ### 6. Launch synthesize
 

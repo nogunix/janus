@@ -437,8 +437,10 @@ def validate_okp_doc_id_sync(plugin_dir: Path) -> None:
         "Pass a query to": 'a query-less call returns "Document not found", not a nudge',
         "not a URL. Passing a URL fails": "a URL works when its path is already the doc_id",
     }
-    for md in sorted(plugin_dir.glob("agents/*.md")) + sorted(
-        plugin_dir.glob("skills/*/SKILL.md")
+    for md in (
+        sorted(plugin_dir.glob("agents/*.md"))
+        + sorted(plugin_dir.glob("skills/*/SKILL.md"))
+        + sorted(plugin_dir.glob("skills/*/references/*.md"))
     ):
         text = md.read_text()
         for phrase, why in retired.items():

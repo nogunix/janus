@@ -267,6 +267,9 @@ Day-to-day maintenance:
 plugins/janus/
   .claude-plugin/plugin.json         # plugin manifest
   skills/janus/SKILL.md              # /janus — pipeline driver
+  skills/janus/references/           # SKILL.md / doc-search detail, read on demand
+  skills/janus/scripts/gates.py      # runs the six step-7 checks, prints only non-passes
+  skills/janus/scripts/findings.py   # findings format lint + fan-in digest for the lead
   skills/janus/scripts/chain.py      # per-case evidence hash ledger (seal/verify/lock)
   skills/janus/scripts/urlcheck.py   # reference-URL liveness check (backs gate C1/url)
   skills/janus/scripts/quotecheck.py # verbatim-quote fidelity check (backs gate C2/quote)

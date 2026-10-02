@@ -65,31 +65,6 @@ Read `cases/<id>/case.yaml` for:
 
 7. Report negative results explicitly — "searched X, nothing matched" is evidence.
 
-## Pre-deployment constraint check (GPU / model-serving cases)
-
-When the case will deploy GPU instances or large-model serving on a lab
-cluster (a lab-verify stage or an infra handoff follows this stage), run
-this check as an explicit phase and record the results as findings —
-discovering a constraint after the environment is deployed costs hours
-of rebuild:
-
-- **AMI instance-type allowlist**: ROSA Classic worker nodes boot from an
-  AWS Marketplace AMI with its own instance-type allowlist — an instance
-  type appearing in `rosa list instance-types` does NOT prove the AMI
-  permits it (the newest GPU families are the usual gap). Self-managed
-  OCP has no such AMI restriction. State the ROSA-vs-self-managed
-  distinction explicitly in the findings, and search for tracking
-  tickets (e.g. the ROSA Jira project) before concluding an instance
-  type is usable.
-- **AZ availability**: confirm the GPU instance type is offered in the
-  target region/AZ (`aws-knowledge` `get_regional_availability`).
-- **Disk sizing**: node disk must be ≥ 3× the model size — a 63 GB+
-  ModelCar image hits ephemeral-storage pressure on a 200 GB disk;
-  500 GB+ is the safe floor for large models.
-- **Serving image capability**: confirm the serving image supports the
-  model's quantization format (e.g. MXFP4) from image docs/release
-  notes, not assumption.
-
 ## Currency / deprecation check (any recommended setting)
 
 Whenever the investigation would have the report **recommend** a
@@ -219,11 +194,6 @@ the table's value as a guess.
   OCPBUGS-NNNNN, CNV-NNNNN) you cannot open → reconstructing its content
   from the ID or a snippet → record the exact key in Findings **and
   Gaps**; the lead launches jira-trace with it.
-- An instance type appears in `rosa list instance-types` → treating that
-  as proof it can be provisioned on ROSA Classic → the Marketplace AMI
-  keeps its own allowlist; verify AMI support (release notes, ROSA Jira)
-  and record the ROSA-Classic-vs-self-managed-OCP distinction in the
-  findings.
 - An errata ID is found via okp-mcp or Slack → relying only on the search
   snippet or discussion summary → call `rh_get_errata` to get the
   authoritative details (affected packages, CVE list, severity); the
@@ -348,72 +318,25 @@ match" as a corpus gap, not proof of absence, and say so in the findings.
 - Ref format: `RHSA-YYYY:NNNN (rh-api-mcp)` — record the canonical URL
   `https://access.redhat.com/errata/RHSA-YYYY:NNNN` alongside.
 
-## mslearn usage knowledge (ARO / Azure layer)
+## ARO / Azure and ROSA / AWS layers (loaded on demand)
 
-- Three tools: `microsoft_docs_search` (chunked semantic search, ~10 chunks
-  with `contentUrl`), `microsoft_docs_fetch` (full article as markdown — use
-  when a search chunk is truncated mid-topic), `microsoft_code_sample_search`
-  (az CLI / ARM / Bicep examples).
-- **Division of labor**: OCP-the-product questions (CVE, errata, KB,
-  component behavior) belong to okp-mcp. ARO-the-managed-service questions
-  (supported ARO versions, SRE policy, Azure quotas/networking, cluster
-  create/upgrade via `az aro`) belong to mslearn. For ARO cases search both
-  and note where they disagree — the ARO support lifecycle is narrower than
-  the OCP one.
-- It is a live service (no corpus-staleness caveat, unlike okp-mcp), covers
-  public docs only, needs no auth.
-- Ref format: the `contentUrl` (e.g.
-  `https://learn.microsoft.com/azure/openshift/support-lifecycle`) — record
-  it in the References table like any other URL.
+The mslearn and AWS-server mechanics — tool roles, division of labor
+with okp-mcp, Ref formats, the ROSA GPU pre-deployment check — live in
+two files your brief names when the case needs them:
+`references/doc-search-azure.md` (ARO / Azure) and
+`references/doc-search-aws.md` (ROSA / AWS, GPU / model-serving labs).
+**Read the named file before the first call to that layer's tools.** If
+the case plainly touches a layer whose file the brief did not name,
+find it with Glob (`**/skills/janus/references/doc-search-<azure|aws>.md`
+under `~/.claude/plugins`) rather than working that layer from memory;
+if it cannot be found, record the layer as a Gap.
 
-### Mapping a whole guide
-1. Query the guide title + version → table of contents / chapter list.
-2. Query chapter titles → per-chapter detail.
-3. Query concrete commands / YAML field names → procedure-level passages.
-
-## aws-mcp usage knowledge (ROSA / AWS layer)
-
-The mirror image of the mslearn block: where mslearn covers ARO on Azure,
-these three cover **ROSA — Red Hat OpenShift Service on AWS — and the AWS
-services underneath it**. All are optional; if a server is not connected,
-skip its angle silently (same rule as Slack) and note it as a gap.
-
-- **aws-docs** (`awslabs.aws-documentation-mcp-server`, read-only, no
-  credentials): `search_documentation` → `read_documentation` for the full
-  page, `recommend` for related pages, `read_sections` for a specific
-  section, `get_available_services`. The AWS analogue of okp's public-docs
-  role — use it for one canonical `docs.aws.amazon.com` page.
-- **aws-knowledge** (hosted at `https://knowledge-mcp.global.api.aws`,
-  read-only, no auth): cross-cuts AWS docs / blogs / What's New / API
-  references in one index, plus `list_regions` / `get_regional_availability`
-  for "is service X in region Y" and `retrieve_skill` for guided runbooks.
-  Prefer it for breadth; fall back to aws-docs for a single canonical page.
-- **aws-mcp** (the [Agent Toolkit for AWS](https://github.com/aws/agent-toolkit-for-aws)
-  managed server, successor to the awslabs servers above): if it is
-  registered instead of (or alongside) aws-docs, its `search_documentation`
-  and `retrieve_skill` tools need no AWS credentials and serve the same
-  documentation role — prefer them over aws-docs when both are connected.
-  Its `call_aws` and `run_script` tools are deliberately **not** granted:
-  live AWS API access and script execution have no place in a static stage.
-- **aws-support** (`awslabs.aws-support-mcp-server`, needs AWS credentials +
-  a Business/Enterprise support plan): **read-only tools only** —
-  `describe_support_cases`, `describe_communications`, `describe_services`,
-  `describe_severity_levels`, `describe_create_case_options`,
-  `describe_supported_languages`, `describe_attachment`. JANUS never creates,
-  replies to, or resolves a case — those write tools are deliberately not
-  granted. Use it only to read an AWS support case the case already references.
-
-- **Division of labor**: OpenShift-the-product questions (CVE, errata, KB,
-  component behavior) stay with okp-mcp. **ROSA-the-managed-service**
-  questions (supported ROSA versions, the AWS-SRE responsibility split, AWS
-  quotas / VPC / IAM / EC2 limits, `rosa` / `aws` CLI behavior) belong here —
-  the same split mslearn has for ARO. For a ROSA case, search okp (the OCP
-  layer) and aws (the AWS layer) and note where they disagree: the ROSA
-  support lifecycle can be narrower than the OCP one.
-- Ref format: the public `docs.aws.amazon.com` URL a tool returns (e.g.
-  `https://docs.aws.amazon.com/rosa/latest/userguide/rosa-sts.html`); for a
-  support case, `AWS support case <caseId>`. Record it in the References
-  table like any other URL.
+In brief: OpenShift-the-product questions (CVE, errata, KB, component
+behavior) stay with okp-mcp; the managed-service layer (supported
+ARO / ROSA versions, SRE responsibility split, cloud quotas / networking
+/ IAM, `az aro` / `rosa` CLI behavior) belongs to mslearn / the AWS
+servers. Search both and note where they disagree. Servers that are not
+connected are skipped silently and noted as a Gap.
 
 ## Reusable patterns (inlined)
 
