@@ -791,6 +791,13 @@ def test_findings():
         check("F1 [HIGH/VERIFIED] probe timeout" in out, "findings: digest lists one line per finding")
         check(rc == 1 and "lint FAIL" in out, "findings: digest carries lint verdicts and exits 1 on a FAIL")
 
+        sup.unlink()
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = fnd.main(["findings.py", "digest", str(case)])
+        check(rc == 0 and "lint: OK" in buf.getvalue(),
+              "findings: digest says lint: OK for a clean file instead of staying silent")
+
 
 def main():
     test_chain()

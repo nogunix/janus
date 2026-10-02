@@ -252,8 +252,12 @@ Brief for each stage:
   doc-search then never loads that knowledge.
 
 **Copy this stage contract verbatim into every stage brief**, with
-`<skill-dir>` resolved to an absolute path (agent definitions can be
-skimmed; the brief is always read). Its mechanical half — frontmatter
+every placeholder — `<id>`, `<stage>`, `<skill-dir>` (absolute path) —
+replaced by its real value (agent definitions can be skimmed; the brief
+is always read). A brief is plain text handed to the Agent tool, never
+shell-expanded: `$(cat …)` or `$VAR` reaches the stage literally, so
+paste values and command output, not expressions that would produce
+them. Its mechanical half — frontmatter
 keys, Confidence / Basis / Ref on every finding, no HIGH on ASSUMED —
 is enforced by `findings.py lint`, so the contract spends its words on
 the judgment half:
@@ -263,7 +267,10 @@ Stage contract:
 1. Write cases/<id>/findings/<stage>.md FIRST, then run
    python3 <skill-dir>/scripts/findings.py lint cases/<id>/findings/<stage>.md
    and fix every FAIL before SendMessage (a completion notice, not the
-   result).
+   result). Create and change findings/ and results/ files only with
+   Write or Edit — never a shell redirect, heredoc or script. The
+   evidence chain seals only Write/Edit; any other write to a sealed
+   file reads as tampering and stops the case at NEEDS_HUMAN.
 2. VERIFIED requires tool output you observed in this session. Never
    promote a Basis without new evidence.
 3. A tool failure (timeout, unreachable, not indexed) or an unexplored
@@ -394,8 +401,9 @@ use for evidence links:
 python3 <skill-dir>/scripts/anchors.py cases/<id>/findings/
 ```
 
-Include the full output as an `## Anchor Map` section at the end of the
-synthesize brief. This gives synthesize a deterministic, pre-computed
+Paste the full output, as text, as an `## Anchor Map` section at the
+end of the synthesize brief — not a `$(cat …)` or a path to a file
+(the brief is not shell-expanded; see step 3). This gives synthesize a deterministic, pre-computed
 slug for every finding heading — it copies them verbatim instead of
 computing slugs by hand (which breaks on version strings, Japanese
 text, and punctuation). Slugs containing non-ASCII characters are

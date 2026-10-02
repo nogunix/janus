@@ -438,6 +438,11 @@ when `report_language: ja`) is already sealed and largely correct, and
 regenerating it re-reads every finding and risks changing sections that
 passed.
 
+Use the `Edit` tool for every change — never Bash (`sed`, a heredoc, a
+python script). The evidence chain seals only Write/Edit; a shell write
+to the sealed report reads as tampering and stops the case at
+NEEDS_HUMAN.
+
 1. Read the current report, then only the findings files the sub-codes
    point at — the finding a quote or link cites, the findings behind the
    hypothesis whose Basis was challenged. Read every findings file again

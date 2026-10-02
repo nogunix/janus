@@ -2,6 +2,28 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.30.2 — 2026-10-02
+
+Fixes from a real-case rerun (CVE-2024-1086 on OCP 4.16) of 0.30.1.
+
+- **Findings and reports are written only with Write/Edit.** localize
+  applied a send-back revision to `results/synthesis.md` through a Bash
+  python script; the auto-seal hook sees only Write/Edit, so
+  `chain.py verify` read the change as TAMPER and the case stopped at
+  NEEDS_HUMAN. The stage contract now forbids shell redirects, heredocs
+  and scripts for `findings/` and `results/` files, and the revision
+  modes of synthesize and localize repeat it.
+- **Briefs carry values, not expressions.** The lead had put a literal
+  `$(cat …)` where the anchor map belonged and left the contract's
+  `<id>` / `<stage>` unresolved. SKILL.md now says every contract
+  placeholder is replaced, that a brief is never shell-expanded, and
+  that the anchor map is pasted as text.
+- **`findings.py digest` prints `lint: OK`** for a file with nothing to
+  report. Silence had led the lead to conclude the digest does not lint
+  and to run lint separately.
+- **prosecheck routes C2/prose to localize.** Its FAIL summary and
+  docstring still said synthesize, contradicting the 0.29.0 routing.
+
 ## 0.30.1 — 2026-10-02
 
 - **Model choices are version-independent.** prosecheck's Sonnet

@@ -26,9 +26,10 @@ pretend to check it.
 digest — what the lead needs at fan-in, without reading every file in
 full: per file, the frontmatter status line, one line per finding
 (number, Confidence/Basis, title), the Gaps section verbatim (the
-follow-up decision is made from it), and lint's verdicts. Synthesize
-still reads the files in full; the digest is for routing, not for
-writing the report.
+follow-up decision is made from it), and lint's verdicts (`lint: OK`
+when there is nothing to report — silence would read as unchecked).
+Synthesize still reads the files in full; the digest is for routing,
+not for writing the report.
 
 Exit status: 1 if any FAIL, 2 on usage error, else 0. Stdlib-only.
 """
@@ -219,6 +220,8 @@ def cmd_digest(case_dir):
             print(f"  lint FAIL: {p}")
         for w in warnings:
             print(f"  lint warning: {w}")
+        if not problems and not warnings:
+            print("  lint: OK")
         failed = failed or bool(problems)
     return 1 if failed else 0
 

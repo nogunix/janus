@@ -24,7 +24,7 @@ What must never be linted, and why:
               findings verbatim (quotecheck.py) — "improving" the wording
               of quoted evidence is falsification, not editing. A
               150-character sentence lifted from a Red Hat KB is not
-              synthesize's prose problem.
+              localize's prose problem.
   CodeBlock   commands and captured output.
   Code        inline identifiers — NVRs, symbols, file:line, flags.
   Table       the References / Execution Metadata tables are identifiers,
@@ -56,7 +56,8 @@ Two preset rules are turned off in textlintrc.json, on purpose:
 This check never rewrites the report. `--fix` would mutate prose that
 chain.py has sealed and quotecheck.py cross-checks, and it would break
 the standing rule that the lead never patches the report itself.
-Violations go back to synthesize under C2/prose, like every other gate.
+Violations go back under C2/prose to localize, which wrote the Japanese —
+not to synthesize, whose English draft is not where the defect lives.
 
 Two backends, tried in order:
 
@@ -338,7 +339,7 @@ def main(argv):
     if problems:
         print(
             f"{len(problems)} prose issue(s) in the Japanese report — "
-            "send back to synthesize under C2/prose"
+            "send back to localize under C2/prose"
         )
         return 1
     if not notices:

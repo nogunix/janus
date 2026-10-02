@@ -107,6 +107,11 @@ report:
 Steps 3–5 (structure, verbatim quotes, anchor-map links) apply to every
 section you touch.
 
+Use the `Edit` tool for every change — never Bash (`sed`, a heredoc, a
+python script). The evidence chain seals only Write/Edit; a shell write
+to the sealed report reads as tampering and stops the case at
+NEEDS_HUMAN.
+
 ## Output
 
 Write to `cases/<id>/results/synthesis.md`.
