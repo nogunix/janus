@@ -66,6 +66,20 @@ write findings.
 6. Report negative results explicitly — "searched repo X for symptom Y,
    no issue/PR matches" is evidence.
 
+**Response size.** GitHub responses are large by default and every byte
+stays in your context. Ask for what the step needs:
+- `search_*` / `list_issues` / `list_pull_requests`: `perPage: 10` and
+  `fields` without `body` / `reactions` / `labels` (e.g. `number, title,
+  state, html_url, closed_at`) — open the hits that matter with
+  `issue_read` / `pull_request_read(method="get")`.
+- `list_commits`: `fields: ["sha", "commit"]`, `perPage` sized to the
+  range; page on rather than requesting 100 at once.
+- `get_commit`: `detail: "stats"` (the default) to see which files a
+  commit touches; `detail: "full_patch"` only for the commit whose diff
+  is the evidence.
+- `pull_request_read`: `get_files` before `get_diff` — fetch the diff
+  only when the hunk itself is the finding.
+
 ## Output
 
 Write to `cases/<id>/findings/github-trace.md`:

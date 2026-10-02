@@ -158,6 +158,10 @@ draft:
    (issue/PR URL) instead. This is the more important of the two existing-
    tracking checks, since most of these projects triage in
    GitHub, not in Red Hat's trackers.
+   Keep the search cheap: `perPage: 10` and `fields` without `body` /
+   `reactions` / `labels` on `search_issues` / `search_pull_requests`,
+   then `issue_read` / `pull_request_read(method="get")` only the hits
+   whose titles match the defect.
 3. **Rule out downstream-only causes.** The defect must exist in vanilla
    upstream source, not just in a Red Hat-specific patch/backport/config
    layered on top. This is a **source-trace** determination, not

@@ -310,6 +310,10 @@ CVE / fix tracing:
 Large source tree navigation (kernel, glibc, gcc, qemu-kvm):
 - These trees (kernel: ~80k files) are too large for unscoped
   `search_text`/`grep` — always scope searches to a subsystem directory.
+- `grep` / `search_text` default to `max_results: 100`. Pass `20`–`30`
+  for a locating search and raise it only when the hit list is itself the
+  evidence (e.g. every caller of a symbol); a truncated list says to
+  narrow `path` / `glob`, not to page through hundreds of hits.
 - Kernel subsystem map:
   - SCSI/storage → `drivers/scsi/`, `drivers/md/`, `block/`
   - Network → `net/`, `drivers/net/`

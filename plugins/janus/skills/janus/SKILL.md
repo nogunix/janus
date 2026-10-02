@@ -74,18 +74,11 @@ when both are composed, lab-verify must not start Phase 2 until
 worth composing on its own (`tracks: [iac]`) when the deliverable is
 reproducible, customer-presentable IaC rather than a lab run.
 
-**The executing ansible-MCP tools are never granted, to any stage.**
-`mcp__ansible__ansible_navigator` runs playbooks against real targets and
-`mcp__ansible__ade_setup_environment` runs the host package manager —
-both would provision from inside an agent, bypassing the approval gate,
-and navigator additionally auto-retries with `--ee false` on a container
-error. lab-verify executes IaC as explicit Bash commands instead, so the
-invocation lands verbatim in `audit/` and in the evidence chain. For the
-same reason the terraform grants are **enumerated, never
-`mcp__terraform__*`**: the server exposes read-only registry tools today,
-but gains `create_run` / `apply_run` the moment a user enables its
-enterprise tools with a token, and a wildcard would inherit them
-silently. `scripts/validate.py` enforces both rules.
+The executing ansible-MCP tools (`ansible_navigator`,
+`ade_setup_environment`) are granted to no stage, and terraform grants
+are enumerated, never `mcp__terraform__*` — `scripts/validate.py`
+enforces both. lab-verify executes IaC only as explicit Bash commands so
+the invocation lands in `audit/` and the evidence chain.
 
 ## Periodic agents (outside the pipeline)
 
@@ -353,38 +346,10 @@ an exception.
    (`claude mcp list` shows `✔ Connected`)
 3. The gap is fillable by a search the lead can run now
 
-**Supplement file conventions:**
-
-- **Naming**: `<stage>-<source>-supplement.md` — e.g.
-  `doc-search-mslearn-supplement.md`, `doc-search-slack-supplement.md`
-- **Frontmatter**: include `supplement_of: <parent-file>.md` and
-  `source: <mcp-name>` alongside the standard stage/case/date/status
-  fields
-- **Finding numbers**: globally unique within the case. The parent
-  stage owns F1–F19 (or whatever range it used). Each supplement
-  starts at the next available block of 10: F20–F29, F30–F39, etc.
-  Check existing files before assigning numbers.
-- **Delta field**: each finding in a supplement should include a
-  `Delta from <prior_case>:` line when `case.yaml` has a
-  `prior_case` reference, documenting what is new vs. the prior
-  investigation
-- **Stage contract**: supplement files follow the same finding format
-  (Confidence, Basis, Type, Detail, Ref) as the parent stage. They
-  are first-class findings — synthesize reads them alongside the
-  parent.
-
-**Example supplement frontmatter:**
-```yaml
----
-stage: doc-search
-case: JANUS-006
-date: 2026-08-19T07:00:00Z
-status: complete
-supplement_of: doc-search.md
-source: slack
-tool_calls: 4
----
-```
+**Supplement file conventions** (naming `<stage>-<source>-supplement.md`,
+`supplement_of:` / `source:` frontmatter, finding numbers in fresh blocks
+of 10 starting at F20): read `references/findings-format.md` before
+writing one.
 
 ### 6. Launch synthesize
 
@@ -445,67 +410,24 @@ translation preserves that structure.
 
 ### 7. Quality check (the lead's own job) — named gates
 
-Mechanical pre-checks before any content gate (all six scripts live
-in `scripts/` next to this file):
+Run the six mechanical pre-checks (scripts live in
+`<skill-dir>/scripts/`). When any check prints a warning or a notice
+rather than a clean pass or FAIL, read `references/quality-gates.md`
+before judging it — it holds each check's full behaviour and the **Fail
+direction** table (what each check does when it cannot decide).
 
-1. `python3 <skill-dir>/scripts/chain.py verify cases/<id>` — a FAIL
-   means evidence changed after it was sealed; do not hand off. Record
-   the mismatch in `cases/<id>/audit/` and write
-   `review-queue/NEEDS_HUMAN_<id>.md` quoting the failing entries.
-2. `python3 <skill-dir>/scripts/urlcheck.py cases/<id>/results/synthesis.md`
-   — curl-level liveness for every reference URL. A FAIL (404/410 or
-   unresolvable host) is a provably dead citation: send the report back
-   to synthesize **under C1/url**, quoting the dead URL. 401/403/429
-   count as reachable (login-walled is normal for access.redhat.com);
-   warnings (5xx/timeout) don't block. If the network itself is down
-   the script says so and passes — offline installs are normal.
-3. `python3 <skill-dir>/scripts/quotecheck.py cases/<id>/results/synthesis.md`
-   — every attributed blockquote in the report (`> …` ending in
-   `> — findings/<stage>.md`) must appear verbatim
-   (whitespace-normalized) in the file it cites. A FAIL is a fact that
-   mutated between findings and report, or a fabricated attribution:
-   send the report back to synthesize **under C2/quote-mismatch**,
-   quoting the mismatch. A "no attributed quotes" warning means
-   synthesize skipped the quote convention — also a **C2/quote-absent**
-   send-back for any report that makes evidence-backed claims.
-4. `python3 <skill-dir>/scripts/versioncheck.py cases/<id>` — version
-   provenance across findings and the report. A FAIL is a source
-   location cited with no version pin anywhere in its Ref (no NVR,
-   casket path, or commit) — which version was read is unrecoverable:
-   send back **under C2/version**, quoting the Ref. Everything else is a
-   warning the lead judges against **C2/version**: a Detail/Ref pair
-   crossed *within one product family* (Detail says 4.19, Ref pins
-   4.20), or — when `version_scope` is declared — a finding or report
-   version in that family but off-scope (a neighbouring version drifted
-   in). Warnings never block; they feed the judgment call below.
-5. `python3 <skill-dir>/scripts/linkcheck.py cases/<id>/results/synthesis.md`
-   — every local evidence link in the report resolves: the target file
-   exists, sits inside the case directory, and any `#fragment` matches a
-   heading in it. urlcheck only sees `http(s)://`, so a relative link to
-   a finding that does not exist — or to an anchor no heading produces —
-   renders as an ordinary link and points at nothing. A FAIL is that
-   defect: send back **under C1/link**, quoting the link. This check
-   never fails open; local resolution is deterministic, so there is no
-   air-gapped case where the answer is unknowable. A report with no
-   local links at all is a warning, not a FAIL — the lead judges it
-   against C1/link.
-6. `python3 <skill-dir>/scripts/prosecheck.py cases/<id>` — Japanese
-   prose quality, and **only when `report_language: ja`**; an English
-   case prints a notice and passes. It runs textlint with the
-   ja-technical-writing preset over the report's prose, leaving quoted
-   evidence, code, tables and headings alone. A FAIL is a readability
-   defect in synthesize's own writing — mixed である/ですます, a sentence
-   past ~120 characters, 4+ 読点, 半角ｶﾀｶﾅ: send back **under C2/prose**,
-   quoting the offending line. This is the only check that depends on an
-   external tool, so it fails open in every direction (textlint not
-   installed, preset missing, no report yet) with a notice and exit 0.
-   **A notice means *not checked*, never *passed*** — if a Japanese
-   report matters and you see one, install textlint rather than treating
-   the silence as a pass.
+| # | Command | FAIL → |
+|---|---|---|
+| 1 | `chain.py verify cases/<id>` | evidence changed after sealing: record in `audit/`, write `review-queue/NEEDS_HUMAN_<id>.md` quoting the failing entries — never hand off |
+| 2 | `urlcheck.py cases/<id>/results/synthesis.md` | dead citation (404/410, unresolvable host) → send back under **C1/url** |
+| 3 | `quotecheck.py cases/<id>/results/synthesis.md` | mutated/fabricated quote → **C2/quote-mismatch**; "no attributed quotes" warning → **C2/quote-absent** for any evidence-backed report |
+| 4 | `versioncheck.py cases/<id>` | unpinned source citation → **C2/version**; crossed/off-scope warnings are judged against C2/version |
+| 5 | `linkcheck.py cases/<id>/results/synthesis.md` | local link to no file/anchor → **C1/link** (never fails open) |
+| 6 | `prosecheck.py cases/<id>` | `report_language: ja` only — prose defect → **C2/prose** |
 
-Each check's behaviour when it *cannot* decide — and what a notice
-means — is the Fail direction table below; read it before trusting a
-pass.
+**A notice means *not checked*, never *passed*.** If the property matters
+for the case, restore what the check needs (network, textlint, a seal)
+and rerun.
 
 Read `results/synthesis.md` and check it against these two judgment gates
 (the six mechanical pre-checks above already cover the rest). **A
@@ -540,169 +462,26 @@ The same sub-code fails twice on one report → stop the loop:
 
 ## Inter-stage data format
 
-Every stage writes to `cases/<id>/findings/<stage>.md` in the same format.
-
-### YAML frontmatter (required)
-
-```yaml
----
-stage: <stage-name>
-case: <case-id>
-date: <ISO 8601>
-status: complete | partial | failed
-model: <the model that actually ran this stage>
-tool_calls: <N>
-duration_s: <seconds>
----
-```
-
-`model` records **what ran, not what was assigned**. The Model strategy
-table is the declared assignment; the cost de-escalation and refusal
-ladders both substitute a different model legitimately and silently, so
-the assignment cannot be read backwards off the table. Write the model
-you are actually running as. A stage that cannot determine it writes
-`model: unrecorded` — never omits the key, and never guesses the table's
-value. This is what makes "quality survives a model swap" auditable
-after the fact instead of merely asserted: without it, a report produced
-by a degraded model is indistinguishable from one produced by the
-assigned model.
-
-### Finding structure
-
-```markdown
-### F<N>: <one-line title>
-- **Confidence**: HIGH | MEDIUM | LOW
-- **Basis**: VERIFIED | REASONED | ASSUMED
-- **Type**: known-issue | implementation | version-change | crash-cause | behavior | constraint | negative
-- **Detail**: <2-5 sentences>
-- **Ref**: <verifiable reference>
-```
-
-**Basis** states what backs the claim — it is orthogonal to Confidence:
-
-- **VERIFIED** — tool output observed in this session backs the claim
-  (the Ref points at that output: a document actually opened, code
-  actually read/diffed, a drgn/oc command actually run).
-- **REASONED** — inferred from something read (a search snippet, a code
-  structure, a cross-reference) without direct verification.
-- **ASSUMED** — neither; carried in from the question or from prior
-  knowledge.
-
-A claim's Basis may only be promoted by new evidence, never by
-restatement. A HIGH-confidence finding on an ASSUMED basis is a
-contradiction — synthesize and the lead's gates reject it.
-
-### Reference format
-
-| Source | Format | Example |
-|---|---|---|
-| docs | CVE / RHSA / KB ID | `CVE-2024-1086` |
-| rh-api | errata advisory ID (live) | `RHSA-2024:0001 (via rh-api-mcp)` |
-| source | `component@NVR file:line` | `hyperkube@4.20.0 pkg/…/eviction.go:414` |
-| drgn | script + output path | `audit/drgn-1.py → audit/drgn-1.log` |
-| lab | command + cluster ver | `oc get pods (OCP 4.20.0) → audit/lab-1.log` |
-| terraform | `namespace/provider@version resource` or `module@version` | `hashicorp/azurerm@4.14.0 azurerm_redhat_openshift_cluster` |
-| iac | file + static-check output | `iac/terraform/main.tf → audit/iac-1.log` |
-| slack | `#channel, YYYY-MM-DD` | `#forum-kubevirt, 2026-06-15` |
-| github | `owner/repo#N` or commit SHA + URL | `kubevirt/kubevirt#14309` |
-| mslearn | Learn URL | `https://learn.microsoft.com/azure/openshift/support-lifecycle` |
-| aws-docs | `docs.aws.amazon.com` URL | `https://docs.aws.amazon.com/rosa/latest/userguide/rosa-sts.html` |
-| aws-support | `AWS support case <id>` | `AWS support case 1234567890` |
-
----
+Every stage writes `cases/<id>/findings/<stage>.md`: YAML frontmatter
+(`stage`, `case`, `date`, `status: complete | partial | failed`, `model`
+— what actually ran, or `unrecorded` — `tool_calls`, `duration_s`) and
+`### F<N>:` blocks carrying Confidence / Basis / Type / Detail / Ref.
+Basis is **VERIFIED** (tool output observed this session), **REASONED**
+(inferred from something read) or **ASSUMED**; it is promoted only by new
+evidence, and a HIGH finding on an ASSUMED basis is a contradiction. The
+full schema and the per-source Ref formats are in
+`references/findings-format.md`.
 
 ## Evidence chain (tamper-evidence)
 
-Each case carries an append-only hash ledger, `cases/<id>/chain.jsonl`:
-every record holds the sha256 of one evidence file plus the hash of the
-previous record, blockchain-style. It makes edits **visible, never
-impossible** — a legitimate revision appends a new record; an edit that
-bypasses sealing breaks `verify`. The helper is `scripts/chain.py`,
-next to this file (stdlib-only):
-
-```bash
-python3 <skill-dir>/scripts/chain.py verify cases/<id>   # exit 1 on tamper
-python3 <skill-dir>/scripts/chain.py seal cases/<id>     # seal new/changed files
-```
-
-Sealing is mostly automatic: a PostToolUse hook
-(`hooks/evidence-chain.py`) seals every Write/Edit into the evidence
-set (`case.yaml`, `findings/*.md`, `results/*.md`, `audit/*`,
-`verdict.md`). The lead's explicit calls cover the rest:
-
-- **Step 6 (before synthesize)**: `verify` then `seal` — verify first;
-  a FAIL means a sealed file changed outside tracked tools (e.g. a
-  shell redirect), so record the mismatch in `cases/<id>/audit/` before
-  re-sealing. The plain `seal` picks up shell-written audit logs the
-  hook cannot see. Then `lock` — the chain detects rewrites after the
-  fact; the lock prevents the accident in the first place by dropping
-  the write bits on the fact base (`case.yaml`, `findings/*.md`,
-  `audit/*`), with `hooks/evidence-lock.py` (PreToolUse) denying
-  tracked writes to locked files. `unlock` is the lead's explicit
-  escape hatch for a legitimate revision (unlock → edit → re-seal →
-  lock). New files (a follow-up stage's findings, a new audit log) are
-  unaffected — lock freezes files, not directories.
-- **Step 7 (before the named gates)**: `verify` — a FAIL blocks
-  handoff (`NEEDS_HUMAN_<id>.md`).
-- **At verdict**: `seal` after the human writes `verdict.md` — the
-  sealed verdict is the ground truth self-improver's metrics stand on.
-
-`verify` checks each file against its **newest** record, so send-back
-revisions of `synthesis.md` are normal, and the ledger keeps the full
-revision history. Warnings (`unsealed: …`) mean a file exists but was
-never sealed — run `seal`; FAILs mean the ledger or a sealed file was
-altered — that is a human matter, never something to quietly repair.
-`artifacts/` (vmcore binaries) stays outside the chain, as it stays
-outside git.
-
-## Fail direction (what each check does when it cannot decide)
-
-Every check answers two questions, and the second is the one that gets
-forgotten: what does it do when it **proves** a defect, and what does it
-do when it **cannot tell**? The second answer is a safety property, not
-an implementation detail — it decides whether an unprovable case leaves
-the pipeline blocked or quietly released. Three directions, and only
-three:
-
-- **closed** — blocks the handoff. Reserved for defects the check can
-  prove from what it has in hand.
-- **open** — passes with a notice, because the answer is genuinely
-  unknowable here (no network, no textlint, nothing sealed yet).
-  Air-gapped and minimal installs have to stay usable.
-- **warn** — passes, and hands the lead a judgment call under a named
-  sub-code.
-
-**A notice means *not checked*, never *passed*.** This holds for every
-row below, not only prosecheck: a check that printed a notice has told
-you it declined to answer. Reading that as a pass is the one way this
-table gets silently defeated. If the property matters for the case in
-hand, restore what the check needs — network, textlint, a seal — and run
-it again.
-
-| Check | Proves a defect → | Cannot decide → | Note |
-|---|---|---|---|
-| `chain.py verify` | **closed** — a file changed after its seal (TAMPER), or a malformed ledger | **warn** — a tracked file that was never sealed prints `warning: unsealed` and exits 0 | Unsealed is the shape a *hook* failure takes, not a tamper. A persistent unsealed warning on evidence you expect sealed is a hook to fix, not noise. |
-| `urlcheck.py` | **closed** — 404/410 or an unresolvable host: a provably dead citation (`C1/url`) | **open** — no network at all: says so and passes; 5xx/timeout warn | 401/403/429 count as reachable. Login-walled is normal for access.redhat.com, so a gated URL is classified, never failed. |
-| `quotecheck.py` | **closed** — an attributed quote not verbatim in the file it cites (`C2/quote-mismatch`) | **warn** — no attributed quotes at all (`C2/quote-absent` for any evidence-backed report) | Absence of quotes is mechanically indistinguishable from a report that legitimately has none. |
-| `versioncheck.py` | **closed** — a source citation with no version pin anywhere in its Ref: which version was read is unrecoverable | **warn** — crossed or off-scope versions (`C2/version`), and every scope check when no `version_scope` is declared | |
-| `linkcheck.py` | **closed** — a local evidence link resolving to no file or no anchor (`C1/link`) | **never arises** — local resolution is deterministic | The one check with no fail-open path. A report with no local links at all is a warning. |
-| `prosecheck.py` | **closed** — a ja-technical-writing violation in synthesize's own prose (`C2/prose`) | **open in every direction** — textlint absent, preset missing, no report yet | The only check that shells out, hence the widest open path. |
-| `secret-safety.py` (PreToolUse) | **closed** — denies a matched bulk-secret command | **open by construction** — it stops only the patterns it knows | A known-shape blocklist, not a boundary. Never restructure a command to slip past it. |
-| `evidence-lock.py` (PreToolUse) | **closed** — denies a write to a locked file | **open** — an exception emits no deny and the write proceeds | Backstopped by the filesystem: `chain.py lock` drops the write bits, so the write still fails when the hook does. |
-| `evidence-chain.py` (PostToolUse) | *n/a* — auto-seals tracked writes | **open, silently** — every exception is swallowed, exit 0 | A failed seal is invisible at write time and surfaces only as `chain.py verify`'s unsealed warning. |
-
-`chain.py verify` is the one that behaves like attestation: it runs
-before handoff, and on a proven mismatch the case does not go out
-degraded-but-delivered — it stops and becomes `NEEDS_HUMAN_<id>.md`. The
-report is never released as "produced, but with an evidence base we
-could not vouch for".
-
-**Preserve the direction when editing a check.** Fail-open where a check
-cannot prove a negative is deliberate: it is what keeps offline and
-minimal installs usable. Fail-closed where it can prove one. Moving a
-row from open to closed makes JANUS unusable in some install; moving one
-from closed to open removes a guarantee without announcing it. Either
-way, move the row in this table in the same commit.
+`cases/<id>/chain.jsonl` is an append-only sha256 ledger over the
+evidence set; `hooks/evidence-chain.py` auto-seals tracked writes, and
+the lead runs `chain.py verify` → `seal` → `lock` at step 6 and `verify`
+at step 7 (`seal` again after the human writes `verdict.md`). A FAIL is a
+human matter, never something to quietly repair. Full semantics
+(what is sealed, unsealed warnings, unlock/re-lock): read
+`references/evidence-chain.md` when a chain command reports anything
+other than OK.
 
 ## Safety (invariant)
 
@@ -749,26 +528,11 @@ way, move the row in this table in the same commit.
   `cases/<id>/`, not `/tmp` (the sandbox's read-only protection does not
   reliably cover /tmp).
 
-## Output contract
+## File-write-first rule
 
-| Stage | Output file |
-|---|---|
-| doc-search | `cases/<id>/findings/doc-search.md` |
-| source-trace | `cases/<id>/findings/source-trace.md` |
-| github-trace | `cases/<id>/findings/github-trace.md` |
-| jira-trace | `cases/<id>/findings/jira-trace.md` |
-| crash-analyze | `cases/<id>/findings/crash-analyze.md` |
-| iac-author | `cases/<id>/findings/iac-author.md` (+ `cases/<id>/iac/`) |
-| lab-verify | `cases/<id>/findings/lab-verify.md` |
-| synthesize | `cases/<id>/results/synthesis.md` |
-
-### File-write-first rule
-
-Stages **write the findings file first, then SendMessage**. SendMessage
-is a completion notice, not the result itself — the lead treats the
-file on disk, not the notice, as the completion signal (step 5), so a
-lost notice delays nothing and a notice without a file counts for
-nothing.
+Stages **write the findings file first, then SendMessage** (paths in the
+Pipeline stages table). The file on disk, not the notice, is the
+completion signal (step 5).
 
 ## Model strategy
 
@@ -879,58 +643,7 @@ launches self-improver.
 
 ## MCP dependencies
 
-`casket` (versioned source — optional; source-trace activates only when
-this server is registered, and its absence is normal), `okp-mcp` (Red Hat docs/CVE/errata/KB),
-`rh-api-mcp` (live Red Hat Customer Portal API — authoritative errata
-lookup by advisory ID via `rh_get_errata`, complementing okp-mcp's offline
-corpus. The two are complementary, not competing: okp-mcp is the
-exploration/discovery engine (CVE search, solution articles, natural-language
-queries); rh-api-mcp is the precise lookup engine (exact errata ID →
-structured JSON with CVE list, affected products, Bugzilla links). okp-mcp
-cannot reliably find an errata by bare advisory ID; rh-api-mcp has no search
-capability. The optimal pipeline is: okp-mcp discovers → errata ID extracted
-→ `rh_get_errata` retrieves authoritative details → finding promoted from
-REASONED to VERIFIED. Also provides subscription/system inventory via
-`rh_list_subscriptions`, `rh_list_systems`, `rh_get_system` for cases that
-need entitlement or registration context. Read-only — JANUS never modifies
-subscriptions or system registrations. Optional: doc-search runs without it
-but records the absence as a gap when live errata lookup would have helped),
-`mslearn`
-(Microsoft Learn docs — ARO/Azure layer for doc-search; public remote server,
-no auth: `claude mcp add --transport http mslearn
-https://learn.microsoft.com/api/mcp`), `aws-docs` / `aws-knowledge` /
-`aws-support` (AWS docs — ROSA/AWS layer for doc-search, the AWS mirror of
-mslearn; all optional, from
-[awslabs/mcp](https://github.com/awslabs/mcp). `aws-knowledge` is the hosted
-read-only endpoint `https://knowledge-mcp.global.api.aws` (no auth);
-`aws-docs` is read-only via `uvx awslabs.aws-documentation-mcp-server`;
-`aws-support` needs AWS credentials + a Business/Enterprise support plan and
-only its read-only `describe_*` tools are granted — JANUS never opens, replies
-to, or resolves a case. AWS has designated the
-[Agent Toolkit for AWS](https://github.com/aws/agent-toolkit-for-aws) as the
-awslabs servers' successor: if its managed `aws-mcp` server is registered,
-doc-search prefers its no-auth `search_documentation` / `retrieve_skill`
-over aws-docs — its `call_aws` / `run_script` tools are never granted),
-`drgn` (vmcore), `github` (upstream
-PR/issue/commit — github-trace and upstream-adviser), `atlassian`
-(Atlassian Rovo MCP at `mcp.atlassian.com/v2/mcp` — Jira tickets for
-jira-trace; uses OAuth 2.1 authentication, no API token needed.
-`executeWrite` / `executeDestructive` are never granted — that is the
-safety boundary), `linux` (read-only
-RHEL node/VM diagnostics, local or over SSH — lab-verify; register with
-`LINUX_MCP_TOOLSET=fixed` so `run_script` stays disabled), `terraform`
-(the HashiCorp [terraform-mcp-server](https://github.com/hashicorp/terraform-mcp-server)
-— registry lookup of providers, modules and Sentinel policies for
-iac-author. Its default tool set is read-only; only the enumerated
-registry tools are granted, because enabling its enterprise tools with a
-Terraform token adds `create_run` / `apply_run`, which apply real
-infrastructure), `ansible`
-([ansible-dev-tools](https://github.com/ansible/ansible-dev-tools) MCP —
-scaffolding, `ansible-lint`, best-practice and execution-environment
-guidance for iac-author. **Only the authoring subset is granted**:
-`ansible_navigator` executes playbooks and `ade_setup_environment` runs
-the host package manager, so neither is in any agent's tool list). Not bundled with
-the plugin — paths are environment-specific, so register them yourself
-(`claude mcp add …`); confirm `claude mcp list` shows them `✔ Connected`
-before relying on them (a tool being advertised ≠ the server being
-connected).
+Stage → server mapping is in step 1. Not bundled with the plugin — users
+register servers themselves. For each server's role, optionality and
+which of its tools are deliberately never granted, read
+`references/mcp-dependencies.md`.

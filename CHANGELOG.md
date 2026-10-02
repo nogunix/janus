@@ -2,6 +2,29 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.28.1 — 2026-10-02
+
+- **SKILL.md split for token cost (50.5KB → 33.7KB).** The lead loads
+  SKILL.md on every `/janus` run, but several sections are needed only
+  conditionally. They moved verbatim to `skills/janus/references/`:
+  `quality-gates.md` (each pre-check's full behaviour + the Fail
+  direction table — read when a check prints a warning or notice),
+  `findings-format.md` (full findings schema, Ref formats, step-5a
+  supplement conventions), `evidence-chain.md` (ledger semantics — read
+  when a chain command reports anything but OK) and `mcp-dependencies.md`
+  (per-server roles and never-granted tools). SKILL.md keeps a summary
+  of each plus the step-7 routing table (check → FAIL sub-code), the
+  C1/C2 gates, Safety, and the roster / Model strategy tables.
+  `validate.py` gains `validate_skill_references()`: a reference SKILL.md
+  names must exist, and every reference file must be named.
+- **Response-size discipline for MCP calls.** github-trace and
+  upstream-adviser request `perPage: 10` and a `fields` subset without
+  `body` / `reactions` / `labels` on searches, `get_commit` at the
+  default `detail: "stats"` unless the diff is the evidence, and
+  `pull_request_read(get_files)` before `get_diff`. source-trace passes
+  `max_results` 20–30 to casket `grep` / `search_text` (default 100) for
+  locating searches.
+
 ## 0.28.0 — 2026-09-28
 
 - **source-trace: casket-mcp's release-aware tools.** casket-mcp gained

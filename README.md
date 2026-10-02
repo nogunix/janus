@@ -587,7 +587,8 @@ model in the seat:
   catalogs via the self-improver review queue.
 - **Declared fail direction** — for each check, what it does when it
   *proves* a defect and what it does when it *cannot tell* are both
-  written down, in SKILL.md's **Fail direction** table. Fail-closed
+  written down, in the **Fail direction** table
+  (`skills/janus/references/quality-gates.md`). Fail-closed
   where a defect is provable, fail-open where it is not (an air-gapped
   install has to stay usable), and across every row: **a notice means
   *not checked*, never *passed***.

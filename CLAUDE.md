@@ -145,6 +145,14 @@ stay usable. Preserve that property when touching them.
   mentioned in SKILL.md. Adding or removing a stage is a multi-file change
   — agent file, SKILL.md, README (including the agent *count* in prose),
   and `plugin.json`'s description.
+- **SKILL.md stays lean; detail lives in `skills/janus/references/`.**
+  The lead loads SKILL.md on every `/janus` run, so sections it needs
+  only conditionally (check internals and fail direction, findings
+  schema, evidence-chain semantics, MCP setup) sit in reference files
+  that SKILL.md names with the moment to read them. `validate.py`'s
+  `validate_skill_references()` fails on a named file that is missing or
+  a reference file SKILL.md never names. The roster and Model strategy
+  tables must stay in SKILL.md — `validate.py` parses them there.
 - **Versioning**: bump `plugins/janus/.claude-plugin/plugin.json` and add a
   `CHANGELOG.md` entry in the same commit — these have drifted before.
   `validate.py` fails when the current version has no CHANGELOG section.
