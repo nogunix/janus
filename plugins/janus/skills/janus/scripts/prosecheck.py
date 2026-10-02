@@ -8,10 +8,13 @@ real gap — a technically correct report that mixes ですます and である,
 runs 200-character sentences, or leaves half-width katakana in is not
 something you hand a customer.
 
-This wraps textlint (https://github.com/textlint/textlint) with the
-ja-technical-writing preset. It is the only check that shells out to a
-non-stdlib tool, so it degrades hard toward "pass": a missing textlint,
-a missing preset, or an English report all print a notice and exit 0.
+It checks the rules textlintrc.json configures from the
+ja-technical-writing preset (である/ですます mixing, sentences over 120
+characters, 4+ 読点, half-width katakana) through one of two backends —
+the claude CLI first, textlint second (see "Two backends" below). It is
+the only check that shells out to a non-stdlib tool, so it degrades hard
+toward "pass": neither backend available, or an English report, prints
+a notice and exits 0.
 Air-gapped installs and English cases must stay usable, exactly as
 urlcheck.py stays usable with the network down.
 
@@ -58,9 +61,13 @@ Violations go back to synthesize under C2/prose, like every other gate.
 Two backends, tried in order:
 
   Sonnet  Primary. Uses `claude -p` (the Claude Code CLI). Always
-          available in a JANUS session, no extra setup, fast. Degrades to
-          the next backend when the claude binary is absent (air-gapped
-          installs without the CLI, CI).
+          available in a JANUS session, no extra setup, fast. Its prompt
+          restates the textlintrc.json limits — keep the two in step.
+          Only the first SONNET_MAX_CHARS of the report are sent; a
+          longer report gets a warning naming the unchecked remainder,
+          never a silent OK. Degrades to the next backend when the claude
+          binary is absent or the call fails (air-gapped installs without
+          the CLI, CI).
 
   textlint  Fallback. npm-based rule engine. Requires:
               npm install -g textlint textlint-rule-preset-ja-technical-writing
@@ -88,9 +95,8 @@ SEVERITY_ERROR = 2
 SONNET_MODEL = "claude-sonnet-4-6"
 
 # Reports are truncated to this length before sending to Sonnet to stay
-# within practical CLI arg limits and keep costs low. Prose issues appear
-# throughout the text, so checking the first 30 KB catches the vast
-# majority while keeping the call fast.
+# within practical CLI arg limits and keep costs low. The unchecked tail
+# is reported as a warning, so a truncated run never reads as a full pass.
 SONNET_MAX_CHARS = 30_000
 
 INSTALL_HINT = (
@@ -108,14 +114,17 @@ Examine ONLY the paragraph prose. Skip:
 - Table rows (lines containing |)
 - Inline code (text between backticks)
 
-Check each paragraph for exactly these three rules:
+Check each paragraph for exactly these four rules:
 
 [no-mix-dearu-desumasu]
   ですます体（です・ます・ません・ました）とである体（である・だ・だった）が
   同一段落内に混在している場合のみ報告する。
 
 [sentence-length]
-  句点（。！？）で終わる1文が100文字を超える場合。Markdown記法を除いた文字数で計算。
+  句点（。！？）で終わる1文が120文字を超える場合。Markdown記法を除いた文字数で計算。
+
+[max-ten]
+  1文に読点（、）が4個以上含まれる場合。
 
 [no-hankaku-kana]
   半角カタカナ（Unicode U+FF65–U+FF9F: ｦｧ…ﾝﾞﾟ）が含まれる行。
@@ -177,7 +186,12 @@ def run_sonnet(report_path):
     except OSError:
         return None, None
 
+    truncated = []
     if len(text) > SONNET_MAX_CHARS:
+        truncated.append(
+            f"only the first {SONNET_MAX_CHARS} of {len(text)} characters were "
+            "prose-checked — review the rest by hand"
+        )
         text = text[:SONNET_MAX_CHARS] + "\n[... report truncated for prose check ...]"
 
     prompt = _SONNET_PROMPT + "\n\nReport:\n\n" + text
@@ -196,7 +210,8 @@ def run_sonnet(report_path):
     if proc.returncode not in (0, 1) or not stdout:
         return None, None
 
-    return parse_sonnet_results(stdout)
+    problems, warnings = parse_sonnet_results(stdout)
+    return problems, warnings + truncated
 
 
 def textlint_command():

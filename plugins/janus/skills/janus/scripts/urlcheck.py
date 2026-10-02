@@ -168,6 +168,14 @@ def main(argv):
     with ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(check, urls))
 
+    # Decide offline-ness before printing anything: with no network every
+    # URL classifies as unreachable, and printing those as FAIL lines ahead
+    # of an exit-0 note reads as a failure to anyone scanning prefixes.
+    if all(s == "unreachable" for s, _ in results):
+        print(f"note: all {len(urls)} URLs unreachable — network appears "
+              "unavailable; liveness not checked (not counted as failures)")
+        return 0
+
     failures = gated = 0
     for url, (status, detail) in zip(urls, results):
         if status == "ok":
@@ -185,10 +193,6 @@ def main(argv):
             print(f"FAIL: {url} ({detail})")
             failures += 1
 
-    if failures and all(s == "unreachable" for s, _ in results):
-        print(f"note: all {len(urls)} URLs unreachable — network appears "
-              "unavailable; liveness not checked (not counted as failures)")
-        return 0
     if failures:
         print(f"{failures}/{len(urls)} references point at nothing — "
               "send back to synthesize under C1/url")

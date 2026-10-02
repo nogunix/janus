@@ -56,17 +56,20 @@ each one means:
    against C1/link.
 6. `python3 <skill-dir>/scripts/prosecheck.py cases/<id>` — Japanese
    prose quality, and **only when `report_language: ja`**; an English
-   case prints a notice and passes. It runs textlint with the
-   ja-technical-writing preset over the report's prose, leaving quoted
-   evidence, code, tables and headings alone. A FAIL is a readability
+   case prints a notice and passes. It checks the report's prose against
+   the ja-technical-writing rules configured in `scripts/textlintrc.json`,
+   leaving quoted evidence, code, tables and headings alone — through the
+   claude CLI (Sonnet) first, and textlint when the CLI is absent or the
+   call fails. The Sonnet backend sends only the first 30,000 characters
+   and warns about the unchecked rest. A FAIL is a readability
    defect in synthesize's own writing — mixed である/ですます, a sentence
-   past ~120 characters, 4+ 読点, 半角ｶﾀｶﾅ: send back **under C2/prose**,
+   past 120 characters, 4+ 読点, 半角ｶﾀｶﾅ: send back **under C2/prose**,
    quoting the offending line. This is the only check that depends on an
-   external tool, so it fails open in every direction (textlint not
-   installed, preset missing, no report yet) with a notice and exit 0.
-   **A notice means *not checked*, never *passed*** — if a Japanese
-   report matters and you see one, install textlint rather than treating
-   the silence as a pass.
+   external tool, so it fails open in every direction (neither the
+   claude CLI nor textlint usable, preset missing, no report yet) with a
+   notice and exit 0. **A notice means *not checked*, never *passed*** —
+   if a Japanese report matters and you see one, make a backend available
+   rather than treating the silence as a pass.
 
 Each check's behaviour when it *cannot* decide — and what a notice
 means — is the Fail direction table below; read it before trusting a
@@ -84,7 +87,7 @@ three:
 - **closed** — blocks the handoff. Reserved for defects the check can
   prove from what it has in hand.
 - **open** — passes with a notice, because the answer is genuinely
-  unknowable here (no network, no textlint, nothing sealed yet).
+  unknowable here (no network, no prose backend, nothing sealed yet).
   Air-gapped and minimal installs have to stay usable.
 - **warn** — passes, and hands the lead a judgment call under a named
   sub-code.
@@ -93,7 +96,7 @@ three:
 row below, not only prosecheck: a check that printed a notice has told
 you it declined to answer. Reading that as a pass is the one way this
 table gets silently defeated. If the property matters for the case in
-hand, restore what the check needs — network, textlint, a seal — and run
+hand, restore what the check needs — network, a prose backend, a seal — and run
 it again.
 
 | Check | Proves a defect → | Cannot decide → | Note |
@@ -103,7 +106,7 @@ it again.
 | `quotecheck.py` | **closed** — an attributed quote not verbatim in the file it cites (`C2/quote-mismatch`) | **warn** — no attributed quotes at all (`C2/quote-absent` for any evidence-backed report) | Absence of quotes is mechanically indistinguishable from a report that legitimately has none. |
 | `versioncheck.py` | **closed** — a source citation with no version pin anywhere in its Ref: which version was read is unrecoverable | **warn** — crossed or off-scope versions (`C2/version`), and every scope check when no `version_scope` is declared | |
 | `linkcheck.py` | **closed** — a local evidence link resolving to no file or no anchor (`C1/link`) | **never arises** — local resolution is deterministic | The one check with no fail-open path. A report with no local links at all is a warning. |
-| `prosecheck.py` | **closed** — a ja-technical-writing violation in synthesize's own prose (`C2/prose`) | **open in every direction** — textlint absent, preset missing, no report yet | The only check that shells out, hence the widest open path. |
+| `prosecheck.py` | **closed** — a ja-technical-writing violation in the report's prose (`C2/prose`) | **open in every direction** — neither claude CLI nor textlint usable, preset missing, no report yet; **warn** — a report past 30,000 characters, for the tail the Sonnet backend did not see | The only check that shells out, hence the widest open path. |
 | `secret-safety.py` (PreToolUse) | **closed** — denies a matched bulk-secret command | **open by construction** — it stops only the patterns it knows | A known-shape blocklist, not a boundary. Never restructure a command to slip past it. |
 | `evidence-lock.py` (PreToolUse) | **closed** — denies a write to a locked file | **open** — an exception emits no deny and the write proceeds | Backstopped by the filesystem: `chain.py lock` drops the write bits, so the write still fails when the hook does. |
 | `evidence-chain.py` (PostToolUse) | *n/a* — auto-seals tracked writes | **open, silently** — every exception is swallowed, exit 0 | A failed seal is invisible at write time and surfaces only as `chain.py verify`'s unsealed warning. |

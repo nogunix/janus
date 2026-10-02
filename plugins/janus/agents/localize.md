@@ -71,8 +71,8 @@ keep the link as file-path-only — do not add the `#fragment`.
 
 ### 6. Japanese prose quality rules
 
-The report will be checked by `prosecheck.py` (textlint +
-ja-technical-writing). Follow these rules to pass on the first try:
+The report will be checked by `prosecheck.py` (the ja-technical-writing
+rules in `textlintrc.json`, via the claude CLI or textlint). Follow these rules to pass on the first try:
 
 - **である調** consistently (never ですます調)
 - **Sentences under 120 characters** — this is the most common

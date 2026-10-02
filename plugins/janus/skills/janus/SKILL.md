@@ -435,7 +435,7 @@ direction** table (what each check does when it cannot decide).
 | 6 | `prosecheck.py cases/<id>` | `report_language: ja` only — prose defect → **C2/prose** |
 
 **A notice means *not checked*, never *passed*.** If the property matters
-for the case, restore what the check needs (network, textlint, a seal)
+for the case, restore what the check needs (network, the claude CLI or textlint, a seal)
 and rerun.
 
 Read `results/synthesis.md` and check it against these two judgment gates

@@ -2,6 +2,27 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.29.1 — 2026-10-02
+
+- **urlcheck: offline runs print only the note.** With the network
+  fully down every URL classifies as unreachable; urlcheck printed each
+  as a `FAIL:` line before the exit-0 "network appears unavailable"
+  note, which read as failures to anyone — or `gates.py` — scanning
+  line prefixes. It now decides offline-ness first and prints just the
+  note. One unreachable host among live ones is still a hard FAIL.
+  Self-tested.
+- **prosecheck: the Sonnet backend matches the configured rules.** Its
+  prompt allowed 100-character sentences while `textlintrc.json` — and
+  the localize / synthesize guidance — say 120, so the primary backend
+  failed sentences the contract permits; it now uses 120. It also gains
+  the `max-ten` rule (4+ 読点) that textlint enforced and Sonnet did not.
+  A report past 30,000 characters, of which Sonnet sees only the head,
+  now gets a warning naming the unchecked rest instead of a silent OK.
+- **Docs describe prosecheck as it runs.** README, CLAUDE.md,
+  `references/quality-gates.md` (including the Fail direction row),
+  SKILL.md and localize described a textlint-only check; they now name
+  the claude CLI as primary backend and textlint as fallback.
+
 ## 0.29.0 — 2026-10-02
 
 - **`gates.py`: the six step-7 pre-checks in one call.** Prints one

@@ -325,6 +325,37 @@ def test_urlcheck():
     )
 
 
+    # Offline: every URL unreachable is a NOTICE-shaped note, and must not
+    # print per-URL FAIL lines ahead of it (gates.py and humans both scan
+    # line prefixes). One live URL among the dead keeps the hard FAIL.
+    import contextlib, io
+    real_check = urlcheck.check
+    with tempfile.TemporaryDirectory() as td:
+        md = Path(td) / "r.md"
+        md.write_text("https://a.example/x https://b.example/y\n")
+        try:
+            urlcheck.check = lambda url: ("unreachable", "no route")
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = urlcheck.main(["urlcheck.py", str(md)])
+            out = buf.getvalue()
+            check(
+                rc == 0 and "note:" in out and "FAIL:" not in out,
+                "fully offline prints only the note, no FAIL lines",
+            )
+            urlcheck.check = lambda url: (
+                ("ok", "200") if "a.example" in url else ("unreachable", "no route")
+            )
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = urlcheck.main(["urlcheck.py", str(md)])
+            check(
+                rc == 1 and "FAIL: https://b.example/y" in buf.getvalue(),
+                "an unreachable host among live ones is still a FAIL",
+            )
+        finally:
+            urlcheck.check = real_check
+
 def test_versioncheck():
     version = load("versioncheck")
 

@@ -123,9 +123,9 @@ accidentally removing load-bearing discipline:
   finding they cite), `urlcheck.py` (dead citations), `versioncheck.py`
   (version-provenance drift), `linkcheck.py` (every local evidence link in
   the report resolves to a real file and anchor — the offline counterpart
-  to urlcheck), and `prosecheck.py` (Japanese report prose
-  via textlint — the one check that shells out, so it fails open to a
-  notice whenever textlint is absent).
+  to urlcheck), and `prosecheck.py` (Japanese report prose via the
+  claude CLI, falling back to textlint — the one check that shells out,
+  so it fails open to a notice when neither is usable).
 - **Hooks in `plugins/janus/hooks/`** enforce this at tool level:
   `secret-safety.py` and `evidence-lock.py` are PreToolUse denies;
   `evidence-chain.py` is a PostToolUse auto-seal.

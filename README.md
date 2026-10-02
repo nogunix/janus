@@ -211,7 +211,7 @@ dependencies** below for setup commands).
 
 | Tool | Purpose |
 |------|---------|
-| [textlint](https://github.com/textlint/textlint) + [ja-technical-writing](https://github.com/textlint-ja/textlint-rule-preset-ja-technical-writing) | Japanese report prose check (gate C2/prose) |
+| [textlint](https://github.com/textlint/textlint) + [ja-technical-writing](https://github.com/textlint-ja/textlint-rule-preset-ja-technical-writing) | Japanese report prose check (gate C2/prose) — fallback when the claude CLI is unavailable |
 | [ax](https://github.com/yusukebe/ax) | Token-aware web fetching |
 | [mdq](https://github.com/yshavit/mdq) | Markdown querying (jq for Markdown) |
 
@@ -272,7 +272,7 @@ plugins/janus/
   skills/janus/scripts/quotecheck.py # verbatim-quote fidelity check (backs gate C2/quote)
   skills/janus/scripts/versioncheck.py # version-provenance check (backs gate C2/version)
   skills/janus/scripts/linkcheck.py  # evidence links resolve to a real file/anchor (backs C1/link)
-  skills/janus/scripts/prosecheck.py # ja report prose via textlint (backs gate C2/prose)
+  skills/janus/scripts/prosecheck.py # ja report prose via claude CLI / textlint (backs gate C2/prose)
   skills/janus/scripts/textlintrc.json # ja-technical-writing config for the above
   skills/janus/scripts/anchors.py    # findings heading → GitHub slug map (evidence links)
   skills/deck/                       # report → branded .pptx/PDF
@@ -527,12 +527,14 @@ output.
 brew install mdq
 ```
 
-### textlint (Japanese reports only)
+### textlint (Japanese reports only, optional fallback)
 
-Not an MCP server, and not required: `scripts/prosecheck.py` shells out to
-textlint only for `report_language: ja` cases, and degrades to a notice
-whenever it is absent. Install it if you hand Japanese reports to
-customers:
+Not an MCP server, and not required. For `report_language: ja` cases
+`scripts/prosecheck.py` checks prose through the claude CLI (Sonnet)
+first, which every JANUS session already has; textlint is the fallback
+for installs without the CLI or when that call fails. With neither, the
+check degrades to a notice. Install textlint if you run prose checks
+where the claude CLI is not available:
 
 ```bash
 npm install -g textlint \
@@ -710,10 +712,14 @@ a broken link is always a real defect.
 
 **Japanese prose quality — `scripts/prosecheck.py`.** The other four ask
 whether the report is *true*; none ask whether it is *readable*. For a
-`report_language: ja` case this wraps
-[textlint](https://github.com/textlint/textlint) with the
+`report_language: ja` case it checks the
 [ja-technical-writing](https://github.com/textlint-ja/textlint-rule-preset-ja-technical-writing)
-preset and backs gate C2/prose:
+rules configured in `textlintrc.json` — である/ですます mixing, sentences
+over 120 characters, 4+ 読点, half-width katakana — and backs gate
+C2/prose. The primary backend is the claude CLI (Sonnet), prompted with
+those same limits; [textlint](https://github.com/textlint/textlint) is
+the fallback. Sonnet sees only the first 30,000 characters, and a longer
+report gets a warning naming the unchecked rest rather than a silent OK:
 
 ```
 $ python3 scripts/prosecheck.py cases/<id>
@@ -731,8 +737,8 @@ uncertain. Forcing assertive prose would make the report overclaim —
 precisely what the Confidence/Basis labels exist to prevent.
 
 This is the only check that shells out to a non-stdlib tool, so it fails
-open in every direction — English case, textlint not installed, preset
-missing, no report yet — with a notice and exit 0. **A notice means *not
+open in every direction — English case, neither the claude CLI nor
+textlint usable, preset missing, no report yet — with a notice and exit 0. **A notice means *not
 checked*, never *passed***; the script refuses to print OK for a run that
 did not happen. Quoted evidence, code blocks, tables and headings are
 excluded from linting (`textlint-filter-rule-node-types`), though note
