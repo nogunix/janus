@@ -2,6 +2,26 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.29.0 — 2026-10-02
+
+- **`gates.py`: the six step-7 pre-checks in one call.** Prints one
+  status per check — PASS / WARN / NOTICE / FAIL / ERROR / SKIP — and,
+  for anything but a clean PASS, only that check's non-`OK:` lines, so
+  forty live URLs cost the lead one line instead of forty. It derives
+  the status from each check's exit code and line prefixes and never
+  changes a verdict; a NOTICE still means *not checked*. prosecheck is
+  SKIPped when `report_language` is not `ja` (read with prosecheck's own
+  parser). The six scripts stay standalone CLIs. Self-tested offline
+  (`test_gates`, urlcheck skipped).
+- **Send-backs are targeted revisions.** synthesize and localize gain
+  `Edit` and a Revision mode: a brief naming sub-codes and offending
+  lines is fixed in place, reading only the findings those sub-codes
+  cite, leaving passing sections untouched, and reporting the changed
+  sections by heading. In a `ja` case, `C2/prose` goes straight to
+  localize (the defect is in the translation); other sub-codes go to
+  synthesize on `synthesis-en.md`, after which localize re-translates
+  only the changed sections. SKILL.md step 7 spells out the routing.
+
 ## 0.28.1 — 2026-10-02
 
 - **SKILL.md split for token cost (50.5KB → 33.7KB).** The lead loads

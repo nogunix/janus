@@ -410,9 +410,18 @@ translation preserves that structure.
 
 ### 7. Quality check (the lead's own job) — named gates
 
-Run the six mechanical pre-checks (scripts live in
-`<skill-dir>/scripts/`). When any check prints a warning or a notice
-rather than a clean pass or FAIL, read `references/quality-gates.md`
+Run the six mechanical pre-checks in one call:
+
+```bash
+python3 <skill-dir>/scripts/gates.py cases/<id>
+```
+
+It prints one status line per check — PASS / WARN / NOTICE / FAIL /
+ERROR / SKIP — and, for anything but a clean PASS, only that check's
+non-`OK:` lines. Exit 1 means a FAIL or an ERROR. The checks remain
+standalone CLIs; rerun one directly (scripts live in
+`<skill-dir>/scripts/`) after a fix, or with `gates.py --verbose` to see
+every line. On any WARN or NOTICE, read `references/quality-gates.md`
 before judging it — it holds each check's full behaviour and the **Fail
 direction** table (what each check does when it cannot decide).
 
@@ -441,6 +450,23 @@ lead's read of the report into two passes.
 |---|---|---|
 | **C1 — GROUNDING** | Is every claim anchored to evidence at the right strength? | `C1/ref` — a claim with no reference · `C1/url` — a resolvable-pattern ID (CVE/RHSA/KB/PR) with no public URL; dead URLs are caught mechanically by urlcheck.py · `C1/link` — a claim whose evidence the reader cannot click through to: a bare filename where a link belongs, or a local link that linkcheck.py proved resolves to no file or no anchor · `C1/basis` — a HIGH hypothesis without ≥1 VERIFIED or 2+ independent REASONED findings from different stages, or an unlabeled citation · `C1/spec` — an unsupported "likely / probably / should" claim · `C1/currency` — a recommended configuration, feature, flag, or API with no lifecycle check against the target version, so the report may prescribe a setting that is deprecated / removed / superseded in that release; send back to doc-search to confirm against official release notes and lifecycle docs · `C1/source-of-truth` — a load-bearing source-content claim (what the code does, that a fix or behavior is present) resting only on a GitHub URL while a `casket` server is connected: a live URL is not an accurate one, so the own-server source index must corroborate it; send back to source-trace, or downgrade and label the claim upstream-only |
 | **C2 — COMPLETENESS & FIDELITY** | Is the report structurally complete, and are identifiers and quotes reproduced exactly? | `C2/section` — an empty Objectives Assessment or Execution Metadata cell · `C2/artifact` — a paraphrased concrete identifier (file, resource, symbol, version) · `C2/quote-absent` — an evidence-backed report with no attributed verbatim quotes; mutated quotes and fabricated attributions are caught mechanically by quotecheck.py and sent back as `C2/quote-mismatch` · `C2/version` — a fact attributed to the wrong product version: an unpinned source citation (FAIL) or a crossed / off-scope version that versioncheck.py flagged and the read confirms · `C2/prose` — a `report_language: ja` report whose prose fails the ja-technical-writing checks prosecheck.py runs (mixed である/ですます, over-long sentences, 4+ 読点, 半角ｶﾀｶﾅ). Style only: never send back under C2/prose for hedging — 「〜の可能性がある」 on a LOW-confidence hypothesis is correct writing, not weak writing |
+
+**Send-backs are targeted revisions, not reruns.** The brief names the
+report path, each sub-code, and the quoted offending line(s), and says
+*revise in place* — synthesize then edits only those spots (its
+Revision mode) instead of re-reading every finding and regenerating the
+report. Route by where the defect lives:
+
+- `report_language: en` → synthesize, on `results/synthesis.md`.
+- `report_language: ja`, `C2/prose` → localize directly, on
+  `results/synthesis.md` — the defect is in the translation.
+- `report_language: ja`, any other sub-code → synthesize, on
+  `results/synthesis-en.md` (quote the English counterpart of the
+  offending line); then localize, briefed with the sections synthesize
+  reported changing, re-translates only those.
+
+After a revision, rerun just the checks that failed, then `gates.py`
+once more before handoff.
 
 Both gates pass → `review-queue/DONE_<id>.md`
 The same sub-code fails twice on one report → stop the loop:

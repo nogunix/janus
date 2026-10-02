@@ -5,7 +5,7 @@ description: >-
   language (currently Japanese only). Reads results/synthesis-en.md and
   the anchor map, writes results/synthesis.md. Always runs after
   synthesize when report_language != en.
-tools: Read, Write, Bash, Glob, Grep, SendMessage
+tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage
 model: sonnet
 ---
 
@@ -90,6 +90,22 @@ ja-technical-writing). Follow these rules to pass on the first try:
 - **Keep hedging where hedging is accurate.** A LOW-confidence
   hypothesis should read as uncertain in Japanese. Do not inflate
   「〜の可能性がある」into an assertion.
+
+## Revision mode (a send-back)
+
+When `results/synthesis.md` already exists and the brief names what
+changed, update it in place with `Edit` — do not re-translate the whole
+report:
+
+- **After a synthesize revision** — the brief lists the English
+  sections synthesize changed. Re-translate exactly those sections from
+  `synthesis-en.md` and leave the rest of `synthesis.md` as it is.
+- **`C2/prose`** — the defect is in your Japanese, not in the English
+  draft, so the lead sends it to you directly. Rewrite only the quoted
+  lines to satisfy the rules in step 6, keeping their meaning.
+
+Steps 3–5 (structure, verbatim quotes, anchor-map links) apply to every
+section you touch.
 
 ## Output
 

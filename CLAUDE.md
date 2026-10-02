@@ -22,7 +22,8 @@ Both are stdlib-only and offline (no network, no MCP servers).
 
 `selftest.py` has no test filter. To run one test function in isolation
 (`test_chain`, `test_lock`, `test_quotecheck`, `test_urlcheck`,
-`test_versioncheck`):
+`test_versioncheck`, `test_linkcheck`, `test_anchors`, `test_prosecheck`,
+`test_gates`):
 
 ```bash
 python3 -c "
@@ -33,9 +34,12 @@ m.test_chain(); print('failures:', m.failures)
 "
 ```
 
-The four integrity scripts are also CLIs, run against a case directory:
+The integrity scripts are also CLIs, run against a case directory
+(`gates.py` runs all six step-7 checks in one call and prints only what
+is not a clean pass):
 
 ```bash
+python3 plugins/janus/skills/janus/scripts/gates.py cases/<id> [--skip urlcheck] [--verbose]
 python3 plugins/janus/skills/janus/scripts/chain.py verify cases/<id>
 python3 plugins/janus/skills/janus/scripts/chain.py seal|lock|unlock cases/<id> [file ...]
 python3 plugins/janus/skills/janus/scripts/quotecheck.py cases/<id>/results/synthesis.md

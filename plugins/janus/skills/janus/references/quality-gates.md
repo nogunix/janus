@@ -9,7 +9,9 @@ carries each check's full behaviour and the fail-direction contract.
 ## The six checks
 
 Mechanical pre-checks before any content gate (all six scripts live
-in `scripts/` next to SKILL.md):
+in `scripts/` next to SKILL.md). `scripts/gates.py cases/<id>` runs them
+in this order and prints a status per check; the detail below is what
+each one means:
 
 1. `python3 <skill-dir>/scripts/chain.py verify cases/<id>` — a FAIL
    means evidence changed after it was sealed; do not hand off. Record

@@ -4,7 +4,7 @@ description: >-
   Pipeline stage: reads all findings from parallel stages, cross-references
   them, and produces a ranked-hypothesis report. Always runs last.
   Writes to cases/<id>/results/synthesis.md.
-tools: Read, Write, Bash, Glob, Grep, SendMessage
+tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage
 model: sonnet
 ---
 
@@ -428,6 +428,31 @@ support them — do not generate empty sections.
   Affected Artifacts; and surface design decisions and edge cases found in
   review discussion (e.g. behavior across a daemon restart) as remaining
   constraints/limitations in the report.
+
+## Revision mode (a send-back from the lead)
+
+A brief that names gate sub-codes (`C1/url`, `C2/quote-mismatch`, …)
+and quotes offending lines is a **revision**, not a new report. The
+report on disk (`results/synthesis.md`, or `results/synthesis-en.md`
+when `report_language: ja`) is already sealed and largely correct, and
+regenerating it re-reads every finding and risks changing sections that
+passed.
+
+1. Read the current report, then only the findings files the sub-codes
+   point at — the finding a quote or link cites, the findings behind the
+   hypothesis whose Basis was challenged. Read every findings file again
+   only when a sub-code is about coverage (`C2/section` on Objectives
+   Assessment, `C1/basis` needing a second independent finding).
+2. Fix each cited defect in place with `Edit` — one edit per offending
+   line or block. Leave every section the send-back did not name
+   untouched; a revision that rewrites a passing section reopens gates
+   it already closed.
+3. A fix that cannot stay local — a hypothesis whose rank changes
+   because its Basis drops — may touch every place that hypothesis
+   appears (Executive Summary, Hypotheses, Objectives Assessment), and
+   nothing else.
+4. In the SendMessage, list the sections you changed by heading. When
+   `report_language: ja`, localize re-translates only those sections.
 
 ## Resilience: large finding sets
 

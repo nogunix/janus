@@ -4,7 +4,8 @@
 Covers chain.py (seal → verify → revision → tamper detection →
 ledger-edit detection, plus lock/unlock), the evidence-lock hook's deny
 logic, quotecheck.py's quote extraction and verbatim matching, and
-urlcheck.py's URL extraction and classification constants. No network,
+urlcheck.py's URL extraction and classification constants, and gates.py's
+status classification and end-to-end run (urlcheck skipped). No network,
 no MCP servers; stdlib-only, like validate.py. Exit 1 on any failure.
 """
 
@@ -661,6 +662,51 @@ def test_prosecheck():
     check(prose.parse_results("") == ([], []), "an empty payload is not an error")
 
 
+def test_gates():
+    gates = load("gates")
+    check(gates.classify(0, ["OK: 3/3 quotes verbatim"]) == "PASS", "gates: exit 0 + OK only is PASS")
+    check(gates.classify(0, ["warning: x", "OK: y"]) == "WARN", "gates: a warning line is WARN")
+    check(
+        gates.classify(0, ["FAIL: x", "note: network unavailable"]) == "NOTICE",
+        "gates: a note outranks the lines before it — not checked, never passed",
+    )
+    check(gates.classify(1, ["FAIL: x"]) == "FAIL", "gates: exit 1 is FAIL")
+    check(gates.classify(2, ["error: no such file"]) == "ERROR", "gates: other exits are ERROR")
+
+    chain = load("chain")
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "2026-01-01-selftest"
+        (case / "findings").mkdir(parents=True)
+        (case / "results").mkdir()
+        (case / "case.yaml").write_text("id: selftest\nreport_language: en\n")
+        (case / "findings" / "doc-search.md").write_text(
+            "### F1: probe timeout\n- **Detail**: The livenessProbe times out.\n"
+        )
+        report = case / "results" / "synthesis.md"
+        report.write_text(
+            "# Report\n\n> The livenessProbe times out.\n"
+            "> — [F1](../findings/doc-search.md#f1-probe-timeout)\n"
+        )
+        chain.seal(case)
+        import contextlib, io
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = gates.main(["gates.py", str(case), "--skip", "urlcheck"])
+        out = buf.getvalue()
+        check(rc == 0, "gates: a clean case exits 0")
+        check("prosecheck    SKIP" in out, "gates: prosecheck is skipped for an en report")
+        check("quotecheck    PASS" in out, "gates: a verbatim linked quote passes")
+
+        report.write_text("# Report\n\n> Mutated quote.\n> — findings/doc-search.md\n")
+        chain.seal(case)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = gates.main(["gates.py", str(case), "--skip", "urlcheck"])
+        out = buf.getvalue()
+        check(rc == 1 and "quotecheck    FAIL" in out, "gates: a mutated quote fails the run")
+        check("1 FAIL (quotecheck)" in out, "gates: the summary names the failing check")
+
+
 def main():
     test_chain()
     test_lock()
@@ -670,6 +716,7 @@ def main():
     test_linkcheck()
     test_anchors()
     test_prosecheck()
+    test_gates()
     if failures:
         print(f"{len(failures)} self-test(s) failed")
         return 1

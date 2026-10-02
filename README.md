@@ -740,6 +740,26 @@ that the preset's own rules already skip those node types — the filter is
 a backstop for rules added later, such as `prh` for terminology, which do
 match inside blockquotes.
 
+**One call at handoff — `scripts/gates.py`.** The lead runs all six
+through a runner that prints one status per check (PASS / WARN / NOTICE
+/ FAIL / ERROR / SKIP) and, for anything but a clean pass, only that
+check's non-`OK:` lines — so a report with forty live URLs costs the
+lead one line, not forty. It reads the checks' exit codes and line
+prefixes and never changes a verdict; each script stays a standalone CLI.
+
+```
+$ python3 scripts/gates.py cases/<id>
+chain         PASS  OK: chain intact (cases/<id>/chain.jsonl)
+urlcheck      PASS  OK: 41/41 URLs live
+quotecheck    FAIL
+  FAIL: quote not found verbatim in findings/doc-search.md: "…"
+versioncheck  PASS  OK: 6 source Ref(s) version-pinned
+linkcheck     PASS  OK: 18/18 evidence links resolve
+prosecheck    SKIP
+  report_language is not ja
+gates: 1 FAIL (quotecheck), 4 PASS, 1 SKIP
+```
+
 All six scripts and the lock hook have offline self-tests
 (`scripts/selftest.py`) exercising tamper detection, ledger-edit
 detection, lock/deny/unlock, quote-mutation detection, the
