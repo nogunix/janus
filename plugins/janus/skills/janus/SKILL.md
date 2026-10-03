@@ -332,7 +332,10 @@ python3 <skill-dir>/scripts/findings.py digest cases/<id>
 
 Per file it prints the frontmatter status line, one line per finding
 (`F3 [HIGH/VERIFIED] <title>`), the **Gaps section** verbatim, and
-`findings.py lint`'s verdicts. That is everything the routing decision
+`findings.py lint`'s verdicts (`lint: OK` for a clean file). Read it
+from the command output — do not redirect it to a file; it is cheap to
+rerun, and a lead scratch file belongs under `cases/<id>/`, never
+`/tmp`. That is everything the routing decision
 needs; the full files are synthesize's to read, not the lead's. Open a
 file only when a Gaps line is ambiguous about which follow-up it needs.
 A `lint FAIL` means the stage skipped its own lint: SendMessage it to
@@ -583,7 +586,9 @@ other than OK.
   wrapper. Keep confidential vmcores out of the autonomous deep-tier loop
   unless that timeout is enforced. Keep vmcore/debuginfo under
   `cases/<id>/`, not `/tmp` (the sandbox's read-only protection does not
-  reliably cover /tmp).
+  reliably cover /tmp). The same holds for any scratch file the lead or
+  a stage writes: script output is read from stdout, and anything that
+  must persist goes under `cases/<id>/`.
 
 ## File-write-first rule
 

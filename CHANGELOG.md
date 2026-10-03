@@ -2,6 +2,20 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.30.3 — 2026-10-03
+
+From the 0.30.2 rerun of the same case, which reached DONE with a clean
+chain:
+
+- **No lead scratch files in `/tmp`.** The lead redirected the
+  `findings.py digest` output to `/tmp/digest2.txt` before reading it.
+  SKILL.md now says to read the digest from stdout, and extends the
+  sandbox rule (vmcores under `cases/<id>/`, not `/tmp`) to any scratch
+  file the lead or a stage writes.
+- CLAUDE.md's model summary still listed synthesize under opus; it has
+  been sonnet since the downgrade, as SKILL.md's Model strategy table
+  and the agent file say.
+
 ## 0.30.2 — 2026-10-02
 
 Fixes from a real-case rerun (CVE-2024-1086 on OCP 4.16) of 0.30.1.
