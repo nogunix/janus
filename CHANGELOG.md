@@ -2,6 +2,14 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.30.5 — 2026-10-04
+
+- **SKILL.md: `inherit` is not a release alias.** The "Families, not
+  versions" rule said every assignment, `inherit` included, resolves to
+  the current release; `inherit` runs the stage on the lead session's
+  model instead. CLAUDE.md's model summary still said opus for
+  crash-analyze and lab-verify; it now says `inherit`.
+
 ## 0.30.4 — 2026-10-04
 
 - **`model: inherit` for crash-analyze and lab-verify.** Changed from

@@ -101,9 +101,11 @@ each other — they are connected only by files on disk.
   human-gated proposals into `review-queue/`. Both are advisory —
   upstream-adviser never opens an issue or PR itself.
 
-Model assignment is per stage and deliberate (opus only for crash-analyze and
-lab-verify, which need heavy reasoning; sonnet for everything else,
-synthesize included — mechanical pre-checks carry its quality); see the Model strategy
+Model assignment is per stage and deliberate (`inherit` for crash-analyze and
+lab-verify, which need heavy reasoning — they run on the session's model, so
+Opus from an Opus session and Sonnet where only Sonnet is available, e.g.
+Vertex AI; sonnet for everything else, synthesize included — mechanical
+pre-checks carry its quality); see the Model strategy
 table in `SKILL.md` before changing it. Assignments name a **family alias**
 (`fable` / `opus` / `sonnet` / `haiku` / `inherit`), never a versioned ID, so a model
 release needs no edit here — `validate.py`'s `validate_model_aliases()`

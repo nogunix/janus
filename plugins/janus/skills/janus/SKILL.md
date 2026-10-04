@@ -628,12 +628,12 @@ can check after the fact is an assumption, not a property.
 → Haiku in order. If all refuse, `NEEDS_HUMAN_*`.
 
 **Families, not versions.** Every assignment here and in the agents'
-`model:` is a family alias (`fable` / `opus` / `sonnet` / `haiku` /
-`inherit`) that resolves to the current release, so a new model version
+`model:` is a family alias (`fable` / `opus` / `sonnet` / `haiku`) that
+resolves to the current release, or `inherit`, so a new model version
 changes nothing in the pipeline and the ladders above step between
-families, not version numbers. `inherit` means the stage uses the parent
-session's model — this allows JANUS to adapt to environments where only
-certain models are available (e.g., Vertex AI with Sonnet-only access).
+families, not version numbers. `inherit` does not resolve to a release:
+the stage runs on the lead session's model, whatever that is — Opus from
+an Opus session, Sonnet where only Sonnet is available (e.g. Vertex AI).
 Never brief a stage — or pass a script — a versioned model ID;
 `validate.py` rejects one anywhere in the plugin. The findings' `model:`
 key is the exception: it records the resolved model that actually ran.
