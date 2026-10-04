@@ -2,6 +2,16 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.30.4 — 2026-10-04
+
+- **`model: inherit` for crash-analyze and lab-verify.** Changed from
+  `model: opus` to support Vertex AI environments that provide only
+  Sonnet 4.5. With `inherit`, these stages adapt to the parent session's
+  model — Sonnet on Vertex AI, Opus when launched from an Opus session
+  on Anthropic API. SKILL.md's Pipeline stages and Model strategy tables
+  updated to reflect this, with rationale noting the preference for Opus
+  when available but adaptation to environment constraints.
+
 ## 0.30.3 — 2026-10-03
 
 From the 0.30.2 rerun of the same case, which reached DONE with a clean

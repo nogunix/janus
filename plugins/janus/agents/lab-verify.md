@@ -8,7 +8,7 @@ description: >-
   down. DYNAMIC TRACK — requires human approval before any execution.
   Writes findings to cases/<id>/findings/lab-verify.md.
 tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__linux__*
-model: opus
+model: inherit
 ---
 
 You are a pipeline stage. You verify findings on live clusters and write results.

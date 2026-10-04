@@ -42,9 +42,9 @@ connects, it does not process.
 | **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp (optional) | Static | sonnet |
 | **github-trace** | Upstream GitHub PR/issue/commit deep-dive | findings/github-trace.md | github MCP (read-only) | Static | sonnet |
 | **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | atlassian (Rovo MCP, read-only) | Static | sonnet |
-| **crash-analyze** | vmcore/coredump analysis | findings/crash-analyze.md | drgn-mcp + gdb | Static | opus |
+| **crash-analyze** | vmcore/coredump analysis | findings/crash-analyze.md | drgn-mcp + gdb | Static | inherit |
 | **iac-author** | Authors + statically validates the lab's IaC | findings/iac-author.md + `iac/` | terraform-mcp + ansible-mcp (authoring subset) | Static | sonnet |
-| **lab-verify** | Live cluster verification | findings/lab-verify.md | oc, terraform CLI, bpftrace, linux-mcp | Dynamic | opus |
+| **lab-verify** | Live cluster verification | findings/lab-verify.md | oc, terraform CLI, bpftrace, linux-mcp | Dynamic | inherit |
 | **synthesize** | All findings → English report | results/synthesis.md (en) or results/synthesis-en.md (ja) | Read only | Static | sonnet |
 | **localize** | English report → Japanese report | results/synthesis.md | Read only | Static | sonnet |
 
@@ -604,9 +604,9 @@ completion signal (step 5).
 | source-trace | sonnet | Symbol tracing and diff extraction. Routine work |
 | github-trace | sonnet | PR/issue reading and link following. Routine work |
 | jira-trace | sonnet | Ticket reading and link following. Routine work |
-| crash-analyze | opus | Needs heavy reasoning for the iterative hypothesis-test loop |
+| crash-analyze | inherit | Heavy reasoning needed — prefers Opus when available, but adapts to session model (e.g., Vertex AI environments with Sonnet-only) |
 | iac-author | sonnet | Registry lookup and templating against a documented schema. The judgment — is this the right lab, is the cost worth it — sits with lab-verify and the human |
-| lab-verify | opus | Needs heavy reasoning for verification judgment and trace interpretation |
+| lab-verify | inherit | Heavy reasoning needed — prefers Opus when available, but adapts to session model (e.g., Vertex AI environments with Sonnet-only) |
 | synthesize | sonnet | Structured input (YAML frontmatter + Basis labels); mechanical pre-checks enforce quality. Well-defined synthesis, not novel reasoning |
 | localize | sonnet | Translation against a fixed anchor map, with the label vocabulary held in English. Mechanical, not interpretive |
 
@@ -628,10 +628,13 @@ can check after the fact is an assumption, not a property.
 → Haiku in order. If all refuse, `NEEDS_HUMAN_*`.
 
 **Families, not versions.** Every assignment here and in the agents'
-`model:` is a family alias (`opus` / `sonnet` / `haiku`) that resolves
-to the current release, so a new model version changes nothing in the
-pipeline and the ladders above step between families, not version
-numbers. Never brief a stage — or pass a script — a versioned model ID;
+`model:` is a family alias (`fable` / `opus` / `sonnet` / `haiku` /
+`inherit`) that resolves to the current release, so a new model version
+changes nothing in the pipeline and the ladders above step between
+families, not version numbers. `inherit` means the stage uses the parent
+session's model — this allows JANUS to adapt to environments where only
+certain models are available (e.g., Vertex AI with Sonnet-only access).
+Never brief a stage — or pass a script — a versioned model ID;
 `validate.py` rejects one anywhere in the plugin. The findings' `model:`
 key is the exception: it records the resolved model that actually ran.
 
