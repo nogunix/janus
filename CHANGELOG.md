@@ -2,6 +2,21 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.30.6 — 2026-10-05
+
+- **fable is not an assignable family.** `MODEL_ALIASES` accepted it and
+  SKILL.md and CLAUDE.md both listed it, but no stage used it and the
+  refusal ladder (Opus → Sonnet → Haiku) never mentioned it — the alias
+  set and the ladder disagreed about what the pipeline may run on. The
+  three families the ladders actually step between are now the only
+  assignable ones, and `validate.py` rejects `model: fable`.
+  `PINNED_MODEL_RE` deliberately still matches `claude-fable-*`: a
+  pinned ID is a pinned ID whether or not the family is assignable.
+- **`validate_model_aliases()`'s docstring carried the error 0.30.5
+  fixed in SKILL.md** — it described `inherit` as an alias resolving to
+  the current release. `inherit` resolves to no release; the stage runs
+  on the lead session's model.
+
 ## 0.30.5 — 2026-10-04
 
 - **SKILL.md: `inherit` is not a release alias.** The "Families, not

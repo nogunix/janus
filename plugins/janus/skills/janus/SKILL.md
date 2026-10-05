@@ -628,10 +628,12 @@ can check after the fact is an assumption, not a property.
 → Haiku in order. If all refuse, `NEEDS_HUMAN_*`.
 
 **Families, not versions.** Every assignment here and in the agents'
-`model:` is a family alias (`fable` / `opus` / `sonnet` / `haiku`) that
+`model:` is a family alias (`opus` / `sonnet` / `haiku`) that
 resolves to the current release, or `inherit`, so a new model version
 changes nothing in the pipeline and the ladders above step between
-families, not version numbers. `inherit` does not resolve to a release:
+families, not version numbers. `fable` is not used: the ladders stay
+within the three families above, and `validate.py` rejects it as an
+agent `model:`. `inherit` does not resolve to a release:
 the stage runs on the lead session's model, whatever that is — Opus from
 an Opus session, Sonnet where only Sonnet is available (e.g. Vertex AI).
 Never brief a stage — or pass a script — a versioned model ID;

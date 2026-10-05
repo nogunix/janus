@@ -107,7 +107,7 @@ Opus from an Opus session and Sonnet where only Sonnet is available, e.g.
 Vertex AI; sonnet for everything else, synthesize included — mechanical
 pre-checks carry its quality); see the Model strategy
 table in `SKILL.md` before changing it. Assignments name a **family alias**
-(`fable` / `opus` / `sonnet` / `haiku` / `inherit`), never a versioned ID, so a model
+(`opus` / `sonnet` / `haiku` / `inherit`), never a versioned ID, so a model
 release needs no edit here — `validate.py`'s `validate_model_aliases()`
 fails on an agent `model:` that is not an alias and on any
 `claude-<family>-<N>` ID shipped in agents, skills, scripts or hooks.

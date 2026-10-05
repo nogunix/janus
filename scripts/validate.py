@@ -384,7 +384,9 @@ def validate_model_sync(plugin_dir: Path) -> None:
             )
 
 
-MODEL_ALIASES = {"fable", "opus", "sonnet", "haiku", "inherit"}
+MODEL_ALIASES = {"opus", "sonnet", "haiku", "inherit"}
+# Deliberately wider than MODEL_ALIASES: fable is not an assignable family
+# here, but a pinned fable ID is still a pinned ID and must be caught.
 PINNED_MODEL_RE = re.compile(r"\bclaude-(?:opus|sonnet|haiku|fable)-\d[\w.-]*", re.I)
 
 
@@ -392,8 +394,11 @@ def validate_model_aliases(plugin_dir: Path) -> None:
     """Model choices name a family, never a version.
 
     An agent's `model:` and any model the bundled scripts request must be a
-    family alias (opus / sonnet / haiku / inherit) that Claude Code resolves
-    to the current release. A pinned ID such as `claude-sonnet-4-6` keeps
+    family alias (opus / sonnet / haiku) that Claude Code resolves to the
+    current release, or `inherit`, which resolves to no release at all —
+    the stage runs on the lead session's model, whatever that is. fable is
+    not assignable: the pipeline does not use it.
+    A pinned ID such as `claude-sonnet-4-6` keeps
     running a retired model after every release — or fails outright once
     that ID is withdrawn — and nobody notices, because nothing about the
     pipeline's output says which version ran. The findings' `model:` key
