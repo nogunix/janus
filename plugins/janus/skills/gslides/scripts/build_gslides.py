@@ -445,18 +445,33 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
                     }
                 })
 
-            use_autofit = op_args.get("autofit",
-                                      op_name in ("body", "subtitle"))
-            if use_autofit:
+            # The Slides API accepts only autofitType NONE on
+            # updateShapeProperties — "Autofit types other than NONE are not
+            # supported" — and a whole batch fails if TEXT_AUTOFIT is sent.
+            # So `autofit: true` (and the old default-on behaviour for
+            # body/subtitle) cannot be honoured through the API: shrink-to-fit
+            # is a client-side feature. Only the opt-out is expressible.
+            # The field mask must be autofit.autofitType; a bare "autofit"
+            # expands to the whole subtree, which carries the read-only
+            # fontScale and lineSpacingReduction, and is rejected as
+            # "Invalid field mask: * includes read-only fields".
+            autofit = op_args.get("autofit")
+            if autofit is False:
                 requests.append({
                     "updateShapeProperties": {
                         "objectId": ph_id,
                         "shapeProperties": {
-                            "autofit": {"autofitType": "TEXT_AUTOFIT"}
+                            "autofit": {"autofitType": "NONE"}
                         },
-                        "fields": "autofit",
+                        "fields": "autofit.autofitType",
                     }
                 })
+            elif autofit:
+                sys.stderr.write(
+                    f"  warn: autofit: true on {op_name} is ignored — the "
+                    f"Slides API only accepts autofitType NONE. Size the text "
+                    f"with `size:` or shorten it instead.\n"
+                )
 
         elif op_name == "table":
             counter[0] += 1
@@ -713,10 +728,13 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
 # Page numbers
 # ---------------------------------------------------------------------------
 
+# A Slides presentation created through the API is 16:9 — 10in x 5.625in, not
+# the 10in x 7.5in of 4:3. Anything placed below yi 5.625 lands off-slide and
+# renders nowhere, silently. These defaults sit in the 16:9 bottom margin.
 PAGE_NUMBER_POSITIONS = {
-    "bottom_left":   (0.22, 7.1),
-    "bottom_right":  (9.5, 7.1),
-    "bottom_center": (4.8, 7.1),
+    "bottom_left":   (0.22, 5.25),
+    "bottom_right":  (9.3, 5.25),
+    "bottom_center": (4.8, 5.25),
 }
 
 

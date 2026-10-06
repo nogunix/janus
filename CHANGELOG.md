@@ -2,6 +2,36 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.30.7 — 2026-10-06
+
+- **gslides: `body:` and `subtitle:` failed every build.** The driver
+  sent `autofitType: TEXT_AUTOFIT` for them by default, and the Slides
+  API accepts only `NONE` — "Autofit types other than NONE are not
+  supported". One rejected request aborts the whole `batchUpdate`, so
+  any deck using a `body` placeholder lost all of its content and the
+  only surviving evidence was one error line above an otherwise normal
+  success log. Shrink-to-fit is a client-side feature and cannot be set
+  through the API: the default is now to send nothing, `autofit: false`
+  sends the supported `NONE`, and `autofit: true` warns that it is
+  ignored. The field mask is also corrected to `autofit.autofitType` —
+  a bare `autofit` expands to the whole subtree, which carries the
+  read-only `fontScale` and `lineSpacingReduction`, and was separately
+  rejected as "Invalid field mask: * includes read-only fields".
+- **gslides: slides are 16:9, not 4:3.** SKILL.md documented the canvas
+  as 10in × 7.5in and the page-number defaults sat at `yi: 7.1`. A
+  presentation created through the API is 10in × 5.625in, so the page
+  numbers — and anything else placed by that guidance — rendered
+  off-slide. This fails silently: the API reports success and the
+  element is simply not on the page. Defaults moved to `yi: 5.25`, the
+  coordinate reference re-derived for 16:9, and the bound stated where
+  it is used.
+- **gslides: two gotchas added from the same build** — table row height
+  is not settable (~0.66in per row regardless of `font_size`, so a
+  header plus five rows is the practical maximum on one slide), and a
+  deck must be exported to PDF and looked at before it is called done,
+  because overflow and overlap do not show up in an API success
+  response.
+
 ## 0.30.6 — 2026-10-05
 
 - **fable is not an assignable family.** `MODEL_ALIASES` accepted it and
