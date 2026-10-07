@@ -5,6 +5,10 @@
 Read before any `mcp__mslearn__*` call. The stage's general rules (Basis
 semantics, Ref + public URL, Gaps vs negatives) still apply.
 
+- **Two possible server names.** Microsoft's own install snippet names the
+  server `microsoft-learn`, so the tools may be `mcp__microsoft-learn__*`
+  instead of `mcp__mslearn__*`. Both are granted to doc-search; use
+  whichever is in the tool list. Neither present = not connected.
 - Three tools: `microsoft_docs_search` (chunked semantic search, ~10 chunks
   with `contentUrl`), `microsoft_docs_fetch` (full article as markdown — use
   when a search chunk is truncated mid-topic), `microsoft_code_sample_search`

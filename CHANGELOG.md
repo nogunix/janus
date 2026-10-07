@@ -2,6 +2,47 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.30.8 — 2026-10-07
+
+- **doc-search could not see Microsoft Learn or the AWS doc servers under
+  the names users actually register them with.** An agent's `tools:`
+  frontmatter is a fixed enumeration of `mcp__<server>__<tool>` strings,
+  so the registered server name is part of the contract: one character
+  off and the tool does not exist for that stage — no error, no
+  fallback, just a capability that silently never fires. JANUS
+  enumerated its own short names (`mslearn`, `aws-docs`, `aws-mcp`)
+  while the upstream projects' own install snippets produce
+  `microsoft-learn`, `awslabs.aws-documentation-mcp-server` and
+  `plugin:aws-core:aws-mcp`. Each optional cloud layer is now granted
+  under **both** spellings (a dot or colon in a registered name becomes
+  an underscore in the tool name, verified against a live client), and
+  `validate.py`'s new `validate_mcp_server_aliases()` fails the build
+  when a tool is added under one spelling only. The Agent Toolkit server
+  cannot be renamed at all — its name comes from the `aws-core` plugin —
+  so enumerating it was the only possible fix.
+- **The Agent Toolkit's tool names were wrong independently of the server
+  name.** It is a proxy and prefixes every backend tool, so the grants
+  had to be `aws___search_documentation`, not a bare
+  `search_documentation`; `aws___read_documentation` was missing
+  entirely. Its mutating `aws___call_aws` / `aws___run_script`, and a
+  wildcard over either spelling of the server, are now in
+  `FORBIDDEN_TOOL_GRANTS` — live AWS API access and arbitrary boto3
+  execution have no place in a static documentation stage.
+- **doc-search can now read one row out of a huge AWS table.** aws-docs'
+  `search_table(url, section_title, query, max_rows)` returns matching
+  rows as structured JSON, and is granted under both server spellings.
+  It is the right tool for service quotas, instance-type and region
+  support matrices, and pricing — the pages where `read_documentation`
+  truncates mid-table and a quota ends up REASONED from surrounding
+  prose instead of VERIFIED from the row. The ROSA GPU pre-deployment
+  check gains a quota-headroom step that uses it: a GPU family's
+  default vCPU quota is frequently zero, which fails a lab that passed
+  every other check. aws-knowledge and aws-mcp have no equivalent.
+- Registration-name requirements are now stated where they are acted on:
+  the lead's preflight (a differently named server counts as not
+  connected), `references/mcp-dependencies.md`, both doc-search layer
+  references, and a README table of the accepted names.
+
 ## 0.30.7 — 2026-10-06
 
 - **gslides: `body:` and `subtitle:` failed every build.** The driver

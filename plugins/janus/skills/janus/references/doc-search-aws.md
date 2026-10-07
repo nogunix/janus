@@ -14,11 +14,37 @@ these three cover **ROSA — Red Hat OpenShift Service on AWS — and the AWS
 services underneath it**. All are optional; if a server is not connected,
 skip its angle silently (same rule as Slack) and note it as a gap.
 
+**Two possible server names each.** The short names below are JANUS's; the
+upstream install snippets use longer ones, and a tool exists only under the
+name actually registered. Both forms are granted — use whichever is in the
+tool list, and treat a layer absent under both as not connected:
+`aws-docs` → `awslabs_aws-documentation-mcp-server`, `aws-knowledge` →
+`aws-knowledge-mcp-server`, `aws-support` → `awslabs_aws-support-mcp-server`,
+`aws-mcp` → `plugin_aws-core_aws-mcp` (the Agent Toolkit shipped as the
+`aws-core` plugin; a plugin's server name cannot be changed by the user).
+A dot in a registered name becomes an underscore in the tool name
+(`awslabs.aws-documentation-mcp-server` →
+`mcp__awslabs_aws-documentation-mcp-server__search_documentation`).
+
 - **aws-docs** (`awslabs.aws-documentation-mcp-server`, read-only, no
   credentials): `search_documentation` → `read_documentation` for the full
   page, `recommend` for related pages, `read_sections` for a specific
-  section, `get_available_services`. The AWS analogue of okp's public-docs
-  role — use it for one canonical `docs.aws.amazon.com` page.
+  section, `search_table` for one row of a huge table, `get_available_services`.
+  The AWS analogue of okp's public-docs role — use it for one canonical
+  `docs.aws.amazon.com` page.
+  - **`search_table` is the right tool for a quota, limit, price or
+    supported-X question.** `search_table(url, section_title, query,
+    max_rows)` returns matching rows as structured JSON instead of the
+    whole page, so the answer to "what is the default limit for X" comes
+    back as the row itself rather than as a paragraph you reconstruct from
+    a truncated page. Use it for service-quota tables, instance-type and
+    region support matrices, and pricing tables — exactly the pages where
+    `read_documentation` truncates mid-table and a REASONED guess creeps
+    in. A row returned verbatim is VERIFIED; a limit inferred from
+    surrounding prose is not. Quote the row in the finding and keep the
+    page URL (plus the section title) as the Ref. It is `aws-docs` only —
+    aws-knowledge and aws-mcp have no equivalent, so fall back to
+    `read_sections` on the table's section there.
 - **aws-knowledge** (hosted at `https://knowledge-mcp.global.api.aws`,
   read-only, no auth): cross-cuts AWS docs / blogs / What's New / API
   references in one index, plus `list_regions` / `get_regional_availability`
@@ -26,11 +52,14 @@ skip its angle silently (same rule as Slack) and note it as a gap.
   Prefer it for breadth; fall back to aws-docs for a single canonical page.
 - **aws-mcp** (the [Agent Toolkit for AWS](https://github.com/aws/agent-toolkit-for-aws)
   managed server, successor to the awslabs servers above): if it is
-  registered instead of (or alongside) aws-docs, its `search_documentation`
-  and `retrieve_skill` tools need no AWS credentials and serve the same
-  documentation role — prefer them over aws-docs when both are connected.
-  Its `call_aws` and `run_script` tools are deliberately **not** granted:
-  live AWS API access and script execution have no place in a static stage.
+  registered instead of (or alongside) aws-docs, its `aws___search_documentation`,
+  `aws___read_documentation` and `aws___retrieve_skill` tools need no AWS
+  credentials and serve the same documentation role — prefer them over
+  aws-docs when both are connected. It is a **proxy**, so every backend
+  tool carries an `aws___` prefix; a bare `search_documentation` on this
+  server does not exist. Its `aws___call_aws` and `aws___run_script` tools
+  are deliberately **not** granted: live AWS API access and script
+  execution have no place in a static stage.
 - **aws-support** (`awslabs.aws-support-mcp-server`, needs AWS credentials +
   a Business/Enterprise support plan): **read-only tools only** —
   `describe_support_cases`, `describe_communications`, `describe_services`,
@@ -69,6 +98,12 @@ of rebuild:
   type is usable.
 - **AZ availability**: confirm the GPU instance type is offered in the
   target region/AZ (`aws-knowledge` `get_regional_availability`).
+- **Service quota headroom**: a GPU family has its own vCPU quota, and
+  the account default is frequently zero — a lab that passes every other
+  check still fails to provision. Read the row out of the EC2
+  service-quota table with `aws-docs` `search_table` (query the quota
+  name, e.g. "Running On-Demand P instances") and record the default as
+  a quoted row; the quota-increase lead time belongs in the report.
 - **Disk sizing**: node disk must be ≥ 3× the model size — a 63 GB+
   ModelCar image hits ephemeral-storage pressure on a 200 GB disk;
   500 GB+ is the safe floor for large models.

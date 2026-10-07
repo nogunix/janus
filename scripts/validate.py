@@ -304,6 +304,68 @@ FORBIDDEN_TOOL_GRANTS = {
     ),
 }
 
+# Both spellings of the Agent Toolkit for AWS proxy's mutating tools: it is
+# reachable under a user-chosen name and under the aws-core plugin's fixed
+# one, so a ban that names only one spelling bans nothing.
+for _aws_mcp in ("aws-mcp", "plugin_aws-core_aws-mcp"):
+    FORBIDDEN_TOOL_GRANTS[f"mcp__{_aws_mcp}__aws___call_aws"] = (
+        "live AWS API access — doc-search is a static documentation stage"
+    )
+    FORBIDDEN_TOOL_GRANTS[f"mcp__{_aws_mcp}__aws___run_script"] = (
+        "executes arbitrary boto3 against real accounts, including mutations"
+    )
+    FORBIDDEN_TOOL_GRANTS[f"mcp__{_aws_mcp}__*"] = (
+        "a wildcard silently grants aws___call_aws and aws___run_script; "
+        "enumerate the documentation tools instead"
+    )
+
+# A server is addressable only under the name it was registered with, and
+# an agent's `tools:` list is a fixed enumeration — so a tool spelled with
+# the wrong server name simply does not exist for that agent (0.30.8).
+# doc-search's optional layers are therefore granted twice: under JANUS's
+# short name and under the name the upstream project's own install snippet
+# produces (a dot in a registered name becomes an underscore in the tool
+# name). Adding a tool under one spelling only is the silent half-failure
+# this check exists to catch.
+MCP_SERVER_NAME_ALIASES = {
+    "mslearn": "microsoft-learn",
+    "aws-docs": "awslabs_aws-documentation-mcp-server",
+    "aws-knowledge": "aws-knowledge-mcp-server",
+    "aws-support": "awslabs_aws-support-mcp-server",
+    "aws-mcp": "plugin_aws-core_aws-mcp",
+}
+
+
+def validate_mcp_server_aliases(plugin_dir: Path) -> None:
+    """Every aliased server's tool set must be granted under both names."""
+    for agent_md in sorted(plugin_dir.glob("agents/*.md")):
+        fm = parse_frontmatter(agent_md)
+        if fm is None:
+            continue
+        granted = {t.strip() for t in fm.get("tools", "").split(",")}
+        by_server: dict[str, set[str]] = {}
+        for tool in granted:
+            m = re.fullmatch(r"mcp__([\w-]+)__(.+)", tool)
+            if m:
+                by_server.setdefault(m.group(1), set()).add(m.group(2))
+        for short, alias in MCP_SERVER_NAME_ALIASES.items():
+            under_short = by_server.get(short, set())
+            under_alias = by_server.get(alias, set())
+            if not under_short and not under_alias:
+                continue
+            for tool in sorted(under_short - under_alias):
+                error(
+                    f"{rel(agent_md)} grants 'mcp__{short}__{tool}' but not "
+                    f"'mcp__{alias}__{tool}' — the server is invisible to the "
+                    f"agent when registered under its upstream default name"
+                )
+            for tool in sorted(under_alias - under_short):
+                error(
+                    f"{rel(agent_md)} grants 'mcp__{alias}__{tool}' but not "
+                    f"'mcp__{short}__{tool}' — the server is invisible to the "
+                    f"agent when registered under JANUS's documented name"
+                )
+
 
 PIPELINE_MODEL_HEADER = "| Stage | Role | Output | Tools | Safety | Model |"
 PERIODIC_MODEL_HEADER = "| Agent | Trigger | Role | Model |"
@@ -535,6 +597,7 @@ def main() -> int:
         validate_model_sync(plugin_dir)
         validate_model_aliases(plugin_dir)
         validate_tool_grants(plugin_dir)
+        validate_mcp_server_aliases(plugin_dir)
         validate_okp_doc_id_sync(plugin_dir)
         validate_readme_agent_sync(plugin_dir)
         validate_prose_counts(plugin_dir)

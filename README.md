@@ -207,6 +207,11 @@ dependencies** below for setup commands).
 | [linux-mcp-server](https://github.com/rhel-lightspeed/linux-mcp-server) | lab-verify | For live verification |
 | [slack-mcp](https://github.com/redhat-community-ai-tools/slack-mcp) | doc-search (team context) | Optional |
 
+Register each server under the name used here — a subagent's tool list is a
+fixed enumeration, so a differently named server is invisible to the stage.
+doc-search's optional cloud layers accept their upstream default names too;
+see [Server names matter](#server-names-matter).
+
 ### Optional CLI tools
 
 | Tool | Purpose |
@@ -384,6 +389,9 @@ Public remote server, no auth, used by doc-search. Official server docs:
 ```bash
 claude mcp add --transport http mslearn https://learn.microsoft.com/api/mcp
 ```
+Microsoft's own snippet names the server `microsoft-learn`; doc-search
+grants both spellings, so either registration works (see
+[Server names](#server-names-matter)).
 
 ### aws-docs / aws-knowledge / aws-support — AWS docs for the ROSA/AWS layer
 The AWS mirror of mslearn, used by doc-search for **ROSA (Red Hat OpenShift
@@ -408,6 +416,33 @@ connected and skips the rest.
   claude mcp add aws-support --env AWS_PROFILE=<profile> --env AWS_REGION=us-east-1 \
     -- uvx awslabs.aws-support-mcp-server@latest
   ```
+- **aws-mcp** — the [Agent Toolkit for AWS](https://github.com/aws/agent-toolkit-for-aws),
+  AWS's designated successor to the awslabs servers. Usually installed as
+  the `aws-core` plugin, which registers it as `plugin:aws-core:aws-mcp`.
+  Only its no-auth `aws___search_documentation` /
+  `aws___read_documentation` / `aws___retrieve_skill` are granted;
+  `aws___call_aws` and `aws___run_script` are refused by `validate.py`.
+
+#### Server names matter
+A subagent's tool list is a **fixed enumeration**, so a server registered
+under a different name than the one JANUS enumerates is invisible to the
+stage — silently, with no error. doc-search therefore grants each optional
+layer under two names: JANUS's short one and the one the upstream project's
+own install snippet produces. A dot in the registered name becomes an
+underscore in the tool name.
+
+| Layer | Short name | Upstream default |
+|---|---|---|
+| Microsoft Learn | `mslearn` | `microsoft-learn` |
+| AWS docs | `aws-docs` | `awslabs.aws-documentation-mcp-server` |
+| AWS Knowledge | `aws-knowledge` | `aws-knowledge-mcp-server` |
+| AWS Support | `aws-support` | `awslabs.aws-support-mcp-server` |
+| Agent Toolkit for AWS | `aws-mcp` | `plugin:aws-core:aws-mcp` |
+
+Registering under any **third** name will not work: rename it to one of
+the two (`claude mcp remove <name>` then re-add), except for the plugin-
+provided `plugin:aws-core:aws-mcp`, whose name the user cannot change —
+which is why it is enumerated here.
 
 ### slack — optional, bring your own workspace
 doc-search can supplement official docs with your team's Slack

@@ -202,6 +202,13 @@ server being reachable): doc-search → okp-mcp (+ rh-api-mcp for live
 errata), source-trace → casket, github-trace → github, jira-trace →
 atlassian, crash-analyze → drgn, iac-author → terraform and/or
 ansible, lab-verify → linux.
+Match the name exactly: a stage's tool grants are a fixed enumeration, so
+a server connected under a different name is invisible to that stage and
+counts as not connected — say so in the step-2 presentation rather than
+launching a stage that will find no tools. (doc-search's optional cloud
+layers are the one exception: mslearn and the AWS servers are granted
+under both JANUS's short name and their upstream default — see
+`references/mcp-dependencies.md`.)
 A stage whose server is not connected is **dropped from the composition
 and recorded as a gap** (note it in the step-2 presentation; synthesize
 reports it under Investigation Gaps) — never launched to fail at

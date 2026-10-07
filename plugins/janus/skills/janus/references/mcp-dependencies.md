@@ -34,9 +34,13 @@ read-only endpoint `https://knowledge-mcp.global.api.aws` (no auth);
 only its read-only `describe_*` tools are granted — JANUS never opens, replies
 to, or resolves a case. AWS has designated the
 [Agent Toolkit for AWS](https://github.com/aws/agent-toolkit-for-aws) as the
-awslabs servers' successor: if its managed `aws-mcp` server is registered,
-doc-search prefers its no-auth `search_documentation` / `retrieve_skill`
-over aws-docs — its `call_aws` / `run_script` tools are never granted),
+awslabs servers' successor: if its managed `aws-mcp` server is registered
+— usually as the `aws-core` plugin, i.e. under the name
+`plugin:aws-core:aws-mcp` — doc-search prefers its no-auth
+`aws___search_documentation` / `aws___read_documentation` /
+`aws___retrieve_skill` over aws-docs; it is a proxy, so every tool carries
+the `aws___` prefix, and its `aws___call_aws` / `aws___run_script` tools are
+never granted),
 `drgn` (vmcore), `github` (upstream
 PR/issue/commit — github-trace and upstream-adviser), `atlassian`
 (Atlassian Rovo MCP at `mcp.atlassian.com/v2/mcp` — Jira tickets for
@@ -60,3 +64,31 @@ the plugin — paths are environment-specific, so register them yourself
 (`claude mcp add …`); confirm `claude mcp list` shows them `✔ Connected`
 before relying on them (a tool being advertised ≠ the server being
 connected).
+
+## The registered name is part of the contract
+
+An agent's `tools:` frontmatter is a fixed enumeration of
+`mcp__<server>__<tool>` strings, so **a server registered under a
+different name than the one enumerated does not exist for that stage** —
+no error, no fallback, just a silently missing capability. Register each
+server under the name used above, and when a name contains a dot or a
+colon it is an underscore in the tool name
+(`plugin:aws-core:aws-mcp` → `mcp__plugin_aws-core_aws-mcp__…`).
+
+doc-search's optional cloud layers are the exception: each is granted
+twice, under JANUS's short name **and** under the name the upstream
+project's own install snippet produces, because those snippets are what
+users actually paste. `validate.py`'s `validate_mcp_server_aliases()`
+keeps the two spellings in sync.
+
+| Layer | Short name | Upstream default |
+|---|---|---|
+| Microsoft Learn | `mslearn` | `microsoft-learn` |
+| AWS docs | `aws-docs` | `awslabs.aws-documentation-mcp-server` |
+| AWS Knowledge | `aws-knowledge` | `aws-knowledge-mcp-server` |
+| AWS Support | `aws-support` | `awslabs.aws-support-mcp-server` |
+| Agent Toolkit for AWS | `aws-mcp` | `plugin:aws-core:aws-mcp` |
+
+A layer registered under a third name must be renamed (`claude mcp
+remove` + re-add) — except `plugin:aws-core:aws-mcp`, whose name comes
+from the plugin and cannot be changed, which is why it is enumerated.

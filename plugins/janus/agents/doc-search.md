@@ -7,7 +7,7 @@ description: >-
   documentation, AWS docs (aws-docs / aws-knowledge / aws-support)
   for the ROSA/AWS layer, and optionally Slack for team context.
   Writes findings to cases/<id>/findings/doc-search.md.
-tools: Read, Write, Bash, Glob, Grep, SendMessage, mcp__okp-mcp__search_portal, mcp__okp-mcp__get_document, mcp__rh-api-mcp__rh_get_errata, mcp__mslearn__microsoft_docs_search, mcp__mslearn__microsoft_docs_fetch, mcp__mslearn__microsoft_code_sample_search, mcp__slack__search_messages, mcp__slack__search_channel_messages, mcp__slack__get_channel_history, mcp__slack__get_channel_id_by_name, mcp__slack__get_thread, mcp__slack__list_joined_channels, mcp__aws-docs__search_documentation, mcp__aws-docs__read_documentation, mcp__aws-docs__read_sections, mcp__aws-docs__recommend, mcp__aws-docs__get_available_services, mcp__aws-knowledge__search_documentation, mcp__aws-knowledge__read_documentation, mcp__aws-knowledge__list_regions, mcp__aws-knowledge__get_regional_availability, mcp__aws-knowledge__retrieve_skill, mcp__aws-support__describe_support_cases, mcp__aws-support__describe_communications, mcp__aws-support__describe_services, mcp__aws-support__describe_severity_levels, mcp__aws-support__describe_create_case_options, mcp__aws-support__describe_supported_languages, mcp__aws-support__describe_attachment, mcp__aws-mcp__search_documentation, mcp__aws-mcp__retrieve_skill
+tools: Read, Write, Bash, Glob, Grep, SendMessage, mcp__okp-mcp__search_portal, mcp__okp-mcp__get_document, mcp__rh-api-mcp__rh_get_errata, mcp__mslearn__microsoft_docs_search, mcp__mslearn__microsoft_docs_fetch, mcp__mslearn__microsoft_code_sample_search, mcp__microsoft-learn__microsoft_docs_search, mcp__microsoft-learn__microsoft_docs_fetch, mcp__microsoft-learn__microsoft_code_sample_search, mcp__slack__search_messages, mcp__slack__search_channel_messages, mcp__slack__get_channel_history, mcp__slack__get_channel_id_by_name, mcp__slack__get_thread, mcp__slack__list_joined_channels, mcp__aws-docs__search_documentation, mcp__aws-docs__read_documentation, mcp__aws-docs__read_sections, mcp__aws-docs__search_table, mcp__aws-docs__recommend, mcp__aws-docs__get_available_services, mcp__awslabs_aws-documentation-mcp-server__search_documentation, mcp__awslabs_aws-documentation-mcp-server__read_documentation, mcp__awslabs_aws-documentation-mcp-server__read_sections, mcp__awslabs_aws-documentation-mcp-server__search_table, mcp__awslabs_aws-documentation-mcp-server__recommend, mcp__awslabs_aws-documentation-mcp-server__get_available_services, mcp__aws-knowledge__search_documentation, mcp__aws-knowledge__read_documentation, mcp__aws-knowledge__list_regions, mcp__aws-knowledge__get_regional_availability, mcp__aws-knowledge__retrieve_skill, mcp__aws-knowledge-mcp-server__search_documentation, mcp__aws-knowledge-mcp-server__read_documentation, mcp__aws-knowledge-mcp-server__list_regions, mcp__aws-knowledge-mcp-server__get_regional_availability, mcp__aws-knowledge-mcp-server__retrieve_skill, mcp__aws-support__describe_support_cases, mcp__aws-support__describe_communications, mcp__aws-support__describe_services, mcp__aws-support__describe_severity_levels, mcp__aws-support__describe_create_case_options, mcp__aws-support__describe_supported_languages, mcp__aws-support__describe_attachment, mcp__awslabs_aws-support-mcp-server__describe_support_cases, mcp__awslabs_aws-support-mcp-server__describe_communications, mcp__awslabs_aws-support-mcp-server__describe_services, mcp__awslabs_aws-support-mcp-server__describe_severity_levels, mcp__awslabs_aws-support-mcp-server__describe_create_case_options, mcp__awslabs_aws-support-mcp-server__describe_supported_languages, mcp__awslabs_aws-support-mcp-server__describe_attachment, mcp__aws-mcp__aws___search_documentation, mcp__aws-mcp__aws___read_documentation, mcp__aws-mcp__aws___retrieve_skill, mcp__plugin_aws-core_aws-mcp__aws___search_documentation, mcp__plugin_aws-core_aws-mcp__aws___read_documentation, mcp__plugin_aws-core_aws-mcp__aws___retrieve_skill
 model: sonnet
 ---
 
@@ -337,6 +337,26 @@ ARO / ROSA versions, SRE responsibility split, cloud quotas / networking
 / IAM, `az aro` / `rosa` CLI behavior) belongs to mslearn / the AWS
 servers. Search both and note where they disagree. Servers that are not
 connected are skipped silently and noted as a Gap.
+
+**Each of these layers is registered under one of two names**, because
+the upstream projects' own install snippets use a longer name than
+JANUS's short one — and your tool list is a fixed enumeration, so the
+tool exists only under the name that is actually registered. Both are
+granted; use whichever appears in your tool list:
+
+| Layer | Short name | Upstream default name |
+|---|---|---|
+| Microsoft Learn | `mcp__mslearn__*` | `mcp__microsoft-learn__*` |
+| AWS docs | `mcp__aws-docs__*` | `mcp__awslabs_aws-documentation-mcp-server__*` |
+| AWS Knowledge | `mcp__aws-knowledge__*` | `mcp__aws-knowledge-mcp-server__*` |
+| AWS Support | `mcp__aws-support__*` | `mcp__awslabs_aws-support-mcp-server__*` |
+| Agent Toolkit for AWS | `mcp__aws-mcp__aws___*` | `mcp__plugin_aws-core_aws-mcp__aws___*` |
+
+The Agent Toolkit proxy prefixes every backend tool with `aws___`, so
+its documentation search is `aws___search_documentation`, never a bare
+`search_documentation`. A layer absent under *both* names is not
+connected: skip it and note the Gap — do not report it as a tool
+failure.
 
 ## Reusable patterns (inlined)
 
