@@ -29,9 +29,15 @@ A dot in a registered name becomes an underscore in the tool name
 - **aws-docs** (`awslabs.aws-documentation-mcp-server`, read-only, no
   credentials): `search_documentation` → `read_documentation` for the full
   page, `recommend` for related pages, `read_sections` for a specific
-  section, `search_table` for one row of a huge table, `get_available_services`.
-  The AWS analogue of okp's public-docs role — use it for one canonical
-  `docs.aws.amazon.com` page.
+  section, `search_table` for one row of a huge table. The AWS analogue of
+  okp's public-docs role — use it for one canonical `docs.aws.amazon.com`
+  page.
+  - **Its tool set depends on the partition it was started with.** All of
+    the above except `read_documentation` are global-partition only; under
+    `AWS_DOCUMENTATION_PARTITION=aws-cn` they are replaced by a single
+    `get_available_services`. Both sets are granted, so a tool missing from
+    your list means the other partition is configured, not that the grant
+    is wrong — work with what is there and record the rest as a Gap.
   - **`search_table` is the right tool for a quota, limit, price or
     supported-X question.** `search_table(url, section_title, query,
     max_rows)` returns matching rows as structured JSON instead of the
