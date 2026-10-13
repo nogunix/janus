@@ -2,6 +2,43 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.30.9 — 2026-10-13
+
+Four lessons promoted out of a single case — a disconnected RHOAI 3.5
+install on OCP 4.20 with an NVIDIA GPU. Each one cost real investigation
+time, and each is a trap a model walks into by default rather than a
+fact it can look up.
+
+- **jira-trace could not reach Red Hat Jira at all, and the fix was one
+  string.** The cloudId is `redhat.atlassian.net`; the
+  `issues.redhat.com` hostname in every ticket URL — including the ones
+  in the agent's own output template — is a redirect, not the site
+  identity. Passing it fails cloudId resolution and with it every
+  Atlassian call. The stage recovered only by reading a prior case's
+  findings for a working value. Now stated at the top of "How you work".
+- **A ticket being visible to the stage does not make it quotable by the
+  report.** A ticket may carry a restricted security level ("Red Hat
+  Employee and Contractors only"), and internal projects embed internal
+  Jenkins/Slack/Google Doc links in otherwise unrestricted tickets.
+  synthesize cannot infer any of this from a key, so jira-trace now
+  records per ticket whether it is publicly linkable — without which a
+  customer-facing deliverable leaks an internal key.
+- **source-trace read an operator's `alm-examples` sample and reported
+  its values as the operator's defaults.** Two conclusions in that case
+  were wrong until the controller source was read: a sample enabling a
+  licensing subsystem the controller gates behind a second, unset field,
+  and a driver path the sample showed as opt-in where it is in fact the
+  operator's non-default. A sample shows what can be set, never what
+  holds when the field is absent. Added to the failure-pattern table.
+- **"Copy the official example" is the wrong move when the official
+  examples copy each other.** Red Hat's RHOAI docs, the official
+  disconnected-install helper repository's example, and that
+  repository's own generator script all emitted the deprecated v1
+  `mirror.openshift.io/v1alpha2` well after `oc-mirror --v2` made
+  `v2alpha1` correct. Three official sources agreeing is one source
+  agreeing. iac-author now pins a lifted config's schema from the tool's
+  current docs and overrides the line regardless of provenance.
+
 ## 0.30.8 — 2026-10-07
 
 - **doc-search could not see Microsoft Learn or the AWS doc servers under

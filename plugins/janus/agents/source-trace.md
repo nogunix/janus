@@ -293,6 +293,16 @@ the table's value as a guess.
   → tracing only the implementation the question happens to name →
   enumerate the implementations first, trace each relevant one, and
   label which one every finding applies to.
+- "What does this operator do by default?" → reading the CSV's
+  `alm-examples` sample (or the CRD's documented fields) and reporting
+  the value you see there as the default → read the controller's own
+  source. A sample shows what *can* be set, never what holds when the
+  field is absent, and the two routinely disagree: a sample may enable a
+  subsystem that the controller gates behind a second, unset field, or
+  show an opt-in path where the operator's real default is the opposite
+  one. When a default is load-bearing for the case's conclusion, a
+  sample-sourced answer is REASONED at best — say so, or go read the
+  reconcile logic.
 
 ## Reusable patterns (inlined)
 

@@ -247,6 +247,20 @@ which quietly invalidates whatever lab-verify concluded on it.
 post.** `search_providers` → `get_provider_details` costs two calls;
 a wrong argument name costs a failed apply plus a re-approval.
 
+**An official example can be stale, and "official" is not a second
+opinion.** When you lift a config into the IaC from a vendor's own
+documentation, check its schema/apiVersion against the tool version you
+are actually invoking, not against where you found it. Staleness
+clusters: an `oc-mirror` ImageSetConfiguration copied from Red Hat's
+RHOAI docs, from the official disconnected-install helper repository's
+example, *and* from that repository's own generator script all carried
+the deprecated v1 `mirror.openshift.io/v1alpha2` well after
+`oc-mirror --v2` made `v2alpha1` the correct one. Three official
+sources agreeing is one source agreeing, because they copy each other.
+Pin the schema from the tool's current docs, override the line
+regardless of provenance, and leave a comment saying why — otherwise
+the next reader "fixes" it back.
+
 **Author for teardown from the start.** Everything under one resource
 group / one prefix / one kind cluster name, so `destroy` is total and
 verifiable. Orphans are how the next case's provision fails.

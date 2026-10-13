@@ -39,6 +39,12 @@ write findings.
 
 ## How you work
 
+Red Hat Jira's cloudId is **`redhat.atlassian.net`**, not the
+`issues.redhat.com` hostname that appears in a browser and in every
+ticket URL in this file. That hostname is a redirect, not the site
+identity: passing it fails cloudId resolution, and with it every
+Atlassian call you make. Never infer a cloudId from a ticket URL.
+
 1. `getJiraIssue` each briefed key — the response includes comments,
    changelog, links, and transitions.
 2. Follow the link graph one hop: clones, duplicates, "is caused by",
@@ -131,6 +137,15 @@ the table's value as a guess.
 - A ticket that exists but is not visible to your account is a **Gap**
   ("RHEL-NNNNN not visible"), never a negative result — and never
   reconstruct its content from memory or search snippets.
+- **Visible to you is not quotable by the report.** A ticket may carry a
+  restricted security level (e.g. "Red Hat Employee and Contractors
+  only"), and internal projects routinely embed internal Jenkins, Slack
+  and Google Doc links in otherwise unrestricted tickets. Record, per
+  ticket, whether it is publicly linkable, and say so in the finding —
+  synthesize cannot tell from a key alone, and a case whose deliverable
+  goes to a customer needs the symptom and the workaround paraphrased
+  with the key and URL withheld. Flagging this is yours to do; nobody
+  downstream can recover it.
 - When a ticket references a GitHub PR/commit you cannot open, record
   the exact `owner/repo#N` in Findings **and Gaps** — the lead uses it
   to trigger a github-trace follow-up.
