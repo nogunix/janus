@@ -277,6 +277,28 @@ def test_urlcheck():
         urlcheck._request = _refused
         status, _ = urlcheck.check("https://nothing.example/x")
         check(status == "unreachable", "a connection refused stays a hard FAIL")
+
+        # A certificate that will not verify is a fact about this machine's
+        # trust store, not about the citation. Classifying it as unreachable
+        # made a run on a CA-less interpreter print "network appears
+        # unavailable" and exit 0 with every URL unchecked — a dead citation
+        # would have sailed through gate C1/url.
+        import ssl
+        def _untrusted(u, m):
+            raise urllib.error.URLError(
+                ssl.SSLCertVerificationError(
+                    1, "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify "
+                       "failed: unable to get local issuer certificate"))
+        urlcheck._request = _untrusted
+        status, _ = urlcheck.check("https://docs.redhat.com/x")
+        check(
+            status == "trust",
+            "a TLS trust failure is its own status, not unreachable",
+        )
+        check(
+            status != "unreachable",
+            "a TLS trust failure never counts as a dead/unreachable citation",
+        )
     finally:
         urlcheck._request = orig
 

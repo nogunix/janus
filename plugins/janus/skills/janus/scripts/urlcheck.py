@@ -22,19 +22,33 @@ Classification:
               returns derived slugs via get_document's Sections block, so
               the anchor may be valid; a reviewer must confirm it matches
               an actual HTML id on the target page
+  notice      TLS certificate verification failed — a defect in the *local*
+              trust store, never evidence about the citation (see below)
 
 Exit 1 on any FAIL — except when *every* URL is unreachable, which
 means the network itself is down (air-gapped installs are normal for
 okp-mcp users): print a notice and exit 0. `gated` URLs never fail the
 run but are reported separately so a reviewer verifies them by hand.
 
+TLS trust is kept strictly separate from liveness. A Python interpreter
+with no CA bundle — the default state of python.org and Homebrew builds
+on macOS — fails *every* https request with CERTIFICATE_VERIFY_FAILED.
+Classifying that as "unreachable" made the run print "network appears
+unavailable" on a machine whose network was fine, turning a check that
+would have caught a dead citation into a silent pass. So: this script
+prefers certifi's bundle when it is importable, and when verification
+still fails it says so in those words and names the fix, rather than
+blaming the network. A trust failure is never a FAIL — it is not
+evidence about the URL — but it is never a clean live either.
+
 Usage: python3 urlcheck.py <file.md> [file.md ...]
-Stdlib-only, like chain.py.
+Stdlib-only (certifi is used when present, never required).
 """
 
 import errno
 import re
 import socket
+import ssl
 import sys
 import urllib.error
 import urllib.parse
@@ -74,10 +88,43 @@ def extract_urls(text):
     return urls
 
 
+def _ssl_context():
+    """Default TLS context, backed by certifi's bundle when importable.
+
+    Several common interpreters ship without a usable CA store (notably
+    python.org and Homebrew builds on macOS, which expect you to run
+    Install Certificates.command). Reaching for certifi first makes the
+    check work out of the box there instead of reporting every https URL
+    as unreachable. Falls back to the stdlib default when certifi is
+    absent — this stays a stdlib-only script that merely takes advantage
+    of certifi if the environment already has it.
+    """
+    try:
+        import certifi
+    except ImportError:
+        return ssl.create_default_context()
+    return ssl.create_default_context(cafile=certifi.where())
+
+
+SSL_CONTEXT = _ssl_context()
+
+
+def _is_tls_trust_failure(exc, reason):
+    """True when the request failed verifying the server certificate.
+
+    This says something about the machine running the check, not about
+    the URL, so it must never be read as a dead or unreachable citation.
+    """
+    if isinstance(exc, ssl.SSLCertVerificationError) or \
+            isinstance(reason, ssl.SSLCertVerificationError):
+        return True
+    return "CERTIFICATE_VERIFY_FAILED" in str(reason)
+
+
 def _request(url, method):
     """Returns (status_code, final_url) after following redirects."""
     req = urllib.request.Request(url, method=method, headers=HEADERS)
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+    with urllib.request.urlopen(req, timeout=TIMEOUT, context=SSL_CONTEXT) as resp:
         return resp.status, resp.geturl()
 
 
@@ -144,6 +191,12 @@ def check(url):
             if isinstance(reason, ConnectionResetError) or \
                     getattr(reason, "errno", None) == errno.ECONNRESET:
                 return ("warn", "connection reset (host live; anti-automation)")
+            # A certificate that will not verify is a fact about this
+            # machine's trust store, not about the citation. Keep it out
+            # of "unreachable" so it can neither fail the run nor be
+            # mistaken for the network being down.
+            if _is_tls_trust_failure(e, reason):
+                return ("trust", str(reason))
             return ("unreachable", str(reason))
     return ("warn", "405 on HEAD and GET")
 
@@ -176,6 +229,20 @@ def main(argv):
               "unavailable; liveness not checked (not counted as failures)")
         return 0
 
+    # Same shape, different cause, and the distinction matters: here the
+    # network is fine and this interpreter simply cannot verify any
+    # certificate. Saying "network appears unavailable" would send the
+    # reader looking in the wrong place while a dead citation sits
+    # unchecked, so name the real cause and the remedy.
+    if all(s == "trust" for s, _ in results):
+        print(f"note: TLS verification failed for all {len(urls)} URLs — this "
+              "interpreter has no usable CA bundle; liveness not checked "
+              "(not counted as failures)")
+        print("note: fix with `pip install certifi` (picked up automatically), "
+              "or point SSL_CERT_FILE at a CA bundle, or on macOS run this "
+              "Python's Install Certificates.command")
+        return 0
+
     failures = gated = 0
     for url, (status, detail) in zip(urls, results):
         if status == "ok":
@@ -188,6 +255,12 @@ def main(argv):
             print(f"warning: {url} ({detail})")
         elif status == "unverified_anchor":
             print(f"unverified-anchor: {url} ({detail}) — verify by hand")
+            gated += 1
+        elif status == "trust":
+            # Not checked, and not checkable from here — count it with the
+            # gated set so it can never be reported as a clean live URL.
+            print(f"trust-unverified: {url} (TLS certificate verification "
+                  "failed on this machine) — liveness not checked")
             gated += 1
         else:
             print(f"FAIL: {url} ({detail})")

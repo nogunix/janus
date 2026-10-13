@@ -288,6 +288,17 @@ support them — do not generate empty sections.
 ## Rules
 
 - Write the file before SendMessage.
+- **Create and change the report with `Write` or `Edit` only — never
+  Bash (`sed`, a heredoc, a python script), however mechanical the
+  change.** `results/` is inside the evidence chain, and the chain
+  seals only Write/Edit: a shell write to the sealed report reads as
+  tampering, fails `chain.py verify`, and stops the case at
+  NEEDS_HUMAN until a human clears it. This bites hardest on exactly
+  the edits that feel too trivial to bother with — a bulk
+  find-and-replace across many links, a whitespace sweep. There is no
+  mechanical-change exemption. If a change is genuinely too repetitive
+  to apply by hand, say so in your completion notice and let the lead
+  decide; do not reach for a script.
 - Every claim must cite a specific reference from a stage's findings.
 - **Make the evidence clickable (C1/link).** A reference is a markdown
   link the reader can follow from the claim straight to the evidence,
@@ -321,18 +332,29 @@ support them — do not generate empty sections.
   resolves in one viewer breaks in another. File-level links always
   resolve; `linkcheck.py` only checks fragments when present.
 
-  If no anchor map was provided in the brief, run:
+  **`anchors.py` is ground truth; the pasted map is a convenience
+  copy of it.** Run the script yourself and reconcile before you rely
+  on the map:
 
   ```bash
   python3 <anchors-script> cases/<id>/findings/
   ```
 
-  where `<anchors-script>` is the path the lead would have used
-  (look for `anchors.py` next to `linkcheck.py` in the skill
-  scripts directory). Falling back to hand-computation is the last
-  resort — use `grep -n '^###' cases/<id>/findings/*.md` and apply
-  the slug rules manually only if both the map and the script are
-  unavailable.
+  where `<anchors-script>` is `anchors.py`, next to `linkcheck.py` in
+  the skill scripts directory. Do this whether or not a map was
+  pasted — it costs one call and it is the only way to know the map
+  is intact. A brief is hand-assembled text that travels through
+  shell pipelines on its way to you, and a truncated or stale
+  fragment looks exactly like a correct one: in one real case a
+  lead's `cut -c1-230` silently clipped fifteen fragments mid-string,
+  and the breakage only surfaced when `linkcheck.py` failed on 29
+  links late in the run. Where the map and the script disagree, the
+  script wins, every time.
+
+  If the script itself is unavailable, say so in your completion
+  notice and fall back to `grep -n '^###' cases/<id>/findings/*.md`
+  with the slug rules applied by hand — the last resort, and worth
+  flagging to the lead rather than doing quietly.
 
   A link to a `.log` needs no fragment.
 

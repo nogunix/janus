@@ -7,7 +7,7 @@ description: >-
   prompts, escalation thresholds, and process changes. Proposes but
   never autonomously applies changes to the skill/agent definitions or
   safety boundaries.
-tools: Read, Write, Bash, Glob, Grep
+tools: Read, Write, Edit, Bash, Glob, Grep
 model: sonnet
 ---
 

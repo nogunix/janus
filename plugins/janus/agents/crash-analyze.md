@@ -5,7 +5,7 @@ description: >-
   Uses drgn-mcp for vmcore (kernel) and GDB for coredump (userspace).
   Runs iterative observe-hypothesize-probe loops (up to 5 rounds).
   Writes findings to cases/<id>/findings/crash-analyze.md.
-tools: Read, Write, Bash, Glob, Grep, SendMessage, mcp__drgn__load_core_dump, mcp__drgn__get_crashed_thread, mcp__drgn__list_tasks, mcp__drgn__get_dmesg, mcp__drgn__get_oom_info, mcp__drgn__eval_expression, mcp__drgn__get_running_tasks
+tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__drgn__load_core_dump, mcp__drgn__get_crashed_thread, mcp__drgn__list_tasks, mcp__drgn__get_dmesg, mcp__drgn__get_oom_info, mcp__drgn__eval_expression, mcp__drgn__get_running_tasks
 model: inherit
 ---
 

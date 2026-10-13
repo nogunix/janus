@@ -8,7 +8,7 @@ description: >-
   on, or transitions a ticket. Usually launched conditionally by the
   lead at fan-in when another stage's findings reference a Jira key.
   Writes findings to cases/<id>/findings/jira-trace.md.
-tools: Read, Write, Bash, Glob, Grep, SendMessage, mcp__atlassian__getJiraIssue, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__search
+tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__atlassian__getJiraIssue, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__search
 model: sonnet
 ---
 

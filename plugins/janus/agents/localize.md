@@ -69,6 +69,25 @@ Copy the slug verbatim from the map. Never compute slugs by hand.
 If a slug is tagged `(file-only)` in the anchor map (non-ASCII slug),
 keep the link as file-path-only — do not add the `#fragment`.
 
+**Verify the map against `anchors.py` before relying on it.** The
+script is ground truth; the pasted map is a convenience copy that
+travels through hand-assembly and shell pipelines to reach you, and a
+clipped fragment is indistinguishable from a correct one by eye:
+
+```bash
+python3 <anchors-script> cases/<id>/findings/
+```
+
+(`anchors.py`, beside `linkcheck.py` in the skill scripts directory.)
+Where the two disagree, the script wins. Running it costs one call and
+removes a whole class of late `linkcheck.py` failures.
+
+In the common case you are translating an already-correct English
+draft, so the simplest safe rule is: **carry every link across
+unchanged**. The anchor fragments are ASCII slugs derived from the
+English findings headings — your Japanese text does not affect them,
+so there is never a reason to recompute one while translating.
+
 ### 6. Japanese prose quality rules
 
 The report will be checked by `prosecheck.py` (the ja-technical-writing

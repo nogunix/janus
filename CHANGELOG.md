@@ -2,6 +2,52 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.31.0 — 2026-10-13
+
+Three defects surfaced by running a long, revision-heavy case to handoff.
+Each one let a control fail quietly rather than loudly, which is the worst
+direction for a control to fail in.
+
+- **`urlcheck.py` reported a broken local trust store as "network appears
+  unavailable", turning gate C1/url into a silent pass.** A Python with no
+  CA bundle — the default state of python.org and Homebrew builds on macOS
+  — fails every https request with `CERTIFICATE_VERIFY_FAILED`. That was
+  classified as `unreachable`, every URL hit it, and the all-unreachable
+  branch printed an offline notice and exited 0 with nothing checked. On
+  the case that found this, re-running with a CA bundle turned "25 URLs
+  unreachable" into 24 live and **one real 404** — a fabricated-looking
+  GitHub permalink that would otherwise have shipped in a customer-facing
+  report. TLS trust is now its own status, never a FAIL (it says nothing
+  about the citation) and never a clean live either; the all-trust notice
+  names the real cause and the fix instead of blaming the network; and the
+  script now prefers certifi's bundle when it is importable, so the common
+  macOS case simply works. Two selftests pin the classification.
+- **Seven agents could Write a findings file but not Edit it.**
+  doc-search, source-trace, github-trace, jira-trace, crash-analyze,
+  self-improver and upstream-adviser all carried `Write` without `Edit`, so
+  a stage asked to correct one `Ref:` line had to rewrite the whole file —
+  in one case 26 KB rewritten to change six lines, with every other line a
+  silent opportunity for drift. `Edit` is strictly weaker than the `Write`
+  these agents already hold, so this was never a safety boundary, only an
+  omission. All eleven agents now have both.
+- **`synthesize.md` did not carry the no-shell-writes rule that
+  `localize.md` does.** `results/` is inside the evidence chain, which
+  seals only Write/Edit; synthesize is the agent that writes there most,
+  and the rule reached it only when a lead happened to paste the stage
+  contract into a brief. A short revision send-back omitted it, synthesize
+  applied a bulk link fix with a python script, and `chain.py verify`
+  correctly reported tampering — costing a human decision to clear. The
+  rule now lives in synthesize's own Rules, stated to cover exactly the
+  mechanical bulk edits that feel too trivial to deserve it.
+
+Also, from the same case: **the anchor map is no longer treated as ground
+truth.** A lead truncated it with `cut -c1-230` while assembling a brief,
+clipping fifteen fragments mid-string; synthesize trusted the map, and the
+breakage surfaced only when `linkcheck.py` failed on 29 links late in the
+run. Both synthesize and localize are now told to run `anchors.py`
+themselves and reconcile — the script wins over the pasted copy, every
+time. The paste stays as a convenience; it is no longer the authority.
+
 ## 0.30.9 — 2026-10-13
 
 Four lessons promoted out of a single case — a disconnected RHOAI 3.5

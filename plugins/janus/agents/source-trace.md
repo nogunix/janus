@@ -10,7 +10,7 @@ description: >-
   dependency, what changed between two releases, and whether a fix is in
   a release's shipped source. Writes findings to
   cases/<id>/findings/source-trace.md.
-tools: Read, Write, Bash, Glob, Grep, SendMessage, mcp__casket__resolve_component, mcp__casket__resolve_repo, mcp__casket__grep, mcp__casket__read_file, mcp__casket__search_symbol, mcp__casket__search_text, mcp__casket__search_refs, mcp__casket__list_versions, mcp__casket__list_components, mcp__casket__list_dir, mcp__casket__diff_file, mcp__casket__permalink, mcp__casket__source_for_image, mcp__casket__find_dependency_users, mcp__casket__release_diff, mcp__casket__rpm_source, mcp__casket__check_patch_shipped, mcp__github__get_commit, mcp__github__pull_request_read
+tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__casket__resolve_component, mcp__casket__resolve_repo, mcp__casket__grep, mcp__casket__read_file, mcp__casket__search_symbol, mcp__casket__search_text, mcp__casket__search_refs, mcp__casket__list_versions, mcp__casket__list_components, mcp__casket__list_dir, mcp__casket__diff_file, mcp__casket__permalink, mcp__casket__source_for_image, mcp__casket__find_dependency_users, mcp__casket__release_diff, mcp__casket__rpm_source, mcp__casket__check_patch_shipped, mcp__github__get_commit, mcp__github__pull_request_read
 model: sonnet
 ---
 
