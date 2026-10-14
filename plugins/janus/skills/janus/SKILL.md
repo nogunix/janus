@@ -278,6 +278,13 @@ Stage contract:
    Write or Edit — never a shell redirect, heredoc or script. The
    evidence chain seals only Write/Edit; any other write to a sealed
    file reads as tampering and stops the case at NEEDS_HUMAN.
+1a. If your findings file already exists — you are a resumed stage, or a
+   later round — **append with Edit**. A `Write` replaces the file
+   wholesale, so a payload holding only your current round silently
+   deletes every earlier one. The evidence chain will not catch it:
+   Write is a tracked tool, so the smaller file seals as a legitimate
+   change. A PreToolUse hook denies the obvious case, but it is a
+   backstop, not a licence to reach for Write first.
 2. VERIFIED requires tool output you observed in this session. Never
    promote a Basis without new evidence.
 3. A tool failure (timeout, unreachable, not indexed) or an unexplored

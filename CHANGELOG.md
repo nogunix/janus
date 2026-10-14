@@ -2,6 +2,47 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.32.0 — 2026-10-14
+
+**The evidence chain cannot see content loss, and a case proved it.** In
+JANUS-024 a resumed iac-author wrote `F160-F167` over a findings file that
+also held `F80-F89` and `F140-F148`, deleting 19 findings the report cited
+in 36 places. `chain.py verify` reported **intact** for the entire time the
+content was gone: `Write` is a tracked tool, so the PostToolUse hook
+dutifully sealed the smaller file as a legitimate change.
+
+Stated precisely, and worth stating because the guarantee is narrower than
+it looks: the chain proves a sealed file has not changed *by means the
+chain cannot see*. It says nothing about whether the contents shrank.
+
+The loss surfaced only because synthesize's `linkcheck` failed on 36
+orphaned citations and it refused to reconstruct another stage's findings
+from memory to make the check pass. It was recovered in full by replaying
+the authoritative tool-call history — the original `Write` plus every
+subsequent `Edit`, in order, no unmatched edits — from the earlier
+sessions' transcripts. Had the stage papered over it instead, the result
+would have been a report validating cleanly over fabricated evidence.
+
+- **New PreToolUse hook, `findings-truncation.py`.** It compares the
+  `### F<N>` findings in a proposed `Write` payload against those already
+  on disk and denies any write that drops one, naming each lost finding.
+  Scope is deliberately narrow: `Edit` is untouched (it cannot truncate a
+  file it does not match), first writes of new files pass, rewriting a
+  finding's body passes, and only losing a finding is refused. Fail-open
+  like the other hooks — a guard that blocks real work when it
+  malfunctions is worse than what it guards against. Five selftests pin
+  the allow/deny boundary.
+- **The stage contract gained clause 1a.** It is copied verbatim into
+  every brief, so the rule reaches every stage: if your findings file
+  already exists, append with `Edit`; a `Write` holding only your current
+  round silently deletes the earlier ones, and the chain will not catch
+  it. The hook is named there as a backstop, not a licence to reach for
+  `Write` first.
+
+Note what v0.31.0 did and did not achieve here. Granting `Edit` to the
+seven stages that had only `Write` made the safe path *available*; it did
+not make the unsafe path *unavailable*. That took a hook.
+
 ## 0.31.0 — 2026-10-13
 
 Three defects surfaced by running a long, revision-heavy case to handoff.

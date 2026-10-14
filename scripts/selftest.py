@@ -81,6 +81,49 @@ def test_chain():
         )
 
 
+def test_findings_truncation_hook():
+    """A Write that drops findings is denied; one that keeps them is not.
+
+    JANUS-024: a resumed stage wrote its own round over a findings file
+    that also held two earlier rounds, deleting 19 findings the report
+    cited. chain.py verify said "intact" throughout — Write is a tracked
+    tool, so the overwrite sealed cleanly. The chain cannot see content
+    loss, so this hook is the only thing that can.
+    """
+    guard = load("findings-truncation", HOOKS)
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "2026-01-01-selftest"
+        (case / "findings").mkdir(parents=True)
+        f = case / "findings" / "iac-author.md"
+        f.write_text("### F80: a\n### F81: b\n### F140: c\n")
+
+        lost = guard.lost_findings(str(f), "### F160: only the new round\n")
+        check(
+            lost == ["F80", "F81", "F140"],
+            "truncating Write is caught, and names every lost finding in order",
+        )
+        check(
+            guard.lost_findings(str(f), "### F80: a\n### F81: b\n"
+                                        "### F140: c\n### F160: d\n") == [],
+            "a Write that preserves every finding and adds one is allowed",
+        )
+        check(
+            guard.lost_findings(str(f), "### F80: reworded\n### F81: b\n"
+                                        "### F140: c\n") == [],
+            "rewriting a finding's body is allowed — only losing one is not",
+        )
+        check(
+            guard.lost_findings(str(case / "findings" / "absent.md"),
+                                "### F1: x\n") == [],
+            "first write of a new findings file is allowed",
+        )
+        check(
+            guard.lost_findings(str(case / "results" / "synthesis.md"),
+                                "no findings here") == [],
+            "non-findings paths are out of scope",
+        )
+
+
 def test_lock():
     chain = load("chain")
     lock_hook = load("evidence-lock", HOOKS)
@@ -824,6 +867,7 @@ def test_findings():
 def main():
     test_chain()
     test_lock()
+    test_findings_truncation_hook()
     test_quotecheck()
     test_urlcheck()
     test_versioncheck()
