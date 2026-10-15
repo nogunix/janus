@@ -124,6 +124,54 @@ def test_findings_truncation_hook():
         )
 
 
+def test_evidence_drift_hook():
+    """A tracked write over out-of-band-drifted evidence is denied.
+
+    The chain seals on every tracked write, so an untracked write
+    followed by a tracked one re-seals the drift as legitimate and
+    `verify` goes back to reporting intact. Whether an out-of-band write
+    is ever noticed then depends on whether anything happens to be
+    written afterwards — which is how JANUS-024's second shell write
+    stayed invisible while its first was caught. This hook checks the
+    one moment the evidence still exists: just before the next tracked
+    write.
+    """
+    chain = load("chain")
+    drift = load("evidence-drift", HOOKS)
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "2026-01-01-selftest"
+        (case / "results").mkdir(parents=True)
+        (case / "findings").mkdir()
+        (case / "case.yaml").write_text("id: selftest\n")
+        report = case / "results" / "synthesis.md"
+        report.write_text("# report\noriginal\n")
+        chain.seal(case)
+
+        check(
+            drift.drift_reason("Edit", str(report)) is None,
+            "a file matching its seal is written without interference",
+        )
+
+        report.write_text("# report\nmutated out of band\n")  # shell write
+        check(
+            drift.drift_reason("Edit", str(report)) is not None,
+            "a tracked write over drifted evidence is denied before it re-seals",
+        )
+
+        chain.seal(case)  # the lead accepts and re-seals
+        check(
+            drift.drift_reason("Edit", str(report)) is None,
+            "writes resume once the lead has re-sealed",
+        )
+
+        fresh = case / "findings" / "fresh.md"
+        fresh.write_text("### F1: x\n")
+        check(
+            drift.drift_reason("Write", str(fresh)) is None,
+            "a file the ledger has never sealed is out of scope",
+        )
+
+
 def test_lock():
     chain = load("chain")
     lock_hook = load("evidence-lock", HOOKS)
@@ -868,6 +916,7 @@ def main():
     test_chain()
     test_lock()
     test_findings_truncation_hook()
+    test_evidence_drift_hook()
     test_quotecheck()
     test_urlcheck()
     test_versioncheck()

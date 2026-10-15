@@ -2,6 +2,67 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.33.0 — 2026-10-15
+
+Closes the last of the three ways JANUS-024 found to slip past the
+evidence chain, and promotes the lessons two live AWS lab runs produced.
+
+- **An out-of-band write was only ever caught by accident.** The chain
+  seals on every tracked write, so a shell redirect followed by an
+  `Edit` gets re-sealed as legitimate and `chain.py verify` goes back to
+  reporting intact. JANUS-024 hit this twice: the first shell write
+  happened to be the last write to that file, so `verify` caught it and
+  the case stopped for a human; the second was followed by dozens of
+  `Edit` calls, `verify` reported intact throughout, and the only reason
+  anyone knew was that the agent reported itself. Whether tampering is
+  noticed should not depend on whether anything is written afterwards.
+
+  New PreToolUse hook `evidence-drift.py` checks the one moment at which
+  the evidence still exists — immediately before a tracked write, while
+  the drifted content is on disk and the ledger still holds the
+  pre-drift hash. If they disagree the write is denied, with
+  instructions to report it to the lead rather than retry. Files the
+  ledger has never sealed are out of scope, so fresh findings files and
+  unsealed `audit/` logs pass untouched. Fail-open, like its neighbours.
+  Four selftests pin the boundary, including the exact JANUS-024
+  sequence.
+
+  With `findings-truncation.py` (0.32.0), all three observed gaps are
+  now closed: shell-write-then-nothing (caught by `verify` already),
+  `Write`-truncation, and shell-write-then-tracked-write.
+
+- **iac-author: three patterns from fixes that made things worse.** In
+  one round, three fixes each introduced a worse defect than the one
+  they repaired, and every one passed `terraform validate` and
+  `ansible-lint` at the production profile:
+  - *A fix you cannot run is a hypothesis.* The agent's entire output is
+    code authored against a system it may not execute. Label fixes
+    REASONED unless something was run, and where a fix targets a path
+    the lab will not exercise, consider not writing it and recording a
+    Gap — an unexercised fix for an unexercised path is the same gamble
+    again.
+  - *A config key can have more than one consumer.* `MAXIMUM_LAYER_SIZE:
+    "50Gi"` parses cleanly in Quay's Python unit library and is rejected
+    outright by the nginx config the same key is interpolated into,
+    whose size grammar has no `i` suffix. The registry never served.
+    Proving the value parses was true and insufficient.
+  - *A suppressed linter finding is a claim you are making.* The role
+    split that silently no-opped an entire install phase was flagged
+    correctly by `ansible-lint` and suppressed by a `# noqa` whose
+    comment asserted the precise opposite of the truth. If you cannot
+    write down why the tool is wrong in a checkable way, it is probably
+    right.
+
+- **lab-verify: status is not evidence, in either direction.** A GPU
+  Operator `ClusterPolicy.status.state` read `notReady` while the GPU
+  was demonstrably working, and the same operator is documented to leave
+  status healthy while silently falling back to a different driver path.
+  Gate on the artifact — a DaemonSet's actual image reference, a digest
+  matching the mirrored payload, an allocatable resource, a workload
+  that ran. Also added: verify a teardown by enumerating resource
+  classes, not by `destroy`'s exit code, which can succeed while leaving
+  billable resources behind.
+
 ## 0.32.0 — 2026-10-14
 
 **The evidence chain cannot see content loss, and a case proved it.** In

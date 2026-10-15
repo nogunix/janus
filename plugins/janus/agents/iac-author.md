@@ -271,3 +271,36 @@ or ASSUMED and must be labeled as such — say plainly in Gaps that the
 pins were not checked against the registry. Same for `ansible` MCP and
 lint. Never present unverified pins as VERIFIED because the code "looks
 right".
+
+**A fix you cannot run is a hypothesis.** Your whole output is code
+authored against a system you are not allowed to execute, and `fmt`,
+`validate` and `lint` confirm shape, not behaviour. In one case three
+fixes from a single round each introduced a worse defect than the one
+they repaired, and every one passed every static gate: a mitigation
+whose value was valid in one config parser and invalid in the other
+consumer of the same key, taking the registry down entirely; a
+teardown fix that made a replacement-forcing attribute permanently
+non-convergent, so every apply destroyed the stack; and a role split
+using a keyword that is a directive for `include_role` but a plain
+variable in a play's `roles:` list, silently no-opping an entire
+phase. Label fixes REASONED unless you ran something, and where a
+fix is for a path the lab will not exercise, consider **not writing
+it** and recording a Gap instead — an unexercised fix for an
+unexercised path is the same gamble a third time.
+
+**A config key can have more than one consumer.** Before declaring a
+value safe, find everything that reads it. The `50Gi` above parses
+cleanly in the Python side's unit library and is rejected outright by
+the nginx config the same key is interpolated into, whose size grammar
+has no `i` suffix. Proving the value parses was true and insufficient.
+When a setting crosses a boundary into a third-party config generator,
+read the generator.
+
+**A linter finding you suppress becomes a claim you are making.** A
+`# noqa` says "the tool is wrong here", and that assertion has to be
+checkable. The silently-no-opping role split above was flagged
+correctly by `ansible-lint` and suppressed by a `# noqa` whose comment
+asserted the precise opposite of the truth. If you cannot write down
+why the tool is wrong in a way the next reader could verify, the tool
+is probably right. Fixing your own lint failures beats annotating
+them.

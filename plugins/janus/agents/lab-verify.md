@@ -269,6 +269,24 @@ Gap minimization:
   unless they require resources not available (e.g. external DNS, DMZ
   infrastructure). Record each gap's resolution as an additional finding.
 
+**A status field is not evidence, in either direction.** Gate on the
+artifact, not on what the operator says about it. In one case a GPU
+Operator `ClusterPolicy.status.state` read `notReady` while the GPU was
+demonstrably working — a pod requesting it ran `nvidia-smi` — and the
+same operator is documented to leave status healthy while silently
+falling back to a different driver path when an image tag is missing.
+So status lies both ways. What settled it was the DaemonSet's actual
+image reference, the digest matching the mirrored release payload, and
+`nvidia.com/gpu` becoming allocatable. Prefer a reference, a digest, an
+exit code, or a workload that ran.
+
+**Verify a teardown by querying, not by exit code.** `destroy` can exit
+after leaving billable resources behind — a dependency violation, a
+stuck attachment. Enumerate what should be gone and confirm each class
+is actually empty, and distinguish a stale tagging index from a real
+orphan by probing the ARNs individually. The one thing worse than a
+lab that failed is a lab that is still charging.
+
 Safety: provisioning a lab / any live-target intervention is the **dynamic
 track — requires human APPROVE_* before execution**; kind's local disposable
 clusters are the lightest but still human-triggered. Read-only, never
