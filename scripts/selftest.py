@@ -124,6 +124,51 @@ def test_findings_truncation_hook():
         )
 
 
+def test_retire():
+    """A sealed file that is intentionally removed can be retired, not deleted.
+
+    Without this there is no legitimate way to remove a sealed path, so
+    an accidentally-sealed scratch file leaves a permanent `verify`
+    FAIL — and a gate that always fails stops being read. Retirement is
+    an append, never an edit: the history stays complete.
+    """
+    chain = load("chain")
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "2026-01-01-selftest"
+        (case / "findings").mkdir(parents=True)
+        (case / "case.yaml").write_text("id: selftest\n")
+        scratch = case / "findings" / "scratch.md"
+        scratch.write_text("temporary\n")
+        chain.seal(case)
+
+        scratch.unlink()
+        problems, _ = chain.verify(case)
+        check(
+            any("sealed file missing" in p for p in problems),
+            "a sealed file that vanishes is a problem before it is retired",
+        )
+
+        check(
+            chain.retire(case, ["findings/scratch.md"], reason="scratch") ==
+            ["findings/scratch.md"],
+            "retire records the removal of a sealed, now-absent file",
+        )
+        problems, _ = chain.verify(case)
+        check(not problems, "verify is clean once the removal is recorded")
+
+        kept = case / "findings" / "doc-search.md"
+        kept.write_text("### F1: x\n")
+        chain.seal(case)
+        check(
+            chain.retire(case, ["findings/doc-search.md"]) == [],
+            "a file still on disk is never retired",
+        )
+        check(
+            chain.retire(case, ["findings/never-sealed.md"]) == [],
+            "a path the ledger never sealed is not retirable",
+        )
+
+
 def test_evidence_drift_hook():
     """A tracked write over out-of-band-drifted evidence is denied.
 
@@ -917,6 +962,7 @@ def main():
     test_lock()
     test_findings_truncation_hook()
     test_evidence_drift_hook()
+    test_retire()
     test_quotecheck()
     test_urlcheck()
     test_versioncheck()

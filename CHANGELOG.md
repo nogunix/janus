@@ -2,6 +2,31 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.34.0 — 2026-10-15
+
+**There was no legitimate way to remove a sealed file.** `verify` treats a
+sealed path that no longer exists as a problem, and rightly — evidence does
+not just vanish. But the honest case exists: a stage creates a scratch file
+inside `findings/`, the PostToolUse hook seals it before anyone can object,
+the stage deletes it, and the case now carries a permanent FAIL. Deleting
+the ledger record would be the actual tamper, so the only options were to
+live with a gate that always fails or to falsify the record. A check that
+always fails stops being read, which is the worse of the two.
+
+`chain.py retire <case-dir> <file> [--reason '...']` resolves it the way an
+append-only ledger should: by appending. The record names the path, the
+actor, and why it was removed, and `verify` then treats the absence as
+recorded rather than unexplained. It refuses to retire a file still on disk
+or a path never sealed, so it cannot be used to drop live evidence, and the
+mandatory reason field is there so a reader can judge the removal instead
+of taking it on trust. Six selftests cover the boundary.
+
+This came out of JANUS-024's third shell-write incident, where a stage with
+no `Edit` in its toolset and `Write` refused outright by the permission
+classifier had no compliant way to add a finding at all. It used a
+non-destructive shell append via a scratch file — disclosed, content
+intact — and left behind a sealed path pointing at nothing.
+
 ## 0.33.0 — 2026-10-15
 
 Closes the last of the three ways JANUS-024 found to slip past the

@@ -136,6 +136,68 @@ def seal(case_dir, paths=None, actor="lead"):
     return sealed
 
 
+def retire(case_dir, paths, actor="lead", reason=""):
+    """Append a retirement record for a sealed file that is intentionally gone.
+
+    A sealed file that no longer exists is a `verify` problem, and
+    rightly so — evidence does not just vanish. But there is a
+    legitimate case: a file sealed by accident, most often a scratch
+    file a stage created inside `findings/` where the PostToolUse hook
+    sealed it before anyone could object. Without a way to record the
+    removal, that case leaves a permanent FAIL and the gate stops
+    distinguishing real tampering from a known housekeeping artefact —
+    which is how a check stops being read.
+
+    Deleting the record would be the actual tamper. The ledger is
+    append-only, so retirement is an *append*: a record saying this path
+    was deliberately removed, by whom, and why. The history stays
+    complete and `verify` stops reporting the absence as a problem.
+
+    Retirement is not a way to drop inconvenient evidence. The record
+    names a reason precisely so a reader can judge that for themselves.
+    """
+    case_dir = Path(case_dir).resolve()
+    chain_path = case_dir / CHAIN_NAME
+    retired = []
+    with open(chain_path, "a+", encoding="utf-8") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        f.seek(0)
+        records = _parse(f.readlines())
+        known = {r["file"] for r in records}
+        prev = records[-1]["entry"] if records else GENESIS
+        seq = len(records)
+        for raw in paths:
+            target = Path(raw)
+            if target.is_absolute():
+                try:
+                    rel = str(target.resolve().relative_to(case_dir))
+                except ValueError:
+                    continue
+            else:
+                rel = str(target)
+            if rel not in known:
+                continue  # never sealed — nothing to retire
+            if (case_dir / rel).is_file():
+                continue  # still on disk — retire is for removed files only
+            rec = {
+                "seq": seq,
+                "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "actor": actor,
+                "file": rel,
+                "sha256": None,
+                "retired": True,
+                "reason": reason or "intentionally removed",
+                "prev": prev,
+            }
+            rec["entry"] = _record_hash(rec)
+            f.write(json.dumps(rec, sort_keys=True) + "\n")
+            prev = rec["entry"]
+            seq += 1
+            retired.append(rel)
+        f.flush()
+    return retired
+
+
 def _case_files(case_dir, paths, globs):
     """Resolve paths (or globs) to (path, rel) pairs inside the case dir."""
     case_dir = Path(case_dir).resolve()
@@ -204,9 +266,15 @@ def verify(case_dir):
         if rec.get("entry") != _record_hash(rec):
             problems.append(f"entry {i}: entry hash mismatch (record edited)")
         prev = rec.get("entry", "")
-        latest[rec.get("file", "?")] = rec.get("sha256", "")
+        # A retirement record supersedes the file's last seal: the path was
+        # deliberately removed and its absence is recorded, not unexplained.
+        latest[rec.get("file", "?")] = (
+            None if rec.get("retired") else rec.get("sha256", "")
+        )
 
     for rel in sorted(latest):
+        if latest[rel] is None:
+            continue  # retired — see the ledger record for who and why
         path = case_dir / rel
         if not path.is_file():
             problems.append(f"sealed file missing: {rel}")
@@ -221,11 +289,12 @@ def verify(case_dir):
 
 
 def main(argv):
-    if len(argv) < 3 or argv[1] not in ("seal", "verify", "lock", "unlock"):
+    if len(argv) < 3 or argv[1] not in ("seal", "verify", "lock", "unlock", "retire"):
         print(__doc__.strip().splitlines()[0])
         print(
             "usage: chain.py seal|lock|unlock <case-dir> [file ...] "
-            "| chain.py verify <case-dir>"
+            "| chain.py verify <case-dir> "
+            "| chain.py retire <case-dir> <file> [--reason '...']"
         )
         return 2
     cmd, case_dir = argv[1], Path(argv[2])
@@ -239,6 +308,21 @@ def main(argv):
                 print(f"sealed: {rel}")
             if not sealed:
                 print("chain up to date — nothing new to seal")
+            return 0
+        if cmd == "retire":
+            args, reason = list(argv[3:]), ""
+            if "--reason" in args:
+                i = args.index("--reason")
+                reason = args[i + 1] if i + 1 < len(args) else ""
+                del args[i:i + 2]
+            if not args:
+                print("error: retire needs at least one file")
+                return 2
+            gone = retire(case_dir, args, reason=reason)
+            for rel in gone:
+                print(f"retired: {rel}")
+            if not gone:
+                print("nothing to retire — paths are unsealed or still on disk")
             return 0
         if cmd in ("lock", "unlock"):
             changed = (lock if cmd == "lock" else unlock)(case_dir, argv[3:] or None)
