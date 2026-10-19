@@ -276,6 +276,7 @@ plugins/janus/
   skills/janus/scripts/gates.py      # runs the seven step-7 checks, prints only non-passes
   skills/janus/scripts/caselint.py   # case.yaml vocabulary check, run at intake
   skills/janus/scripts/reportlint.py # report structure + recomputed counts (C2/section, C1/basis)
+  skills/janus/scripts/sendback.py   # send-back ledger + the stopping rule (round cap, repeats)
   skills/janus/scripts/findings.py   # findings format lint + fan-in digest for the lead
   skills/janus/scripts/chain.py      # per-case evidence hash ledger (seal/verify/lock)
   skills/janus/scripts/urlcheck.py   # reference-URL liveness check (backs gate C1/url)
@@ -716,6 +717,38 @@ that does not exist. Like linkcheck it **never fails open** — every
 input is a local file. What stays with the human reader is what only a
 reader can see: whether a filled cell actually says anything, and
 whether a claim leans on a finding it never cites.
+
+**Convergence — `scripts/sendback.py`.** The failure mode that only
+appears once both sides are agents: the lead names a defect, synthesize
+revises, the lead reads again and finds the next one. Each round is
+locally reasonable and the loop has no natural end. JANUS had half a
+brake — *the same sub-code twice is a NEEDS_HUMAN* — and it leaked
+twice over. Distinct sub-codes could cycle indefinitely (`C1/url`, then
+`C2/quote-mismatch`, then `C1/basis`, each failing exactly once), and
+the rule lived in the lead's memory, which a session restart or a
+context compaction erases.
+
+Now every send-back is recorded, and the stopping rule is computed from
+the ledger instead of recalled:
+
+```
+$ python3 scripts/sendback.py record cases/<id> C1/url
+  round 1  2026-10-19T09:17:40Z  C1/url
+  round 2  2026-10-19T09:21:02Z  C2/quote-mismatch, C2/section
+  round 3  2026-10-19T09:44:55Z  C1/url
+ESCALATE: C1/url sent back in rounds 1, 3 — the revision did not take
+ESCALATE: stop the loop: write review-queue/NEEDS_HUMAN_<id>.md noting both versions
+```
+
+Three verdicts, and the exit code with them: `OK` (targeted revision),
+`RECONSIDER` at the third round (ask synthesize to reconsider how the
+report is built rather than patch more lines — patching is what got
+here), and `ESCALATE` on a repeat or at the cap. Send-backs also name
+the *class* of defect rather than only the quoted line, so the next
+round is not the second instance of a problem the agent already
+understood. The round count lands in the report's Execution Metadata,
+where `reportlint.py` checks it against the ledger — making
+rounds-to-pass a number self-improver can track across cases.
 
 **Case configuration — `scripts/caselint.py`.** The only check that
 runs *before* the work, because `case.yaml` is the one file whose wrong

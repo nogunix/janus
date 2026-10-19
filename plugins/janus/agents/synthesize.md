@@ -135,6 +135,14 @@ missing key. A findings file with no `model:` key is recorded as
 provenance was not captured. Append your own model as
 `synthesize=<model>` so the report says what wrote it.
 
+**Review rounds** is 0 when you first write the report, and goes up by
+one every time you are sent back. The lead records each send-back in
+`cases/<id>/audit/sendbacks.jsonl`, and `reportlint.py` checks your
+number against it — so in Revision mode, incrementing this row is part
+of the revision, not an afterthought. It is the convergence signal: a
+report that took four rounds is a report whose process needs looking
+at, and that is only visible if the number is true.
+
 **Execution Metadata and Stages Used are recomputed, not read.**
 `reportlint.py` derives the Total findings and Evidence basis tallies,
 each stage's status, and each stage's finding count from
@@ -165,6 +173,7 @@ estimate, and never carry a count forward from an earlier draft.
 | Models used | <stage>=<model>, … , synthesize=<your own model> |
 | Total findings | HIGH: N, MEDIUM: M, LOW: L |
 | Evidence basis | VERIFIED: N, REASONED: M, ASSUMED: L |
+| Review rounds | N (0 on the first write; +1 for each send-back) |
 | Gaps | <unavailable stages/tools> |
 
 ## Objectives Assessment
@@ -538,6 +547,18 @@ NEEDS_HUMAN.
    line or block. Leave every section the send-back did not name
    untouched; a revision that rewrites a passing section reopens gates
    it already closed.
+2a. **Fix the class, not only the quoted line.** A send-back quotes one
+   or two examples; it is not a complete list, and treating it as one is
+   what turns a revision into a series of them. If the brief quotes a
+   dead URL, re-check every URL of that kind. If it quotes one
+   hypothesis whose Basis does not carry its rank, check the others. The
+   three checks you run yourself (above) are how you find the rest
+   cheaply — run them before reporting the revision complete, as you
+   would on a first write. A round spent on the second instance of a
+   defect you already understood is the most expensive kind.
+2b. **Increment `Review rounds`** in Execution Metadata. The lead's
+   ledger has already recorded this send-back; `reportlint.py` compares
+   your number against it.
 3. A fix that cannot stay local — a hypothesis whose rank changes
    because its Basis drops — may touch every place that hypothesis
    appears (Executive Summary, Hypotheses, Objectives Assessment), and

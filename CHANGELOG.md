@@ -2,6 +2,59 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.38.0 — 2026-10-19
+
+**Review has to converge, and the rule that stops it cannot live in the
+lead's memory.** An agent reviewer and an agent author can keep each
+other busy indefinitely: the lead names a defect, synthesize revises,
+the lead reads again and finds the next one. Every round is locally
+reasonable, and the loop has no natural end — the Claude Code team
+[measured one pull request through fifty rounds
+overnight](https://claude.dev/blog/solving-code-review-at-anthropic/),
+and found most of what later rounds flagged had been there since the
+first pass.
+
+JANUS had half a brake — *the same sub-code twice is a NEEDS_HUMAN* —
+and it leaked in two ways. Distinct sub-codes could cycle forever
+(`C1/url`, then `C2/quote-mismatch`, then `C1/basis`, each failing
+exactly once, forever under a rule that only counts repeats). And the
+count lived in the lead's context, which a session restart or a
+compaction erases — after which the honest answer to "which round is
+this?" was a guess, and guesses run low.
+
+**`scripts/sendback.py`** (new) records each send-back in
+`cases/<id>/audit/sendbacks.jsonl`, seals it into the evidence chain,
+and computes the verdict from the ledger:
+
+- `OK` — targeted revision.
+- `RECONSIDER` at round 3, the last allowed: ask synthesize to step back
+  and reconsider how the report is built rather than patch the quoted
+  lines, since patching is what got here.
+- `ESCALATE` (exit 1) on a sub-code recorded twice or past the cap —
+  stop and write `NEEDS_HUMAN_<id>.md`. The handoff says which of the
+  two it was: a repeat means the revision instruction was not
+  actionable, a cap means the report needed rebuilding, and those want
+  different fixes from self-improver.
+
+Sub-codes are validated against the gate vocabulary, because a typo
+would read as a new defect and defeat the one check this file exists to
+make.
+
+Two changes ride with it:
+
+- **Send-backs name the class, not just the line.** The quoted line is
+  an example; saying so in the brief is what keeps the next round from
+  being the second instance of a defect the agent already understood.
+  synthesize's Revision mode gains the matching rule — fix the class,
+  then rerun the self-checks before reporting the revision complete.
+- **`Review rounds` joins Execution Metadata**, and `reportlint.py`
+  checks it against the ledger (FAIL on a mismatch; a count with no
+  ledger behind it only warns, since absence of the mechanism is
+  indistinguishable from a case that never needed it). Rounds-to-pass
+  is the convergence signal, and it is worth only as much as its
+  accuracy — so it is now a recomputed number like the rest of that
+  table.
+
 ## 0.37.0 — 2026-10-19
 
 **The author runs the check first.** Every stage lints its own findings

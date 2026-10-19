@@ -41,7 +41,8 @@ is not a clean pass; `caselint.py` runs at intake, before any stage):
 ```bash
 python3 plugins/janus/skills/janus/scripts/caselint.py cases/<id>
 python3 plugins/janus/skills/janus/scripts/gates.py cases/<id> [--skip urlcheck] [--verbose]
-python3 plugins/janus/skills/janus/scripts/reportlint.py cases/<id>
+python3 plugins/janus/skills/janus/scripts/reportlint.py cases/<id> [report.md]
+python3 plugins/janus/skills/janus/scripts/sendback.py record|status cases/<id> [sub-code ...]
 python3 plugins/janus/skills/janus/scripts/findings.py lint|digest cases/<id>
 python3 plugins/janus/skills/janus/scripts/chain.py verify cases/<id>
 python3 plugins/janus/skills/janus/scripts/chain.py seal|lock|unlock cases/<id> [file ...]
@@ -124,9 +125,20 @@ accidentally removing load-bearing discipline:
   evidence. A HIGH-confidence hypothesis needs a VERIFIED finding behind it.
 - **Two judgment gates at handoff** — C1 GROUNDING and C2 COMPLETENESS &
   FIDELITY. Failures go back to synthesize by *sub-code* (`C1/basis`,
-  `C1/url`, `C2/quote-absent`, `C2/version`, …); the same sub-code failing
-  twice escalates to NEEDS_HUMAN. Sub-codes carry the diagnostic
-  granularity of the seven gates they replaced in 0.17.0 — keep them named.
+  `C1/url`, `C2/quote-absent`, `C2/version`, …). Sub-codes carry the
+  diagnostic granularity of the seven gates they replaced in 0.17.0 —
+  keep them named.
+- **The review loop has to converge.** An agent reviewer and an agent
+  author can keep each other busy indefinitely, so `sendback.py` records
+  every send-back in `cases/<id>/audit/sendbacks.jsonl` and computes the
+  stopping rule from the ledger rather than the lead's memory: a
+  sub-code recorded twice, or a cap of three rounds, is NEEDS_HUMAN. The
+  round count lands in the report's Execution Metadata, where
+  `reportlint.py` checks it against the ledger.
+- **The author checks first.** Each stage lints its own findings file;
+  synthesize runs reportlint/linkcheck/quotecheck on the report it
+  wrote, localize adds prosecheck. The lead's step-7 run checks the
+  sealed state and catches a stage that skipped its own.
 - **Seven mechanical pre-checks** back those gates: `chain.py` (append-only
   hash ledger making edits visible, plus `lock` freezing the fact base at
   fan-in), `reportlint.py` (the report against its own template and

@@ -20,7 +20,8 @@ numbers that can be derived from the findings — how many HIGH findings
 there are, how many VERIFIED, which model ran each stage, how many
 findings each stage produced. Derived numbers are checkable numbers, and
 until now nothing checked them: a miscount in the one table a reader
-uses to size up the investigation was invisible.
+uses to size up the investigation was invisible. `Review rounds` is
+checked the same way, against `audit/sendbacks.jsonl`.
 
 **The rank rule (C1/basis, C1/ref).** SKILL.md: a HIGH hypothesis needs
 at least one VERIFIED finding, or two REASONED findings from different
@@ -75,6 +76,7 @@ METRICS = (
     "models used",
     "total findings",
     "evidence basis",
+    "review rounds",
     "gaps",
 )
 OBJECTIVE_STATUSES = ("achieved", "partial", "not achieved")
@@ -242,7 +244,51 @@ def check_cells(lines, secs, problems):
                         )
 
 
-def check_metadata(lines, secs, index, files, problems, warnings):
+def ledger_rounds(case_dir):
+    """Send-backs recorded for this case, or None when no ledger exists.
+    Read through sendback.py so the two never disagree about the format."""
+    if not (Path(case_dir) / "audit" / "sendbacks.jsonl").is_file():
+        return None
+    try:
+        return len(_load("sendback").read(case_dir))
+    except Exception:  # noqa: BLE001 — an unreadable ledger is not a report defect
+        return None
+
+
+def check_rounds(metrics, ledger, problems, warnings):
+    """`Review rounds` against the ledger the lead actually wrote.
+
+    The number is the convergence signal — how many times this report
+    was sent back before it passed — so it is worth exactly as much as
+    its accuracy. With a ledger on disk it is checkable; without one,
+    absence of the mechanism is indistinguishable from a case that
+    never needed it, so a claim it cannot back only warns."""
+    key = norm("review rounds")
+    if key not in metrics:
+        return
+    stated = re.search(r"\d+", metrics[key][0])
+    if not stated:
+        problems.append(
+            "C2/section: Execution Metadata `review rounds` states no number "
+            "— write 0 for a report that passed on the first read"
+        )
+        return
+    stated = int(stated.group())
+    if ledger is None:
+        if stated:
+            warnings.append(
+                f"Execution Metadata claims {stated} review round(s) but "
+                "audit/sendbacks.jsonl does not exist — nothing backs the "
+                "number (record send-backs with sendback.py)"
+            )
+    elif stated != ledger:
+        problems.append(
+            f"C2/section: Execution Metadata says {stated} review round(s), "
+            f"audit/sendbacks.jsonl records {ledger}"
+        )
+
+
+def check_metadata(lines, secs, index, files, ledger, problems, warnings):
     hit = find_section(secs, "Execution Metadata")
     if hit is None:
         return
@@ -318,6 +364,8 @@ def check_metadata(lines, secs, index, files, problems, warnings):
                 "C2/section: Execution Metadata `models used` has no "
                 "`synthesize=<model>` — the report does not say what wrote it"
             )
+
+    check_rounds(metrics, ledger, problems, warnings)
 
 
 def check_stages_used(lines, secs, files, problems, warnings):
@@ -512,7 +560,8 @@ def run(case_dir, report=None):
     secs = sections(lines)
     check_sections(secs, mode, case, problems)
     check_cells(lines, secs, problems)
-    check_metadata(lines, secs, index, files, problems, warnings)
+    check_metadata(lines, secs, index, files, ledger_rounds(case_dir),
+                   problems, warnings)
     check_stages_used(lines, secs, files, problems, warnings)
     check_objectives(lines, secs, case, problems)
     check_artifacts(lines, secs, mode, problems)

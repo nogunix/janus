@@ -1039,6 +1039,7 @@ RL_REPORT = """# Investigation Report — 2026-01-01-rl
 | Models used | doc-search=sonnet-x, crash-analyze=opus-x, synthesize=sonnet-x |
 | Total findings | HIGH: 1, MEDIUM: 1, LOW: 1 |
 | Evidence basis | VERIFIED: 1, REASONED: 2, ASSUMED: 0 |
+| Review rounds | 0 |
 | Gaps | lab-verify not approved |
 
 ## Objectives Assessment
@@ -1183,6 +1184,31 @@ def test_reportlint():
     check(any("states no Confidence" in p for p in problems),
           "reportlint: a hypothesis with no Confidence is a FAIL")
 
+    # --- review rounds against the send-back ledger
+    problems, warnings = problems_for(RL_REPORT.replace("| Review rounds | 0 |",
+                                                        "| Review rounds | 2 |"))
+    check(not problems and any("nothing backs the number" in w for w in warnings),
+          "reportlint: rounds with no ledger warns, never FAILs")
+
+    with tempfile.TemporaryDirectory() as td:
+        case = rl_case(td, RL_REPORT.replace("| Review rounds | 0 |",
+                                             "| Review rounds | 1 |"))
+        (case / "audit").mkdir()
+        (case / "audit" / "sendbacks.jsonl").write_text(
+            '{"round": 1, "at": "2026-01-01T00:00:00Z", "codes": ["C1/url"]}\n')
+        problems, warnings = rl.run(case)
+        check(not problems, "reportlint: rounds matching the ledger is clean")
+        (case / "audit" / "sendbacks.jsonl").write_text(
+            '{"round": 1, "codes": ["C1/url"]}\n{"round": 2, "codes": ["C2/section"]}\n')
+        problems, _ = rl.run(case)
+        check(any("says 1 review round(s), audit/sendbacks.jsonl records 2" in p
+                  for p in problems),
+              "reportlint: a rounds count the ledger contradicts is a FAIL")
+
+    problems, _ = problems_for(RL_REPORT.replace("| Review rounds | 0 |", "| Review rounds | none |"))
+    check(any("states no number" in p for p in problems),
+          "reportlint: a non-numeric rounds cell is a FAIL")
+
     # --- warnings
     _, warnings = problems_for(RL_REPORT.replace("| find the cause | Achieved | F1, F2 |",
                                                  "| find the cause | Achieved | F1 |"))
@@ -1213,6 +1239,60 @@ def test_reportlint():
         with contextlib.redirect_stdout(buf):
             rc = rl.main(["reportlint.py", str(case)])
         check(rc == 2, "reportlint: a missing report is an error, not a FAIL")
+
+
+def test_sendback():
+    sb = load("sendback")
+
+    def rounds(*per_round):
+        return [{"round": n, "codes": list(c)} for n, c in enumerate(per_round, 1)]
+
+    check(sb.verdict(rounds(("C1/url",)))[0] == "OK",
+          "sendback: one round is a targeted revision")
+    check(sb.verdict(rounds(("C1/url",), ("C2/section",)))[0] == "OK",
+          "sendback: two distinct sub-codes still converge")
+    status, lines = sb.verdict(rounds(("C1/url",), ("C2/section",), ("C1/basis",)))
+    check(status == "RECONSIDER" and any("step back" in l for l in lines),
+          "sendback: the third round asks for a rethink, not another patch")
+    status, lines = sb.verdict(rounds(("C1/url",), ("C2/section",), ("C1/url",)))
+    check(status == "ESCALATE" and any("rounds 1, 3" in l for l in lines),
+          "sendback: a repeated sub-code escalates wherever it repeats")
+    four = rounds(("C1/url",), ("C2/section",), ("C1/basis",), ("C2/prose",))
+    check(sb.verdict(four)[0] == "ESCALATE" and not sb.repeated(four),
+          "sendback: four distinct rounds hit the cap — the gap the old rule left")
+
+    import contextlib, io
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "2026-01-01-sb"
+        case.mkdir(parents=True)
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = sb.main(["sendback.py", "status", str(case)])
+        check(rc == 0 and "no send-backs recorded" in buf.getvalue(),
+              "sendback: an unused ledger reads as the first look, not an error")
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = sb.main(["sendback.py", "record", str(case), "C1/url"])
+        check(rc == 0 and (case / "audit" / "sendbacks.jsonl").is_file(),
+              "sendback: record creates audit/ and the ledger")
+        check((case / "chain.jsonl").is_file(),
+              "sendback: the ledger is sealed, so chain verify does not call it unsealed")
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = sb.main(["sendback.py", "record", str(case), "C1/url"])
+        check(rc == 1 and "ESCALATE" in buf.getvalue(),
+              "sendback: a repeat exits 1 so the loop cannot be continued by habit")
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = sb.main(["sendback.py", "record", str(case), "C1/typo"])
+        check(rc == 2 and "not a gate sub-code" in buf.getvalue(),
+              "sendback: an unknown sub-code is rejected — a typo would read as new")
+
+        check(len(sb.read(case)) == 2, "sendback: the rejected round was not recorded")
 
 
 def test_gates():
@@ -1353,6 +1433,7 @@ def main():
     test_linkcheck()
     test_caselint()
     test_reportlint()
+    test_sendback()
     test_anchors()
     test_prosecheck()
     test_gates()

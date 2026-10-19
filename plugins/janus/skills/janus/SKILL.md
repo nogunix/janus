@@ -550,11 +550,37 @@ lead's read of the report into two passes.
 | **C1 — GROUNDING** | Is every claim anchored to evidence at the right strength? | `C1/ref` — a claim with no reference; a cited finding number that no findings file defines is caught mechanically by reportlint.py · `C1/url` — a resolvable-pattern ID (CVE/RHSA/KB/PR) with no public URL; dead URLs are caught mechanically by urlcheck.py · `C1/link` — a claim whose evidence the reader cannot click through to: a bare filename where a link belongs, or a local link that linkcheck.py proved resolves to no file or no anchor · `C1/basis` — a HIGH hypothesis without ≥1 VERIFIED or 2+ independent REASONED findings from different stages, or an unlabeled citation. reportlint.py does this arithmetic over the findings a hypothesis *cites*, so the read is for the rest: a claim leaning on evidence it never cites, or a Basis promoted in the retelling · `C1/spec` — an unsupported "likely / probably / should" claim · `C1/currency` — a recommended configuration, feature, flag, or API with no lifecycle check against the target version, so the report may prescribe a setting that is deprecated / removed / superseded in that release; send back to doc-search to confirm against official release notes and lifecycle docs · `C1/source-of-truth` — a load-bearing source-content claim (what the code does, that a fix or behavior is present) resting only on a GitHub URL while a `casket` server is connected: a live URL is not an accurate one, so the own-server source index must corroborate it; send back to source-trace, or downgrade and label the claim upstream-only |
 | **C2 — COMPLETENESS & FIDELITY** | Is the report structurally complete, and are identifiers and quotes reproduced exactly? | `C2/section` — a cell that is filled but says nothing. reportlint.py already catches the empty one, the leftover `<placeholder>`, the missing section, and any Execution Metadata or Stages Used figure that contradicts the findings it was derived from · `C2/artifact` — a paraphrased concrete identifier (file, resource, symbol, version) · `C2/quote-absent` — an evidence-backed report with no attributed verbatim quotes; mutated quotes and fabricated attributions are caught mechanically by quotecheck.py and sent back as `C2/quote-mismatch` · `C2/version` — a fact attributed to the wrong product version: an unpinned source citation (FAIL) or a crossed / off-scope version that versioncheck.py flagged and the read confirms · `C2/prose` — a `report_language: ja` report whose prose fails the ja-technical-writing checks prosecheck.py runs (mixed である/ですます, over-long sentences, 4+ 読点, 半角ｶﾀｶﾅ). Style only: never send back under C2/prose for hedging — 「〜の可能性がある」 on a LOW-confidence hypothesis is correct writing, not weak writing |
 
+**Record every send-back before you write the brief.**
+
+```bash
+python3 <skill-dir>/scripts/sendback.py record cases/<id> <sub-code> [<sub-code> ...]
+```
+
+It appends the round to `cases/<id>/audit/sendbacks.jsonl`, seals it,
+and prints the verdict — `OK` (targeted revision), `RECONSIDER` (the
+last allowed round) or `ESCALATE` (exit 1: stop, write
+`NEEDS_HUMAN_<id>.md`). **Obey the verdict; do not re-derive it.** It
+is computed from the ledger on disk, which outlives this session: after
+a restart or a context compaction you no longer know which round you
+are on, and `sendback.py status cases/<id>` is how you find out rather
+than guessing low. Two things end the loop — a sub-code recorded twice
+(the revision did not take, and a third try at the same defect is not
+better odds) and a cap of three rounds.
+
 **Send-backs are targeted revisions, not reruns.** The brief names the
 report path, each sub-code, and the quoted offending line(s), and says
 *revise in place* — synthesize then edits only those spots (its
 Revision mode) instead of re-reading every finding and regenerating the
-report. Route by where the defect lives:
+report.
+
+**Name the class, not just the line.** The quoted line is an example,
+and saying so in the brief is what keeps the next round from being the
+second instance of the same defect: "this URL is dead — re-check every
+errata URL", not "fix line 84". The expensive failure mode here is not
+a missed defect, it is a loop where each round fixes one instance of
+something the agent already understood.
+
+Route by where the defect lives:
 
 - `report_language: en` → synthesize, on `results/synthesis.md`.
 - `report_language: ja`, `C2/prose` → localize directly, on
@@ -568,8 +594,15 @@ After a revision, rerun just the checks that failed, then `gates.py`
 once more before handoff.
 
 Both gates pass → `review-queue/DONE_<id>.md`
-The same sub-code fails twice on one report → stop the loop:
-`review-queue/NEEDS_HUMAN_<id>.md` with both versions noted.
+
+`sendback.py` says ESCALATE → stop the loop:
+`review-queue/NEEDS_HUMAN_<id>.md`, quoting the ledger and both
+versions of the offending text. This happens on a repeated sub-code or
+at the round cap, and in both cases the signal is the same: more rounds
+are not converging on a better report. Record in the handoff which it
+was — a repeat says the revision instruction was not actionable, a cap
+says the report needed rebuilding rather than patching, and the two
+want different fixes from self-improver.
 
 ### What the lead does NOT do
 
