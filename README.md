@@ -641,6 +641,17 @@ Stdlib-only scripts turn "trust the report" into "check the report."
 Seven run at handoff, and a failure sends the report back rather than
 shipping it; one runs at intake, on the file that configures the work.
 
+**Most of them run twice, and the first run is the author's own.** Each
+stage lints its findings file before reporting complete; synthesize runs
+`reportlint`, `linkcheck` and `quotecheck` on the report it just wrote,
+and localize adds `prosecheck` to its translation. The lead's run at
+handoff checks the sealed state and catches a stage that skipped its
+own — but by then most defects are already gone. A check an author can
+run is worth more than a check that only grades them, because the
+alternative is a send-back round: the lead re-reads, writes a brief, the
+agent re-reads the report, and the case waits on a defect its author
+could have seen in one command.
+
 **Evidence chain — `scripts/chain.py`.** Each case carries an
 append-only hash ledger, `cases/<id>/chain.jsonl`. Every record holds
 the sha256 of one evidence file plus the previous record's hash — the

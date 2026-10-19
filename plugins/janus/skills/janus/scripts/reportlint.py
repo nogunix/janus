@@ -43,7 +43,9 @@ hand, warn where absence is mechanically indistinguishable from a
 legitimate choice. There is no fail-open path — like linkcheck.py, every
 input is local.
 
-Usage: python3 reportlint.py cases/<id>
+Usage: python3 reportlint.py cases/<id> [report.md]
+The report defaults to `results/synthesis.md`; synthesize passes
+`results/synthesis-en.md` when it checks its own draft on a ja case.
 Stdlib-only, offline, like chain.py.
 """
 
@@ -488,11 +490,13 @@ def check_orphans(lines, index, warnings):
         )
 
 
-def run(case_dir):
-    """Returns (problems, warnings). case_dir holds case.yaml, findings/
-    and results/synthesis.md."""
+def run(case_dir, report=None):
+    """Returns (problems, warnings). case_dir holds case.yaml and
+    findings/; report defaults to results/synthesis.md and is given
+    explicitly when synthesize checks its own English draft
+    (results/synthesis-en.md) before handing it to the lead."""
     case_dir = Path(case_dir)
-    report = case_dir / "results" / "synthesis.md"
+    report = Path(report) if report else case_dir / "results" / "synthesis.md"
     lines = strip_code(report.read_text(encoding="utf-8"))
     case_yaml = case_dir / "case.yaml"
     case = (
@@ -519,16 +523,16 @@ def run(case_dir):
 
 
 def main(argv):
-    if len(argv) != 2:
-        print("usage: reportlint.py cases/<id>")
+    if len(argv) not in (2, 3):
+        print("usage: reportlint.py cases/<id> [report.md]")
         return 2
     case_dir = Path(argv[1])
-    report = case_dir / "results" / "synthesis.md"
+    report = Path(argv[2]) if len(argv) == 3 else case_dir / "results" / "synthesis.md"
     if not report.is_file():
         print(f"error: no report at {report}")
         return 2
 
-    problems, warnings = run(case_dir)
+    problems, warnings = run(case_dir, report)
     for w in warnings:
         print(f"warning: {w}")
     for p in problems:

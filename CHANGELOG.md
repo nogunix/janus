@@ -2,6 +2,50 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.37.0 — 2026-10-19
+
+**The author runs the check first.** Every stage lints its own findings
+file before reporting complete — and the report, the one artifact the
+whole pipeline exists to produce, was leaving unchecked. synthesize
+wrote it and handed it over; the lead discovered the defects at step 7
+and spent a send-back round on each: re-read the report, write a brief
+naming sub-codes and quoting lines, wait for the agent to re-read it all
+and revise. Every one of those rounds was spent on something the author
+could have seen in one command.
+
+So synthesize now runs `reportlint.py`, `linkcheck.py` and
+`quotecheck.py` on the report it just wrote, fixes every FAIL, and only
+then sends its completion notice. localize does the same on its
+translation and adds `prosecheck.py` — the check whose entire subject is
+its own output, and the one that cost a whole-report rewrite in 0.35.1.
+The lead's run at handoff is unchanged: it checks the *sealed* state,
+and a stage that skipped its self-check is exactly what it now catches.
+
+Three constraints go with the self-check, because a check an author can
+run is also a check an author can game:
+
+- Fix with `Write`/`Edit`, never a shell command — the evidence chain
+  seals only those, and a batch of mechanical link fixes is precisely
+  the case that tempts a script.
+- **Fix the report to match the evidence, never the other way round.** A
+  quote that is not verbatim is corrected, not deleted; a link that
+  resolves to nothing is pointed at the real anchor, not unlinked.
+  Making a check stop complaining is not the same as making the report
+  true.
+- A check the agent cannot satisfy is a completion-notice item, not a
+  silent omission. `urlcheck.py` (network), `versioncheck.py` and
+  `prosecheck.py` (material synthesize may not change — the locked
+  findings, and localize's translation) stay with the lead by design.
+
+Supporting changes: `reportlint.py` takes an optional report path
+(`reportlint.py cases/<id> [report.md]`) so synthesize can check
+`results/synthesis-en.md` on a ja case, where the default
+`results/synthesis.md` does not exist yet; SKILL.md steps 6 and 6a put
+`<skill-dir>` in both briefs, without which neither agent can run
+anything; and step 7 says plainly that a sub-code which keeps surviving
+the self-check is a prompt to fix at the source via
+`review-queue/IMPROVE_*`, not another send-back.
+
 ## 0.36.0 — 2026-10-19
 
 **A number the report derives from the findings is a number the findings

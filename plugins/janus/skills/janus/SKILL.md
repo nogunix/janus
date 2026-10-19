@@ -442,6 +442,13 @@ tagged `(file-only)` — synthesize must link to the file path alone
 for those headings because non-ASCII slug generation is
 renderer-dependent.
 
+**Put `<skill-dir>` (the absolute path) in the brief.** synthesize runs
+`reportlint.py`, `linkcheck.py` and `quotecheck.py` on its own report
+before it reports complete — the same self-check every stage does with
+`findings.py lint`, and the reason most reports should reach step 7
+already clean. Without the path it cannot, and the defects come back to
+you as send-back rounds instead.
+
 Instruct synthesize to read all of `findings/*.md` and write the
 report. **Synthesize always writes in English:**
 
@@ -461,6 +468,9 @@ its brief:
 
 1. The case directory path
 2. The same **Anchor Map** from step 6 (or regenerate it)
+3. `<skill-dir>` (the absolute path) — localize runs `prosecheck.py`,
+   `linkcheck.py`, `quotecheck.py` and `reportlint.py` on its own
+   translation before reporting complete, and cannot without it
 
 That is the whole brief. **Do not restate the Japanese prose rules in it
 — above all, do not specify a prose style.** Style is set by
@@ -497,6 +507,18 @@ standalone CLIs; rerun one directly (scripts live in
 every line. On any WARN or NOTICE, read `references/quality-gates.md`
 before judging it — it holds each check's full behaviour and the **Fail
 direction** table (what each check does when it cannot decide).
+
+**Three of these should already be clean.** synthesize runs
+`reportlint.py`, `linkcheck.py` and `quotecheck.py` on its own report
+before reporting complete, and localize adds `prosecheck.py` on the
+translation. Running them again here is not redundant — you are
+checking the sealed state, and a stage that skipped its self-check is
+exactly what this catches — but a FAIL in one of the four is a signal
+about the stage, not only about the report. Treat a repeated one as
+something to fix at the source: if the same sub-code keeps surviving
+the self-check across cases, the agent prompt or the check's message is
+what needs the edit, and that belongs in a `review-queue/IMPROVE_*`
+for self-improver, not in another send-back.
 
 | # | Command | FAIL → |
 |---|---|---|

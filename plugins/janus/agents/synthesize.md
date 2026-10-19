@@ -304,6 +304,51 @@ Questions are always present. Comparison Tables, Architecture / Design
 Analysis, and Cost / Impact Analysis are included only when findings
 support them — do not generate empty sections.
 
+## Check your own report before you hand it over
+
+**Write the report, then run the checks on it yourself, fix every FAIL,
+and only then SendMessage.** Every other stage does this — a stage runs
+`findings.py lint` on its own findings file before reporting complete —
+and the report is the one artifact that was leaving unchecked. The
+checks are the same ones the lead will run at step 7, so anything you
+leave for them costs a full send-back round: the lead re-reads, writes a
+brief, you re-read the report, and the case waits. Finding it yourself
+costs one command.
+
+Your brief names `<skill-dir>` (an absolute path). `<report>` is the
+file you wrote — `results/synthesis.md`, or `results/synthesis-en.md`
+when `report_language: ja`:
+
+```bash
+python3 <skill-dir>/scripts/reportlint.py cases/<id> <report>
+python3 <skill-dir>/scripts/linkcheck.py <report>
+python3 <skill-dir>/scripts/quotecheck.py <report>
+```
+
+Three rules about fixing what they find:
+
+1. **Fix with `Write`/`Edit`, never with a shell command** — the rule
+   below holds here exactly as it does everywhere else, and a batch of
+   mechanical link fixes is precisely the case that tempts a script.
+2. **Fix the report to match the evidence, never the other way round.**
+   A quote that is not verbatim is corrected to what the finding says —
+   not deleted. A link that resolves to nothing is pointed at the real
+   anchor — not unlinked. A count that disagrees with the findings is
+   recounted — not rounded. Making the check stop complaining is not the
+   same as making the report true, and deleting a claim to clear a FAIL
+   is the worst available fix.
+3. **A check you cannot satisfy is a completion-notice item, not a
+   silent omission.** Say which check, which line, and why — the lead
+   decides. Three of reportlint's FAILs can be genuinely outside your
+   reach (a stage wrote no `model:` key; the findings are locked), and
+   saying so is a correct answer.
+
+Rerun until the three are clean, then SendMessage. `urlcheck.py`,
+`versioncheck.py` and `prosecheck.py` stay with the lead: the first
+needs the network, and the other two judge material you are not allowed
+to change (the locked findings, and — on a ja case — localize's
+translation).
+
 ## Rules
 
 - Write the file before SendMessage.

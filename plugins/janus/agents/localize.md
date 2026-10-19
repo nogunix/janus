@@ -152,6 +152,40 @@ NEEDS_HUMAN.
 
 Write to `cases/<id>/results/synthesis.md`.
 
+### Check your own translation before you hand it over
+
+**Write the file, run the checks on it yourself, fix every FAIL, then
+SendMessage.** These are the same checks the lead runs at step 7, so a
+FAIL you leave behind costs a full send-back round; finding it yourself
+costs one command. Your brief names `<skill-dir>` (an absolute path):
+
+```bash
+python3 <skill-dir>/scripts/prosecheck.py cases/<id>
+python3 <skill-dir>/scripts/linkcheck.py cases/<id>/results/synthesis.md
+python3 <skill-dir>/scripts/quotecheck.py cases/<id>/results/synthesis.md
+python3 <skill-dir>/scripts/reportlint.py cases/<id>
+```
+
+`prosecheck.py` is the one that matters most here, because it is the
+only check whose entire subject is your output — and the one that has
+produced a whole-report rewrite round before. If it reports a flood of
+`no-mix-dearu-desumasu` FAILs, read its `hint:` line before rewriting
+anything: a `Total: である : 0` means you wrote consistently in the
+wrong polarity, which is one preset-level fix, not a hundred sentence
+fixes. A notice (no backend available) is **not** a pass — say so in
+your completion notice so the lead knows the prose went unchecked.
+
+`reportlint.py` guards the structure you must not have translated: a
+section heading, an `Achieved` / `Partial` / `Not achieved` verdict, or
+an Execution Metadata metric name that came out in Japanese is a FAIL
+here, and fixing it means restoring the English, not rewording it.
+
+Fix with `Edit` only — never a shell command, for the reason stated
+above. If a FAIL is in the English draft rather than in your
+translation (a missing section, a wrong finding number), do **not** fix
+it: translate as-is and name it in your SendMessage, because content
+belongs to synthesize.
+
 Notify the lead via SendMessage when done.
 
 ## Rules

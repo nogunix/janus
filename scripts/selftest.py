@@ -1196,6 +1196,18 @@ def test_reportlint():
         with contextlib.redirect_stdout(buf):
             rc = rl.main(["reportlint.py", str(case)])
         check(rc == 0 and "OK:" in buf.getvalue(), "reportlint: a clean report exits 0")
+
+        # synthesize self-checks the English draft before localize exists.
+        draft = case / "results" / "synthesis-en.md"
+        draft.write_text((case / "results" / "synthesis.md").read_text())
+        (case / "results" / "synthesis.md").unlink()
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = rl.main(["reportlint.py", str(case), str(draft)])
+        check(rc == 0 and "synthesis-en.md" in buf.getvalue(),
+              "reportlint: an explicit report path checks the ja draft")
+        (case / "results" / "synthesis.md").write_text(draft.read_text())
+        draft.unlink()
         (case / "results" / "synthesis.md").unlink()
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
