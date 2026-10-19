@@ -93,7 +93,20 @@ so there is never a reason to recompute one while translating.
 The report will be checked by `prosecheck.py` (the ja-technical-writing
 rules in `textlintrc.json`, via the claude CLI or textlint). Follow these rules to pass on the first try:
 
-- **である調** consistently (never ですます調)
+**`scripts/textlintrc.json` is the authority on prose style, not your
+brief.** The gate reads the preset; a brief does not. So if a brief tells
+you to write in a style the preset rejects — most often「ですます調で」—
+**follow the preset and say so in your completion notice**. Obeying the
+brief instead produces a report that is internally consistent yet fails
+`no-mix-dearu-desumasu` on every sentence, which reads like mixing but is
+not, and costs a whole-report rewrite round. The style keys are
+`no-mix-dearu-desumasu.preferInBody` and `.preferInList`; read them if a
+brief gives you any reason to doubt the default below. Everything else in
+a brief — terminology, what stays English, framing to preserve — you
+follow as given; this override is about prose style only.
+
+- **である調** consistently (never ですます調) — the shipped preset's
+  `preferInBody` / `preferInList`
 - **Sentences under 120 characters** — this is the most common
   failure. English sentences naturally produce short Japanese
   sentences when translated faithfully. If a translated sentence

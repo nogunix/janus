@@ -2,6 +2,46 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.35.1 — 2026-10-19
+
+**A brief that names a prose style can only be redundant or wrong.**
+A lead composing the localize brief wrote "use ですます調" — reasonable-looking
+for a report whose reader is a customer, and flatly contrary to
+`scripts/textlintrc.json`, whose `no-mix-dearu-desumasu.preferInBody` /
+`.preferInList` are `である`. localize already said である調 twice in its own
+prompt; the brief overrode it, and the result was 92 prosecheck FAILs, 84 of
+them the same rule, and a whole-report rewrite round.
+
+The diagnosis was the expensive part. `no-mix-dearu-desumasu` reports every
+sentence in the non-preferred style as its own violation, so a report written
+*consistently* in the wrong polarity is indistinguishable at a glance from one
+that genuinely mixes the two — which is what the gate is actually there to
+catch. The tell was buried in each message: `Total: である : 0`. Nothing was
+mixed.
+
+Three changes, at the three places the mistake could have been stopped:
+
+- **SKILL.md step 6a** now states that the two listed items are the whole
+  brief, and that it must not name a prose style — with the failure mode
+  spelled out, so the rule reads as a consequence rather than a prohibition.
+- **`agents/localize.md`** makes `textlintrc.json` authoritative over the
+  brief on style: a brief contradicting the preset is followed on everything
+  else and overridden here, with the conflict reported back. The agent being
+  right and obeying anyway is the gap this closes.
+- **`prosecheck.py`** prints a `hint:` line — above the FAIL flood, not under
+  it — whenever the violation totals show zero occurrences of the preferred
+  form, naming the polarity, the preset keys, and the brief as the thing to
+  check before ordering a rewrite.
+
+Also, from the same case: **`agents/source-trace.md`** gains item 1c, the
+layered-product version-key trap. `resolve_component` keys off the *OCP*
+release owning the mount, so a `b-operand` product asked for by its own
+version (RHACS 4.11, CNV 4.17, ACM 2.13) resolves to nothing while its source
+sits indexed under `sources-layered-ocp4.NN`. The stage is told to re-resolve
+with an OCP version, sweep the mounts rather than stop at the first hit, and
+report *which* product versions each holds — "casket has 4.9.2 and 4.11.2, not
+4.6 or 4.10" is what lets the lead aim a github-trace follow-up at the gap.
+
 ## 0.35.0 — 2026-10-15
 
 **A citation that lands on a 300-section page has not really cited

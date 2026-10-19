@@ -319,6 +319,39 @@ def run(case_dir):
     return problems, warnings, []
 
 
+def style_polarity_hint(problems):
+    """Tell a genuinely mixed report apart from a consistent one in the
+    wrong polarity.
+
+    textlint flags every sentence of the non-preferred style as its own
+    violation, so a report written wholly in the style the preset does
+    not want produces dozens of `no-mix-dearu-desumasu` FAILs that read
+    like mixing. The tell is the running total the rule prints: zero
+    occurrences of the preferred form means nothing is mixed — the
+    writing and the preset simply disagree, and the fix is one style
+    conversion, not a hunt for stray sentences.
+
+    Returns a hint string, or None when the totals do not say this.
+    """
+    mixed = [p for p in problems if "no-mix-dearu-desumasu" in p]
+    for problem in mixed:
+        match = re.search(r"Total:\s*(である|ですます)\s*:\s*0(?!\d)", problem)
+        if not match:
+            continue
+        absent = match.group(1)
+        present = "ですます" if absent == "である" else "である"
+        return (
+            f"{len(mixed)} of these are no-mix-dearu-desumasu with "
+            f"'{absent}' at zero — the report is internally consistent in "
+            f"{present}調, not mixed. That is the opposite polarity to "
+            "textlintrc.json's no-mix-dearu-desumasu.preferInBody / "
+            ".preferInList. Before sending back a whole-report rewrite, "
+            "check the localize brief for a style instruction contradicting "
+            "the preset (SKILL.md step 6a: the brief must not name a style)."
+        )
+    return None
+
+
 def main(argv):
     if len(argv) != 2:
         print("usage: prosecheck.py cases/<id>")
@@ -333,6 +366,12 @@ def main(argv):
         print(f"notice: {n}")
     for w in warnings:
         print(f"warning: {w}")
+    # Before the FAIL flood, not after it: the polarity case produces
+    # dozens of lines, and a hint printed under all of them is a hint
+    # nobody reads.
+    hint = style_polarity_hint(problems)
+    if hint:
+        print(f"hint: {hint}")
     for p in problems:
         print(f"FAIL: {p}")
 

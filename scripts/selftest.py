@@ -758,6 +758,47 @@ def test_prosecheck():
                 "both backends absent degrades to an actionable notice",
             )
 
+        # The polarity hint: textlint reports each sentence in the
+        # non-preferred style separately, so a report written wholly in the
+        # wrong style looks like a mixed one. The totals are what tell them
+        # apart, and the hint must fire on exactly that shape and no other.
+        wrong_polarity = (
+            'synthesis.md:34:252 [ja-technical-writing/no-mix-dearu-desumasu] '
+            '本文: "である"調 でなければなりません => "ですます"調 の箇所が'
+            'あります: "ます。" Total: である : 0 ですます: 46'
+        )
+        hint = prose.style_polarity_hint([wrong_polarity, wrong_polarity])
+        check(
+            hint is not None and "ですます調" in hint and "2 of these" in hint,
+            "zero of the preferred form is reported as a polarity mismatch",
+        )
+        check(
+            "preferInBody" in hint,
+            "the hint names the preset key the reader has to go look at",
+        )
+        check(
+            prose.style_polarity_hint(
+                [wrong_polarity.replace("である : 0", "である : 12")]
+            )
+            is None,
+            "a genuinely mixed report gets no polarity hint",
+        )
+        check(
+            prose.style_polarity_hint(
+                [wrong_polarity.replace("である : 0", "である : 03")]
+            )
+            is None,
+            "a zero that is only a leading digit does not trigger the hint",
+        )
+        check(
+            prose.style_polarity_hint(
+                ["x [ja-technical-writing/sentence-length] too long"]
+            )
+            is None
+            and prose.style_polarity_hint([]) is None,
+            "non-style failures and an empty list produce no hint",
+        )
+
         # Regression: bad textlint commands must fail open to a notice.
         # Pin Sonnet to None so the textlint fallback path is exercised
         # regardless of whether claude is installed in this environment.

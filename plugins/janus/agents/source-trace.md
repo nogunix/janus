@@ -79,6 +79,27 @@ below and say so in Gaps.
    fork `openshift/spiffe-spire` — not upstream `spiffe/spire`. Reporting the
    wrapper's contents as the whole of the component is a false negative.
 
+1c. **The version argument is an OCP version, never the layered product's
+   own.** `resolve_component` / `resolve_repo` key off the OCP release that
+   owns the mount, so asking for a `b-operand` product by its *product*
+   version — RHACS 4.11, CNV 4.17, ACM 2.13 — resolves to nothing even
+   though the source is indexed. A layered product ships inside
+   `sources-layered-ocp4.NN`, and the same product version is usually
+   mirrored across several OCP mounts while a *different* one sits in
+   another, so the first mount you try is not the whole answer. Before
+   recording "not in casket":
+   - Re-run the resolve with an **OCP** version (`4.20`, `4.19`, …), not
+     the product's.
+   - Sweep the OCP mounts rather than stopping at the first hit, and
+     report which product versions each one actually holds — "casket has
+     4.9.2 and 4.11.2, not 4.6 or 4.10" is a far more useful finding than
+     "RHACS is indexed", and it tells the lead exactly which gaps a
+     github-trace follow-up must fill.
+   Worked example: RHACS/StackRox is absent for every RHACS version
+   string, but `stackrox/stackrox` and `stackrox/collector` resolve under
+   `b-operand`, product `acs`, inside the `sources-layered-ocp4.14`
+   through `4.22` mounts — holding exactly two RHACS releases between them.
+
 2. Use `list_versions` to confirm availability — and enumerate ALL casket
    phases/mounts where the component (or its counterparts in other layers)
    exists, not just the first match. Casket phase ids (2026-07-11 naming):

@@ -448,6 +448,17 @@ its brief:
 1. The case directory path
 2. The same **Anchor Map** from step 6 (or regenerate it)
 
+That is the whole brief. **Do not restate the Japanese prose rules in it
+— above all, do not specify a prose style.** Style is set by
+`scripts/textlintrc.json` (`no-mix-dearu-desumasu.preferInBody` /
+`.preferInList`, である by default), the agent already matches it, and
+`prosecheck.py` gates on it. A brief that names a style can only agree
+with the preset, in which case it is noise, or contradict it, in which
+case the report comes back internally consistent but failing
+`no-mix-dearu-desumasu` on every sentence — dozens of FAILs that look
+like mixing and cost a whole-report rewrite. The same goes for sentence
+length, 読点 limits and joshi: the agent carries them.
+
 localize reads `synthesis-en.md`, translates prose to Japanese, applies
 the anchor map to all evidence links, and writes `results/synthesis.md`.
 
