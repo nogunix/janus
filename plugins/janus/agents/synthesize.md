@@ -72,6 +72,16 @@ A hypothesis supported only by ASSUMED-basis findings cannot rank above
 LOW, no matter how many stages repeat it — repetition of an assumption
 is not convergence.
 
+This rule is checked mechanically. `reportlint.py` collects every
+`F<N>` inside a hypothesis block, looks up each one's Basis in the
+findings file that defines it, and FAILs the report under `C1/basis`
+when the cited bases do not carry the stated confidence — and under
+`C1/ref` when a cited number exists in no findings file. Two
+consequences for how you write: **cite every finding a hypothesis rests
+on inside that hypothesis's own block** (evidence mentioned only in a
+neighbouring section does not count toward its rank), and never invent
+a finding number to fill an evidence line.
+
 For each: title, confidence, supporting evidence (with refs), counter-evidence,
 recommended action if true.
 
@@ -124,6 +134,15 @@ missing key. A findings file with no `model:` key is recorded as
 `C2/section` send-back, while `unrecorded` is the honest answer that the
 provenance was not captured. Append your own model as
 `synthesize=<model>` so the report says what wrote it.
+
+**Execution Metadata and Stages Used are recomputed, not read.**
+`reportlint.py` derives the Total findings and Evidence basis tallies,
+each stage's status, and each stage's finding count from
+`findings/*.md`, and FAILs the report under `C2/section` where your
+figures disagree. It compares each `<stage>=<model>` pair against that
+file's own `model:` key, so a plausible-looking value you supplied
+yourself is a FAIL, not a gap-filler. Count from the files; never
+estimate, and never carry a count forward from an earlier draft.
 
 ### Artifact-mode template
 

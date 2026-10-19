@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Run the six step-7 pre-checks in one call and print only what needs reading.
+"""Run the seven step-7 pre-checks in one call and print only what needs reading.
 
     python3 gates.py cases/<id> [--skip NAME ...] [--verbose]
 
 Each check stays a standalone CLI; this is a runner, not a replacement.
-It exists for the lead's context budget: six separate calls print every
+It exists for the lead's context budget: seven separate calls print every
 live URL and every intact seal, while the gate decision only needs the
 lines that are not a clean pass. So per check it prints one status line,
 then — unless the check passed cleanly — its non-`OK:` lines.
@@ -33,9 +33,12 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 # (name, script, argument kind) — step-7 order: chain first, since a
-# tampered evidence base makes every later answer moot.
+# tampered evidence base makes every later answer moot, then reportlint,
+# since a report missing a section or miscounting its own findings makes
+# the citation-level checks premature.
 CHECKS = [
     ("chain", "chain.py", "verify"),
+    ("reportlint", "reportlint.py", "case"),
     ("urlcheck", "urlcheck.py", "report"),
     ("quotecheck", "quotecheck.py", "report"),
     ("versioncheck", "versioncheck.py", "case"),
@@ -111,8 +114,20 @@ def main(argv):
     for name, script, kind in CHECKS:
         if name in skip:
             status, lines = "SKIP", ["skipped by --skip"]
-        elif name == "prosecheck" and report_language(case_dir) != "ja":
-            status, lines = "SKIP", ["report_language is not ja"]
+        elif name == "prosecheck" and (lang := report_language(case_dir)) != "ja":
+            # A value that is neither `en` nor `ja` is not a case the prose
+            # check declines — it is a case nobody composed. localize runs on
+            # anything that is not `en`, so the report is translated and the
+            # gate would be skipped with a line that reads like an English
+            # case. That is an input defect, and it is caselint.py's answer.
+            if lang is None or lang == "en":
+                status, lines = "SKIP", [f"report_language is {lang or 'undeclared'}"]
+            else:
+                status, lines = "ERROR", [
+                    f"report_language `{lang}` is neither en nor ja — localize "
+                    "translates the report, prosecheck does not check it; run "
+                    "caselint.py on the case"
+                ]
         else:
             rc, lines = run_check(script, kind, case_dir)
             status = classify(rc, lines)

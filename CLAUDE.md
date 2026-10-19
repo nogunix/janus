@@ -35,11 +35,13 @@ m.test_chain(); print('failures:', m.failures)
 ```
 
 The integrity scripts are also CLIs, run against a case directory
-(`gates.py` runs all six step-7 checks in one call and prints only what
-is not a clean pass):
+(`gates.py` runs all seven step-7 checks in one call and prints only what
+is not a clean pass; `caselint.py` runs at intake, before any stage):
 
 ```bash
+python3 plugins/janus/skills/janus/scripts/caselint.py cases/<id>
 python3 plugins/janus/skills/janus/scripts/gates.py cases/<id> [--skip urlcheck] [--verbose]
+python3 plugins/janus/skills/janus/scripts/reportlint.py cases/<id>
 python3 plugins/janus/skills/janus/scripts/findings.py lint|digest cases/<id>
 python3 plugins/janus/skills/janus/scripts/chain.py verify cases/<id>
 python3 plugins/janus/skills/janus/scripts/chain.py seal|lock|unlock cases/<id> [file ...]
@@ -125,15 +127,22 @@ accidentally removing load-bearing discipline:
   `C1/url`, `C2/quote-absent`, `C2/version`, …); the same sub-code failing
   twice escalates to NEEDS_HUMAN. Sub-codes carry the diagnostic
   granularity of the seven gates they replaced in 0.17.0 — keep them named.
-- **Six mechanical pre-checks** back those gates: `chain.py` (append-only
+- **Seven mechanical pre-checks** back those gates: `chain.py` (append-only
   hash ledger making edits visible, plus `lock` freezing the fact base at
-  fan-in), `quotecheck.py` (report quotes must appear verbatim in the
+  fan-in), `reportlint.py` (the report against its own template and
+  against the findings — sections, cells, and every figure that can be
+  recomputed: the confidence/basis tallies, the per-stage `model:` keys,
+  the Stages Used counts, and the rank rule over each hypothesis's cited
+  findings), `quotecheck.py` (report quotes must appear verbatim in the
   finding they cite), `urlcheck.py` (dead citations), `versioncheck.py`
   (version-provenance drift), `linkcheck.py` (every local evidence link in
   the report resolves to a real file and anchor — the offline counterpart
   to urlcheck), and `prosecheck.py` (Japanese report prose via the
   claude CLI, falling back to textlint — the one check that shells out,
   so it fails open to a notice when neither is usable).
+  `caselint.py` sits outside the seven: it runs at intake on `case.yaml`,
+  where a wrong value is *accepted* downstream rather than rejected
+  (`report_language: jp` composes localize and skips prosecheck).
 - **Hooks in `plugins/janus/hooks/`** enforce this at tool level:
   `secret-safety.py` and `evidence-lock.py` are PreToolUse denies;
   `evidence-chain.py` is a PostToolUse auto-seal.

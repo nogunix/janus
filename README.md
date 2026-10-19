@@ -114,7 +114,7 @@ gate that matters:
 flowchart TD
     human(["Human"]) -->|"question / artifact"| intake
 
-    intake["1&nbsp;· Intake — classify the case, write case.yaml"] --> fanout
+    intake["1&nbsp;· Intake — classify the case, write case.yaml, caselint it"] --> fanout
     fanout["2&nbsp;· Fan-out — launch stages in parallel"]
 
     subgraph stages["Static stages — each writes cases/&lt;id&gt;/findings/&lt;stage&gt;.md"]
@@ -140,7 +140,7 @@ flowchart TD
 
     fanin --> syn["synthesize — cross-reference all findings"]
     syn --> report[("results/synthesis.md<br/>ranked hypotheses · Confidence + Basis + refs")]
-    report --> qc["4&nbsp;· Quality check<br/>chain verify · urlcheck · quotecheck · versioncheck · linkcheck · prosecheck (ja) · two judgment gates (C1/C2)"]
+    report --> qc["4&nbsp;· Quality check<br/>chain verify · reportlint · urlcheck · quotecheck · versioncheck · linkcheck · prosecheck (ja) · two judgment gates (C1/C2)"]
     qc -.->|"send-back, by sub-code"| syn
     qc -->|"handoff"| human2(["Human — final call, writes verdict.md"])
 ```
@@ -273,7 +273,9 @@ plugins/janus/
   .claude-plugin/plugin.json         # plugin manifest
   skills/janus/SKILL.md              # /janus — pipeline driver
   skills/janus/references/           # SKILL.md / doc-search detail, read on demand
-  skills/janus/scripts/gates.py      # runs the six step-7 checks, prints only non-passes
+  skills/janus/scripts/gates.py      # runs the seven step-7 checks, prints only non-passes
+  skills/janus/scripts/caselint.py   # case.yaml vocabulary check, run at intake
+  skills/janus/scripts/reportlint.py # report structure + recomputed counts (C2/section, C1/basis)
   skills/janus/scripts/findings.py   # findings format lint + fan-in digest for the lead
   skills/janus/scripts/chain.py      # per-case evidence hash ledger (seal/verify/lock)
   skills/janus/scripts/urlcheck.py   # reference-URL liveness check (backs gate C1/url)
@@ -294,7 +296,7 @@ plugins/janus/
     iac-author  lab-verify  synthesize  localize  self-improver
     upstream-adviser
 scripts/validate.py                  # repo consistency checks (CI-friendly, stdlib-only)
-scripts/selftest.py                  # offline self-tests for chain.py / urlcheck.py / quotecheck.py / versioncheck.py / linkcheck.py / prosecheck.py / hooks
+scripts/selftest.py                  # offline self-tests for chain.py / caselint.py / reportlint.py / urlcheck.py / quotecheck.py / versioncheck.py / linkcheck.py / prosecheck.py / hooks
 .github/workflows/ci.yml             # runs both on every push / PR
 ```
 
@@ -635,9 +637,9 @@ model in the seat:
 
 ### Integrity checks (mechanical, before any human-level gate)
 
-Four stdlib-only scripts turn "trust the report" into "check the
-report." All run at handoff; a failure sends the report back rather
-than shipping it.
+Stdlib-only scripts turn "trust the report" into "check the report."
+Seven run at handoff, and a failure sends the report back rather than
+shipping it; one runs at intake, on the file that configures the work.
 
 **Evidence chain — `scripts/chain.py`.** Each case carries an
 append-only hash ledger, `cases/<id>/chain.jsonl`. Every record holds
@@ -670,6 +672,51 @@ locked files with an explanation instead of a bare permission error —
 so a stage can no longer clobber another stage's findings mid-flight.
 `chain.py unlock` is the lead's explicit escape hatch for a legitimate
 revision (unlock → edit → re-seal → lock).
+
+**Report structure and arithmetic — `scripts/reportlint.py`.** The
+report states things about itself that can be derived from the findings
+it was built from: how many HIGH findings there are, how many VERIFIED,
+which model ran each stage, how many findings each stage produced. A
+derived number is a checkable number, and until this check existed
+nothing checked them — a miscount in the one table a reader uses to
+size up an investigation was invisible. It recomputes all of them,
+along with the template's sections (by the mode `case.yaml` declares),
+empty cells and leftover `<placeholders>`, and the Objectives
+Assessment vocabulary. Backs gate C2/section.
+
+It also decides the half of C1/basis that is arithmetic. SKILL.md says
+a HIGH hypothesis needs one VERIFIED finding or two REASONED ones from
+different stages, and that ASSUMED-only evidence cannot rank above LOW.
+The report cites findings by number and each finding states its own
+Basis, so both halves follow from the files:
+
+```
+$ python3 scripts/reportlint.py cases/<id>
+FAIL: C2/section: Execution Metadata says total findings HIGH: 3, the findings hold 1
+FAIL: C2/section: Execution Metadata says doc-search=opus-x, but doc-search.md records model: sonnet-x
+FAIL: C1/basis: H1 (line 44) ranks HIGH on F3=REASONED — HIGH needs one VERIFIED
+      finding, or two REASONED ones from different stages
+FAIL: C1/ref: H2 (line 71) cites F9, which no findings file defines
+warning: 1 finding(s) the report never cites: F2 [LOW/REASONED] in doc-search.md
+```
+
+That last FAIL is the sharpest one: a hypothesis resting on evidence
+that does not exist. Like linkcheck it **never fails open** — every
+input is a local file. What stays with the human reader is what only a
+reader can see: whether a filled cell actually says anything, and
+whether a claim leans on a finding it never cites.
+
+**Case configuration — `scripts/caselint.py`.** The only check that
+runs *before* the work, because `case.yaml` is the one file whose wrong
+value is **accepted** downstream rather than rejected. The case that
+motivated it: `report_language: jp`. The pipeline composes localize on
+`≠ en`, so a Japanese report is produced; `gates.py` runs prosecheck on
+`== ja`, so the prose gate prints a skip that reads exactly like an
+English case. Both halves behaved as written, and one typo turned a
+gate off silently. caselint checks every such field — the `mode`,
+`status`, `tracks` and `report_language` vocabularies, an `artifact`
+case with no artifact, a malformed `version_scope` — and `gates.py`
+now reports an unrecognised language as an ERROR rather than a skip.
 
 **Quote fidelity — `scripts/quotecheck.py`.** The telephone-game
 failure the lock can't catch: findings survive intact on disk while a
@@ -748,7 +795,7 @@ and a target outside the case directory is a FAIL. Unlike urlcheck this
 **never fails open** — local resolution is deterministic and offline, so
 a broken link is always a real defect.
 
-**Japanese prose quality — `scripts/prosecheck.py`.** The other four ask
+**Japanese prose quality — `scripts/prosecheck.py`.** The other checks ask
 whether the report is *true*; none ask whether it is *readable*. For a
 `report_language: ja` case it checks the
 [ja-technical-writing](https://github.com/textlint-ja/textlint-rule-preset-ja-technical-writing)
@@ -784,7 +831,7 @@ that the preset's own rules already skip those node types — the filter is
 a backstop for rules added later, such as `prh` for terminology, which do
 match inside blockquotes.
 
-**One call at handoff — `scripts/gates.py`.** The lead runs all six
+**One call at handoff — `scripts/gates.py`.** The lead runs all seven
 through a runner that prints one status per check (PASS / WARN / NOTICE
 / FAIL / ERROR / SKIP) and, for anything but a clean pass, only that
 check's non-`OK:` lines — so a report with forty live URLs costs the
@@ -794,21 +841,26 @@ prefixes and never changes a verdict; each script stays a standalone CLI.
 ```
 $ python3 scripts/gates.py cases/<id>
 chain         PASS  OK: chain intact (cases/<id>/chain.jsonl)
+reportlint    FAIL
+  FAIL: C2/section: Execution Metadata says evidence basis VERIFIED: 4, the findings hold 3
+  FAIL: C1/basis: H2 (line 71) ranks HIGH on F7=REASONED — HIGH needs one
+        VERIFIED finding, or two REASONED ones from different stages
 urlcheck      PASS  OK: 41/41 URLs live
 quotecheck    FAIL
   FAIL: quote not found verbatim in findings/doc-search.md: "…"
 versioncheck  PASS  OK: 6 source Ref(s) version-pinned
 linkcheck     PASS  OK: 18/18 evidence links resolve
 prosecheck    SKIP
-  report_language is not ja
-gates: 1 FAIL (quotecheck), 4 PASS, 1 SKIP
+  report_language is en
+gates: 2 FAIL (reportlint quotecheck), 4 PASS, 1 SKIP
 ```
 
-All six scripts and the lock hook have offline self-tests
+Every check and the lock hook have offline self-tests
 (`scripts/selftest.py`) exercising tamper detection, ledger-edit
 detection, lock/deny/unlock, quote-mutation detection, the
 gated-vs-dead URL split, version-provenance drift, evidence-link
-resolution, and prosecheck's
+resolution, case.yaml vocabulary, report-metadata recomputation and the
+hypothesis rank rule, and prosecheck's
 fail-open paths (including the regression that once printed OK when
 textlint was absent); `.github/workflows/ci.yml` runs them with
 `validate.py` on every push and PR — no npm install needed, because the

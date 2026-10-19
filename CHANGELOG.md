@@ -2,6 +2,69 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.36.0 — 2026-10-19
+
+**A number the report derives from the findings is a number the findings
+can check.** Execution Metadata states how many HIGH findings a case
+produced, how many VERIFIED, which model ran each stage; Stages Used
+states each stage's status and finding count. Every one of those is
+computable from `findings/*.md` — and until now nothing computed them. A
+miscount in the one table a reader uses to size up an investigation was
+invisible, and so was a `models used` cell that disagreed with the
+`model:` key the findings file actually recorded, which is the provenance
+the whole design premise rests on.
+
+The same is true of the rank rule. SKILL.md has always said a HIGH
+hypothesis needs one VERIFIED finding or two REASONED ones from different
+stages, and that ASSUMED-only evidence cannot rank above LOW. The report
+cites findings by number; each finding states its own Basis. That is
+arithmetic, and it was being done by reading.
+
+**`scripts/reportlint.py`** (new, check #2 in `gates.py`) does both, plus
+the structural half of C2/section:
+
+- **C2/section** — a missing section for the mode `case.yaml` declares,
+  an empty or still-`<placeholder>` cell, an Objectives Assessment status
+  outside `Achieved | Partial | Not achieved`, an Execution Metadata row
+  that is absent, and any recomputable figure that disagrees: the
+  Total findings and Evidence basis tallies, the `models used` pairs
+  against each findings file's own `model:` key (including the
+  `synthesize=` entry that says what wrote the report), and each Stages
+  Used row against that stage's status and finding count.
+- **C1/basis** — a hypothesis whose cited findings do not carry its
+  confidence.
+- **C1/ref** — a cited finding number that no findings file defines: a
+  reference to evidence that does not exist.
+- Warnings where absence is indistinguishable from a legitimate choice:
+  a hypothesis citing nothing, a finding the report never cites, a
+  supplement the metadata omits.
+
+Like `linkcheck.py` it never fails open — every input is a local file.
+The two judgment gates keep what only a reader can see: whether a filled
+cell actually says anything, and whether a claim leans on a finding it
+never cites.
+
+**`scripts/caselint.py`** (new, runs at intake in step 1) is the other
+direction — the one file whose wrong value is *accepted* downstream
+rather than rejected. The case that motivated it: `report_language: jp`.
+The pipeline composes localize on `≠ en`, so a Japanese report is
+produced; `gates.py` runs prosecheck on `== ja`, so the prose gate prints
+`SKIP report_language is not ja` — a line indistinguishable from an
+English case. Both halves behaved exactly as written, and a two-letter
+typo turned a gate off without anyone being told.
+
+caselint checks the fields that behave that way: the `mode`, `status`,
+`tracks` and `report_language` vocabularies, a `mode: artifact` case with
+nothing to analyse, a `mode: theme` case with no theme, a malformed
+`version_scope`. Warnings for a case with no `tracks`, no `objectives`, a
+version named in the question with no scope declared, or an `id` that is
+not the directory name. Unknown keys are ignored — case.yaml carries
+free-form context by design.
+
+And the backstop at the other end: **`gates.py` now reports a
+`report_language` that is neither `en` nor `ja` as an ERROR**, naming
+caselint, instead of a SKIP that reads like a passed check.
+
 ## 0.35.1 — 2026-10-19
 
 **A brief that names a prose style can only be redundant or wrong.**

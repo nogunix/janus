@@ -196,6 +196,20 @@ mode = artifact → includes crash-analyze
        theme → does not include crash-analyze (unless debug is explicit in tracks)
 ```
 
+Then lint the file before anything reads it:
+
+```bash
+python3 <skill-dir>/scripts/caselint.py cases/<id>
+```
+
+A FAIL is a field whose wrong value is **accepted** downstream rather
+than rejected — the vocabularies for `mode`, `status`, `tracks` and
+`report_language`, a `mode: artifact` case with no artifact, a malformed
+`version_scope`. The one that bites hardest is `report_language`: a
+value that is not exactly `ja` still composes localize (the rule is
+`≠ en`), so a typo produces a translated report with prosecheck skipped.
+Fix every FAIL before composing; warnings are advisory.
+
 Then check each composed stage's required MCP server with
 `claude mcp list` (`✔ Connected` — a tool being advertised is not the
 server being reachable): doc-search → okp-mcp (+ rh-api-mcp for live
@@ -469,7 +483,7 @@ translation preserves that structure.
 
 ### 7. Quality check (the lead's own job) — named gates
 
-Run the six mechanical pre-checks in one call:
+Run the seven mechanical pre-checks in one call:
 
 ```bash
 python3 <skill-dir>/scripts/gates.py cases/<id>
@@ -487,18 +501,22 @@ direction** table (what each check does when it cannot decide).
 | # | Command | FAIL → |
 |---|---|---|
 | 1 | `chain.py verify cases/<id>` | evidence changed after sealing: record in `audit/`, write `review-queue/NEEDS_HUMAN_<id>.md` quoting the failing entries — never hand off |
-| 2 | `urlcheck.py cases/<id>/results/synthesis.md` | dead citation (404/410, unresolvable host) → send back under **C1/url** |
-| 3 | `quotecheck.py cases/<id>/results/synthesis.md` | mutated/fabricated quote → **C2/quote-mismatch**; "no attributed quotes" warning → **C2/quote-absent** for any evidence-backed report |
-| 4 | `versioncheck.py cases/<id>` | unpinned source citation → **C2/version**; crossed/off-scope warnings are judged against C2/version |
-| 5 | `linkcheck.py cases/<id>/results/synthesis.md` | local link to no file/anchor → **C1/link** (never fails open) |
-| 6 | `prosecheck.py cases/<id>` | `report_language: ja` only — prose defect → **C2/prose** |
+| 2 | `reportlint.py cases/<id>` | missing section, empty/placeholder cell, a count or `model:` contradicting the findings → **C2/section**; a hypothesis its cited bases do not support → **C1/basis**; a cited finding number that does not exist → **C1/ref** |
+| 3 | `urlcheck.py cases/<id>/results/synthesis.md` | dead citation (404/410, unresolvable host) → send back under **C1/url** |
+| 4 | `quotecheck.py cases/<id>/results/synthesis.md` | mutated/fabricated quote → **C2/quote-mismatch**; "no attributed quotes" warning → **C2/quote-absent** for any evidence-backed report |
+| 5 | `versioncheck.py cases/<id>` | unpinned source citation → **C2/version**; crossed/off-scope warnings are judged against C2/version |
+| 6 | `linkcheck.py cases/<id>/results/synthesis.md` | local link to no file/anchor → **C1/link** (never fails open) |
+| 7 | `prosecheck.py cases/<id>` | `report_language: ja` only — prose defect → **C2/prose**; a language that is neither `en` nor `ja` is an **ERROR**, not a skip — run `caselint.py` |
 
 **A notice means *not checked*, never *passed*.** If the property matters
 for the case, restore what the check needs (network, the claude CLI or textlint, a seal)
 and rerun.
 
 Read `results/synthesis.md` and check it against these two judgment gates
-(the six mechanical pre-checks above already cover the rest). **A
+(the seven mechanical pre-checks above already cover the rest — including
+the structural half of C2/section and the arithmetic half of C1/basis, so
+the read is for what only a reader can see: whether a claim is anchored at
+the right strength, and whether an identifier survived intact). **A
 failed gate = send the report back to synthesize, naming the sub-code
 and quoting the offending line** — the lead never patches the report
 itself. The sub-codes are the send-back vocabulary: they keep the
@@ -507,8 +525,8 @@ lead's read of the report into two passes.
 
 | Gate | The one question | Sub-codes (send-back vocabulary) |
 |---|---|---|
-| **C1 — GROUNDING** | Is every claim anchored to evidence at the right strength? | `C1/ref` — a claim with no reference · `C1/url` — a resolvable-pattern ID (CVE/RHSA/KB/PR) with no public URL; dead URLs are caught mechanically by urlcheck.py · `C1/link` — a claim whose evidence the reader cannot click through to: a bare filename where a link belongs, or a local link that linkcheck.py proved resolves to no file or no anchor · `C1/basis` — a HIGH hypothesis without ≥1 VERIFIED or 2+ independent REASONED findings from different stages, or an unlabeled citation · `C1/spec` — an unsupported "likely / probably / should" claim · `C1/currency` — a recommended configuration, feature, flag, or API with no lifecycle check against the target version, so the report may prescribe a setting that is deprecated / removed / superseded in that release; send back to doc-search to confirm against official release notes and lifecycle docs · `C1/source-of-truth` — a load-bearing source-content claim (what the code does, that a fix or behavior is present) resting only on a GitHub URL while a `casket` server is connected: a live URL is not an accurate one, so the own-server source index must corroborate it; send back to source-trace, or downgrade and label the claim upstream-only |
-| **C2 — COMPLETENESS & FIDELITY** | Is the report structurally complete, and are identifiers and quotes reproduced exactly? | `C2/section` — an empty Objectives Assessment or Execution Metadata cell · `C2/artifact` — a paraphrased concrete identifier (file, resource, symbol, version) · `C2/quote-absent` — an evidence-backed report with no attributed verbatim quotes; mutated quotes and fabricated attributions are caught mechanically by quotecheck.py and sent back as `C2/quote-mismatch` · `C2/version` — a fact attributed to the wrong product version: an unpinned source citation (FAIL) or a crossed / off-scope version that versioncheck.py flagged and the read confirms · `C2/prose` — a `report_language: ja` report whose prose fails the ja-technical-writing checks prosecheck.py runs (mixed である/ですます, over-long sentences, 4+ 読点, 半角ｶﾀｶﾅ). Style only: never send back under C2/prose for hedging — 「〜の可能性がある」 on a LOW-confidence hypothesis is correct writing, not weak writing |
+| **C1 — GROUNDING** | Is every claim anchored to evidence at the right strength? | `C1/ref` — a claim with no reference; a cited finding number that no findings file defines is caught mechanically by reportlint.py · `C1/url` — a resolvable-pattern ID (CVE/RHSA/KB/PR) with no public URL; dead URLs are caught mechanically by urlcheck.py · `C1/link` — a claim whose evidence the reader cannot click through to: a bare filename where a link belongs, or a local link that linkcheck.py proved resolves to no file or no anchor · `C1/basis` — a HIGH hypothesis without ≥1 VERIFIED or 2+ independent REASONED findings from different stages, or an unlabeled citation. reportlint.py does this arithmetic over the findings a hypothesis *cites*, so the read is for the rest: a claim leaning on evidence it never cites, or a Basis promoted in the retelling · `C1/spec` — an unsupported "likely / probably / should" claim · `C1/currency` — a recommended configuration, feature, flag, or API with no lifecycle check against the target version, so the report may prescribe a setting that is deprecated / removed / superseded in that release; send back to doc-search to confirm against official release notes and lifecycle docs · `C1/source-of-truth` — a load-bearing source-content claim (what the code does, that a fix or behavior is present) resting only on a GitHub URL while a `casket` server is connected: a live URL is not an accurate one, so the own-server source index must corroborate it; send back to source-trace, or downgrade and label the claim upstream-only |
+| **C2 — COMPLETENESS & FIDELITY** | Is the report structurally complete, and are identifiers and quotes reproduced exactly? | `C2/section` — a cell that is filled but says nothing. reportlint.py already catches the empty one, the leftover `<placeholder>`, the missing section, and any Execution Metadata or Stages Used figure that contradicts the findings it was derived from · `C2/artifact` — a paraphrased concrete identifier (file, resource, symbol, version) · `C2/quote-absent` — an evidence-backed report with no attributed verbatim quotes; mutated quotes and fabricated attributions are caught mechanically by quotecheck.py and sent back as `C2/quote-mismatch` · `C2/version` — a fact attributed to the wrong product version: an unpinned source citation (FAIL) or a crossed / off-scope version that versioncheck.py flagged and the read confirms · `C2/prose` — a `report_language: ja` report whose prose fails the ja-technical-writing checks prosecheck.py runs (mixed である/ですます, over-long sentences, 4+ 読点, 半角ｶﾀｶﾅ). Style only: never send back under C2/prose for hedging — 「〜の可能性がある」 on a LOW-confidence hypothesis is correct writing, not weak writing |
 
 **Send-backs are targeted revisions, not reruns.** The brief names the
 report path, each sub-code, and the quoted offending line(s), and says

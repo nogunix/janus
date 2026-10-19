@@ -41,7 +41,11 @@ Leave these in English exactly as they appear:
 - All section headings (`## Executive Summary`, `## Hypotheses`, etc.)
 - Table header cells (`| Gate Condition | Trigger | ...`)
 - Label vocabulary (`Confidence`, `Basis`, `VERIFIED`, `REASONED`,
-  `HIGH`, `MEDIUM`, `H1`, `F1`, etc.)
+  `HIGH`, `MEDIUM`, `H1`, `F1`, etc.), including the Objectives
+  Assessment verdicts `Achieved` / `Partial` / `Not achieved` and the
+  Execution Metadata metric names. `reportlint.py` reads them by name:
+  a translated verdict or metric row is a C2/section FAIL, not a style
+  choice
 - Finding identifiers (`F1`, `F10`, `H1`, etc.)
 - Code spans (backticked text like `oc get nodes`, `cgroupMode: v2`)
 - URLs

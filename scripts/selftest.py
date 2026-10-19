@@ -571,6 +571,115 @@ def test_versioncheck():
               "an in-scope z-stream and a different-family kernel do not warn")
 
 
+def test_caselint():
+    cl = load("caselint")
+
+    parsed = cl.parse_yaml(
+        "id: c1\n"
+        "theme: >\n  a folded question\n  over two lines\n"
+        "tracks: [documentation, source]\n"
+        "artifacts:\n  vmcore: artifacts/vmcore\n"
+        "version_scope:\n  OCP: [\"4.20\"]\n  RHEL:\n    - \"9.6\"\n"
+        "context:\n  - repo: /somewhere\n"
+        "status: intake  # a trailing comment\n"
+    )
+    check(parsed["theme"] == "a folded question over two lines",
+          "caselint: a folded block scalar joins into one string")
+    check(parsed["tracks"] == ["documentation", "source"],
+          "caselint: a flow list parses as a list")
+    check(parsed["artifacts"] == {"vmcore": "artifacts/vmcore"},
+          "caselint: a nested mapping parses one level deep")
+    check(parsed["version_scope"] == {"OCP": ["4.20"], "RHEL": ["9.6"]},
+          "caselint: version_scope parses flow and block version lists alike")
+    check(parsed["context"] == [{"repo": "/somewhere"}],
+          "caselint: a block sequence of single-key maps parses as a list")
+    check(parsed["status"] == "intake",
+          "caselint: a trailing comment is stripped from a scalar")
+
+    good = (
+        "id: 2026-01-01-cl\nreceived_at: 2026-01-01T00:00:00+09:00\n"
+        "mode: theme\nstatus: intake\n"
+        "theme: \"does OCP 4.20 ship the fix?\"\n"
+        "tracks: [documentation, source]\n"
+        "version_scope:\n  OCP: [\"4.20\"]\n"
+        "objectives:\n  - confirm the fix shipped\n"
+    )
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "2026-01-01-cl"
+        case.mkdir(parents=True)
+        y = case / "case.yaml"
+
+        y.write_text(good)
+        problems, warnings = cl.run(case)
+        check(not problems and not warnings, "caselint: a complete case is clean")
+
+        y.write_text(good + "report_language: jp\n")
+        problems, _ = cl.run(case)
+        check(any("report_language" in p and "prose gate" in p for p in problems),
+              "caselint: `jp` is a FAIL — localize runs, prosecheck does not")
+
+        y.write_text(good + "report_language: ja\n")
+        problems, _ = cl.run(case)
+        check(not problems, "caselint: `ja` is accepted")
+
+        y.write_text(good.replace("tracks: [documentation, source]",
+                                  "tracks: [documentation, sauce]"))
+        problems, _ = cl.run(case)
+        check(any("sauce" in p and "composes no stage" in p for p in problems),
+              "caselint: a track outside the composition table is a FAIL")
+
+        y.write_text(good.replace("status: intake", "status: done-ish"))
+        problems, _ = cl.run(case)
+        check(any("status" in p for p in problems),
+              "caselint: a status outside the vocabulary is a FAIL")
+
+        y.write_text(good.replace("mode: theme\n", "mode: artifact\n"))
+        problems, _ = cl.run(case)
+        check(any("artifacts.vmcore" in p for p in problems),
+              "caselint: artifact mode with nothing to open is a FAIL")
+
+        y.write_text(good.replace("mode: theme\n", "mode: artifact\n")
+                     + "artifacts:\n  vmcore: artifacts/vmcore\n")
+        problems, _ = cl.run(case)
+        check(not problems, "caselint: artifact mode with a vmcore is clean")
+
+        y.write_text(good.replace("  OCP: [\"4.20\"]", "  OCP: [\"four.twenty\"]"))
+        problems, _ = cl.run(case)
+        check(any("not a version token" in p for p in problems),
+              "caselint: a malformed version_scope token is a FAIL")
+
+        y.write_text(good.replace("version_scope:\n  OCP: [\"4.20\"]\n", ""))
+        _, warnings = cl.run(case)
+        check(any("4.20" in w and "version_scope" in w for w in warnings),
+              "caselint: a version in the theme with no scope declared warns")
+
+        y.write_text(good.replace("tracks: [documentation, source]\n", ""))
+        _, warnings = cl.run(case)
+        check(any("`tracks`" in w for w in warnings),
+              "caselint: a case with no tracks warns")
+
+        y.write_text(good.replace("id: 2026-01-01-cl", "id: typo-here"))
+        _, warnings = cl.run(case)
+        check(any("directory name" in w for w in warnings),
+              "caselint: an id that is not the directory name warns")
+
+        y.write_text("mode: theme\ntheme: x\n")
+        problems, _ = cl.run(case)
+        check(sum("no `" in p for p in problems) == 3,
+              "caselint: every missing required key is reported")
+
+        import contextlib, io
+        y.write_text(good)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = cl.main(["caselint.py", str(case)])
+        check(rc == 0 and "OK:" in buf.getvalue(), "caselint: a clean case exits 0")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = cl.main(["caselint.py", str(case / "nope")])
+        check(rc == 2, "caselint: a missing case.yaml is a usage error, not a FAIL")
+
+
 def test_linkcheck():
     link = load("linkcheck")
 
@@ -892,6 +1001,208 @@ def test_prosecheck():
     check(prose.parse_results("") == ([], []), "an empty payload is not an error")
 
 
+RL_CASE_YAML = (
+    "id: 2026-01-01-rl\nreceived_at: 2026-01-01T00:00:00+09:00\n"
+    "mode: artifact\nstatus: done\n"
+    "artifacts:\n  vmcore: artifacts/vmcore\n"
+    "objectives:\n  - find the cause\n"
+)
+RL_DOC_SEARCH = (
+    "---\nstage: doc-search\ncase: 2026-01-01-rl\ndate: 2026-01-01\n"
+    "status: complete\nmodel: sonnet-x\n---\n\n"
+    "### F1: probe timeout\n- **Confidence**: HIGH\n- **Basis**: VERIFIED\n"
+    "- **Ref**: KB 123\n\n"
+    "### F2: a secondary note\n- **Confidence**: LOW\n- **Basis**: REASONED\n"
+    "- **Ref**: KB 124\n"
+)
+RL_CRASH = (
+    "---\nstage: crash-analyze\ncase: 2026-01-01-rl\ndate: 2026-01-01\n"
+    "status: partial\nmodel: opus-x\n---\n\n"
+    "### F3: sigsegv in qemu-kvm\n- **Confidence**: MEDIUM\n"
+    "- **Basis**: REASONED\n- **Ref**: audit/drgn-1.log\n"
+)
+RL_REPORT = """# Investigation Report — 2026-01-01-rl
+
+| Field | Value |
+|---|---|
+| Case ID | 2026-01-01-rl |
+| Date | 2026-01-01 |
+| Classification | crash |
+| Question | why did it crash |
+| Platform | OCP 4.20 |
+
+## Execution Metadata
+| Metric | Value |
+|---|---|
+| Stages completed | doc-search |
+| Stages failed/skipped | crash-analyze (partial) |
+| Models used | doc-search=sonnet-x, crash-analyze=opus-x, synthesize=sonnet-x |
+| Total findings | HIGH: 1, MEDIUM: 1, LOW: 1 |
+| Evidence basis | VERIFIED: 1, REASONED: 2, ASSUMED: 0 |
+| Gaps | lab-verify not approved |
+
+## Objectives Assessment
+| Objective | Status | Evidence |
+|---|---|---|
+| find the cause | Achieved | F1, F2 |
+
+## Executive Summary
+The livenessProbe times out.
+
+## Hypotheses
+
+### H1: the probe times out (Confidence: HIGH)
+**Evidence:**
+- [docs] F1 — the timeout is documented
+- [drgn] F3 — the crash lands in the same path
+
+## Affected Artifacts
+| Artifact | What changed / role | Source |
+|---|---|---|
+| osc-operator.yaml | carries the probe | F1 |
+
+## Investigation Gaps
+- lab-verify was not approved
+
+## References
+| Source | Reference | URL / Location |
+|---|---|---|
+| docs | KB 123 | https://access.redhat.com/solutions/123 |
+
+## Stages Used
+| Stage | Status | Findings |
+|---|---|---|
+| doc-search | complete | 2 |
+| crash-analyze | partial | 1 |
+"""
+
+
+def rl_case(root, report=RL_REPORT):
+    case = Path(root) / "cases" / "2026-01-01-rl"
+    (case / "findings").mkdir(parents=True)
+    (case / "results").mkdir()
+    (case / "case.yaml").write_text(RL_CASE_YAML)
+    (case / "findings" / "doc-search.md").write_text(RL_DOC_SEARCH)
+    (case / "findings" / "crash-analyze.md").write_text(RL_CRASH)
+    (case / "results" / "synthesis.md").write_text(report)
+    return case
+
+
+def test_reportlint():
+    rl = load("reportlint")
+
+    def problems_for(report):
+        with tempfile.TemporaryDirectory() as td:
+            return rl.run(rl_case(td, report))
+
+    problems, warnings = problems_for(RL_REPORT)
+    check(not problems and not warnings,
+          "reportlint: a complete, consistent report is clean")
+
+    problems, _ = problems_for(RL_REPORT.replace("## References", "## Sources"))
+    check(any("References" in p and "C2/section" in p for p in problems),
+          "reportlint: a renamed required section is a C2/section FAIL")
+
+    problems, _ = problems_for(RL_REPORT.replace("HIGH: 1, MEDIUM: 1", "HIGH: 3, MEDIUM: 1"))
+    check(any("HIGH: 3, the findings hold 1" in p for p in problems),
+          "reportlint: a stated finding count is recomputed from the findings")
+
+    problems, _ = problems_for(RL_REPORT.replace("REASONED: 2", "REASONED: 9"))
+    check(any("REASONED: 9" in p for p in problems),
+          "reportlint: the evidence-basis tally is recomputed too")
+
+    problems, _ = problems_for(RL_REPORT.replace(", synthesize=sonnet-x", ""))
+    check(any("synthesize=" in p for p in problems),
+          "reportlint: a report that does not say what wrote it is a FAIL")
+
+    problems, _ = problems_for(RL_REPORT.replace("crash-analyze=opus-x", "crash-analyze=sonnet-x"))
+    check(any("records model: opus-x" in p for p in problems),
+          "reportlint: a model the findings do not record is a FAIL")
+
+    problems, _ = problems_for(RL_REPORT.replace("| crash-analyze | partial | 1 |",
+                                                 "| crash-analyze | complete | 1 |"))
+    check(any("Stages Used calls crash-analyze" in p for p in problems),
+          "reportlint: a Stages Used status contradicting the stage is a FAIL")
+
+    problems, _ = problems_for(RL_REPORT.replace("| doc-search | complete | 2 |",
+                                                 "| doc-search | complete | 7 |"))
+    check(any("credits doc-search with 7" in p for p in problems),
+          "reportlint: a Stages Used findings count is recomputed")
+
+    problems, _ = problems_for(RL_REPORT.replace("| Date | 2026-01-01 |", "| Date | <date> |"))
+    check(any("placeholder" in p for p in problems),
+          "reportlint: a leftover template placeholder is a FAIL")
+
+    problems, _ = problems_for(RL_REPORT.replace("| Gaps | lab-verify not approved |", "| Gaps |  |"))
+    check(any("`Value` is empty" in p for p in problems),
+          "reportlint: an empty metadata cell is a FAIL")
+
+    problems, _ = problems_for(RL_REPORT.replace("| Evidence basis | VERIFIED: 1, REASONED: 2, ASSUMED: 0 |\n", ""))
+    check(any("no `evidence basis` row" in p for p in problems),
+          "reportlint: a missing Execution Metadata row is a FAIL")
+
+    problems, _ = problems_for(RL_REPORT.replace("| Stages failed/skipped |", "| **Stages failed / skipped** |"))
+    check(not problems,
+          "reportlint: a metric row's spacing and emphasis do not change its identity")
+
+    problems, _ = problems_for(RL_REPORT.replace("| find the cause | Achieved |", "| find the cause | Done |"))
+    check(any("Achieved | Partial | Not achieved" in p for p in problems),
+          "reportlint: an objective status outside the vocabulary is a FAIL")
+
+    # --- the rank rule (C1/basis) and dangling references (C1/ref)
+    problems, _ = problems_for(RL_REPORT.replace("- [docs] F1 — the timeout is documented\n", ""))
+    check(any("C1/basis" in p and "ranks HIGH" in p for p in problems),
+          "reportlint: HIGH on one REASONED finding fails the rank rule")
+
+    two_reasoned = RL_REPORT.replace("- [docs] F1 — the timeout is documented",
+                                     "- [docs] F2 — a second, independent read")
+    problems, _ = problems_for(two_reasoned)
+    check(not any("C1/basis" in p for p in problems),
+          "reportlint: two REASONED findings from different stages carry HIGH")
+
+    problems, _ = problems_for(RL_REPORT.replace("- [drgn] F3 — the crash lands in the same path",
+                                                 "- [drgn] F9 — the crash lands in the same path"))
+    check(any("C1/ref" in p and "F9" in p for p in problems),
+          "reportlint: a cited finding number that does not exist is a FAIL")
+
+    assumed = RL_REPORT.replace("(Confidence: HIGH)", "(Confidence: MEDIUM)")
+    assumed_findings = RL_DOC_SEARCH.replace("**Basis**: VERIFIED", "**Basis**: ASSUMED").replace(
+        "**Confidence**: HIGH", "**Confidence**: LOW")
+    with tempfile.TemporaryDirectory() as td:
+        case = rl_case(td, assumed.replace("HIGH: 1, MEDIUM: 1, LOW: 1", "HIGH: 0, MEDIUM: 1, LOW: 2")
+                       .replace("VERIFIED: 1, REASONED: 2", "VERIFIED: 0, REASONED: 2")
+                       .replace("ASSUMED: 0", "ASSUMED: 1")
+                       .replace("- [drgn] F3 — the crash lands in the same path\n", ""))
+        (case / "findings" / "doc-search.md").write_text(assumed_findings)
+        problems, warnings = rl.run(case)
+    check(any("ASSUMED findings only" in p for p in problems),
+          "reportlint: MEDIUM on ASSUMED-only evidence is a FAIL")
+
+    problems, _ = problems_for(RL_REPORT.replace("### H1: the probe times out (Confidence: HIGH)",
+                                                 "### H1: the probe times out"))
+    check(any("states no Confidence" in p for p in problems),
+          "reportlint: a hypothesis with no Confidence is a FAIL")
+
+    # --- warnings
+    _, warnings = problems_for(RL_REPORT.replace("| find the cause | Achieved | F1, F2 |",
+                                                 "| find the cause | Achieved | F1 |"))
+    check(any("never cites" in w and "F2" in w for w in warnings),
+          "reportlint: a finding the report drops is a warning, not a FAIL")
+
+    import contextlib, io
+    with tempfile.TemporaryDirectory() as td:
+        case = rl_case(td)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = rl.main(["reportlint.py", str(case)])
+        check(rc == 0 and "OK:" in buf.getvalue(), "reportlint: a clean report exits 0")
+        (case / "results" / "synthesis.md").unlink()
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = rl.main(["reportlint.py", str(case)])
+        check(rc == 2, "reportlint: a missing report is an error, not a FAIL")
+
+
 def test_gates():
     gates = load("gates")
     check(gates.classify(0, ["OK: 3/3 quotes verbatim"]) == "PASS", "gates: exit 0 + OK only is PASS")
@@ -921,7 +1232,8 @@ def test_gates():
         import contextlib, io
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
-            rc = gates.main(["gates.py", str(case), "--skip", "urlcheck"])
+            rc = gates.main(["gates.py", str(case), "--skip", "urlcheck",
+                             "--skip", "reportlint"])
         out = buf.getvalue()
         check(rc == 0, "gates: a clean case exits 0")
         check("prosecheck    SKIP" in out, "gates: prosecheck is skipped for an en report")
@@ -931,10 +1243,29 @@ def test_gates():
         chain.seal(case)
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
-            rc = gates.main(["gates.py", str(case), "--skip", "urlcheck"])
+            rc = gates.main(["gates.py", str(case), "--skip", "urlcheck",
+                             "--skip", "reportlint"])
         out = buf.getvalue()
         check(rc == 1 and "quotecheck    FAIL" in out, "gates: a mutated quote fails the run")
         check("1 FAIL (quotecheck)" in out, "gates: the summary names the failing check")
+
+        # reportlint is wired in, and a bare report is not a structured one.
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            gates.main(["gates.py", str(case), "--skip", "urlcheck"])
+        check("reportlint    FAIL" in buf.getvalue(),
+              "gates: reportlint runs on the case directory")
+
+        (case / "case.yaml").write_text("id: selftest\nreport_language: jp\n")
+        chain.seal(case)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = gates.main(["gates.py", str(case), "--skip", "urlcheck",
+                             "--skip", "reportlint", "--skip", "quotecheck"])
+        out = buf.getvalue()
+        check(rc == 1 and "prosecheck    ERROR" in out and "caselint" in out,
+              "gates: a report_language that is neither en nor ja is an ERROR, "
+              "not a silent SKIP")
 
 
 def test_findings():
@@ -1008,6 +1339,8 @@ def main():
     test_urlcheck()
     test_versioncheck()
     test_linkcheck()
+    test_caselint()
+    test_reportlint()
     test_anchors()
     test_prosecheck()
     test_gates()
