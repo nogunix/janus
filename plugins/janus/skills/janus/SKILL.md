@@ -325,7 +325,24 @@ When iac-author is also composed, it is lab-verify's input, so:
   code; there is nothing to apply yet. Human approval is never a reason
   to skip an input dependency.
 - iac-author `status: failed`, or unresolved `TODO(iac-author)` markers →
-  do not launch lab-verify. Send it back or record the gap.
+  do not launch lab-verify. **Route each marker by who can actually close
+  it** — a blanket send-back loops forever on the ones iac-author was
+  never equipped to answer:
+  - *provider argument, module version, lint finding* → send it back to
+    iac-author; it has the tools.
+  - *cloud-service semantics* — does the service require this field for
+    the data path, whatever the provider schema says? — → **the lead
+    closes it**, with a step-5a supplement (mslearn / AWS docs / okp), or
+    via doc-search. iac-author has no cloud-documentation tools by
+    design, so re-running it cannot produce the answer. These are the
+    dangerous ones: they pass `terraform validate`, survive apply, and
+    surface mid-lab as a fault in some other component.
+  - *live-cluster or real-credential question* → leave it; lab-verify
+    answers it inside the approved window, provided the marker names the
+    command that settles it.
+  An unverified default swapped for a better-sourced but still unverified
+  one is not a closure. Accept a flagged variable plus a probe command
+  over a confident value.
 
 ### 5. Fan in (collect) — and gap-driven follow-up
 
@@ -380,6 +397,7 @@ synthesize runs:
 | casket phase/layer "unexplored (reason: ...)" | source-trace (re-run, scoped to that layer) |
 | `release_diff` range handed off (`{owner, repo, base, head}`) — PRs / Jira keys behind it not yet read | github-trace |
 | Symbol/version question raised by crash-analyze | source-trace |
+| `TODO(iac-author)` marked *service-semantics* — a cloud service's own requirement, which the provider schema cannot answer | doc-search (or a lead step-5a supplement). **Never a re-run of iac-author** — it has no cloud-documentation tools |
 
 - **Cap: at most 2 follow-up stages per case, one follow-up round.**
   Follow-ups launched by follow-ups are not allowed — if gaps remain

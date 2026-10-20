@@ -2,6 +2,46 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.38.1 — 2026-10-20
+
+**A provider schema says which arguments exist. It does not say what the
+service needs in order to work.** iac-author authored an Azure Monitor Data
+Collection Rule whose `data_flow` omitted `transform_kql` and
+`output_stream`. Both are optional in the azurerm schema; both are how the
+Logs Ingestion API routes a stream into its table. `terraform fmt`,
+`validate` and `ansible-lint` all passed clean. The apply would have
+succeeded and ingestion would have gone nowhere — and the symptom, logs
+absent at the destination, accuses the application sending them rather than
+the rule that dropped them.
+
+The stage had already done its part: it left a `TODO(iac-author)` on the
+exact line saying the assumption was unconfirmed, because its attempt to
+reach a Microsoft Learn tool correctly reported it has no such grant. The
+hole was downstream. SKILL.md's rule for unresolved markers read "send it
+back or record the gap", and sending back a question that was never inside
+the stage's grants loops: no number of re-runs lets iac-author answer a
+cloud-service question from the Terraform registry.
+
+- **`agents/iac-author.md`** gains "The provider schema is not the service's
+  contract" in Phase 1 — the failure shape (passes every static check,
+  surfaces mid-lab misattributed to the far side of the integration), where
+  it clusters (resources that route, transform or ingest rather than
+  allocate), and the DCR case as the worked example. Phase 5 now requires
+  every `TODO(iac-author)` to name its owner: the stage's own, the lead's
+  (*service-semantics; needs cloud docs, not reachable from this stage*), or
+  lab-verify's — the last of which must carry the command that settles it.
+- **SKILL.md step 4** replaces the blanket send-back with routing by owner
+  and names service-semantics as the dangerous class. **Step 5's gap table**
+  gains the matching row, pointing at doc-search or a lead step-5a
+  supplement and stating that re-running iac-author is not the answer.
+
+A second rule, from the same case's other marker: **an unverified default
+replaced by a better-sourced but still unverified one is not a closure.**
+The RHACS operator channel was defaulted to `rhacs-4.11`; the only published
+Red Hat manifest uses `stable`; neither was confirmed. Agent and skill now
+both say to keep the flagged variable and supply the probe command that
+settles it on the live cluster, rather than ship a confident value.
+
 ## 0.38.0 — 2026-10-19
 
 **Review has to converge, and the rule that stops it cannot live in the

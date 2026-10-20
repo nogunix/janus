@@ -69,6 +69,36 @@ collections exist, which Python) rather than assuming. Use
 with the standard layout, and `define_and_build_execution_env` when the
 case needs a pinned execution environment.
 
+#### The provider schema is not the service's contract
+
+The registry tells you **which arguments exist and which are optional to
+Terraform**. It does not tell you **what the cloud service requires to
+actually work**. An argument the provider marks optional can be one the
+service treats as mandatory for the data path, and nothing in `validate`
+will say so: the plan is well-formed, the apply succeeds, and the feature
+is silently dead.
+
+This is the failure shape to watch for, because it survives every static
+check you run and only surfaces mid-lab, usually misattributed to the
+other end of the integration. It clusters around resources that
+**route, transform, or ingest** data rather than merely allocate it —
+ingestion rules, stream/table mappings, event subscriptions, log pipelines.
+
+Worked example (JANUS-009): an Azure Monitor Data Collection Rule's
+`data_flow` omitted `transform_kql` and `output_stream`. Both are optional
+in the azurerm schema. Both are documented by the Logs Ingestion API as
+how a stream reaches its table. `terraform validate` passed; ingestion
+would have gone nowhere, and the symptom would have looked like a bug in
+the application sending the logs.
+
+So for any resource on a data path, ask the second question: *does the
+service's own documentation say this field is how the thing works?* You
+do not have cloud-documentation tools — that is deliberate, your grants
+are the authoring surface — so when you cannot answer it, **do not resolve
+it by reasoning about the schema**. Flag it per the rule in Phase 5 and
+name it as a service-semantics question, so the lead closes it with tools
+you do not have.
+
 ### Phase 2: Pre-deploy constraint check (do this before writing, not after)
 
 A constraint discovered after provisioning costs hours of rebuild. Before
@@ -154,6 +184,27 @@ is fine, because the files it rewrites are the ones you just authored in
 Write `cases/<id>/findings/iac-author.md`, then SendMessage. lab-verify
 reads `cases/<id>/iac/` as its provisioning input; if your findings say
 `status: failed`, lab-verify must not apply the code.
+
+**Every `TODO(iac-author)` you leave must say who can close it.** The lead
+will not launch lab-verify while unresolved markers remain, so a marker
+with no owner stalls the case — and re-running you cannot help if the
+answer was never inside your tool grants. Sort each one into:
+
+- **Yours** — a provider argument, module version, or lint finding you
+  could still look up. Prefer closing it now over flagging it.
+- **The lead's** — a cloud-service semantics question (see Phase 1), or
+  anything else needing documentation tools you do not have. Say so
+  explicitly: *"service-semantics; needs cloud docs, not reachable from
+  this stage."* That sentence is what routes it to a step-5a supplement
+  instead of a pointless re-run.
+- **lab-verify's** — anything only a live cluster or a real credential can
+  answer. Give the exact command that settles it, so it costs one call
+  inside the approved window rather than an investigation.
+
+When a default value is unverified, **do not substitute a better-sourced
+guess for a worse one** — an unverified string is unverified whatever its
+pedigree. Keep the variable, keep the flag, and supply the probe command
+that resolves it. A named command beats a confident default.
 
 ## Output
 
