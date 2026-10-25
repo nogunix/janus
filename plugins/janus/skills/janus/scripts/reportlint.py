@@ -85,6 +85,15 @@ CONFIDENCE = ("HIGH", "MEDIUM", "LOW")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(?P<title>.+?)\s*#*\s*$")
 HYPOTHESIS_RE = re.compile(r"^#{2,4}\s+(?P<id>H\d+[a-z]?)\s*[:.\-—]\s*(?P<title>.*)$")
 FINDING_REF_RE = re.compile(r"\bF\d+[a-z]?\b")
+# A citation that names its file: a link to the finding's anchor
+# (`](../findings/doc-search.md#f4-…)`), or a stage/file name directly in
+# front of the number (`jira-trace F1`). Stages each number from F1, so a
+# bare `F1` is only resolvable when one file defines it.
+LINK_CITE_RE = re.compile(
+    r"\]\((?:[^)#\s]*/)?findings/(?P<stem>[^/)#\s]+)\.md#(?P<id>f\d+[a-z]?)(?=[-)])",
+    re.I,
+)
+NAMED_CITE_RE = re.compile(r"(?<![\w-])(?P<who>[a-z][a-z0-9-]*)\s+(?P<id>F\d+[a-z]?)\b")
 CONFIDENCE_RE = re.compile(r"Confidence\s*[:：]?\s*\**\s*(HIGH|MEDIUM|LOW)\b", re.I)
 SEP_RE = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
 ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
@@ -175,7 +184,9 @@ def keyed(table):
 # --- findings side --------------------------------------------------------
 
 def load_findings(case_dir):
-    """{finding id: {stage, basis, confidence, file}} plus per-file metadata."""
+    """{(file stem, finding id): {stage, basis, confidence, file}} plus
+    per-file metadata. Keyed by file as well as id: every stage numbers
+    from F1, so the id alone collides as soon as two stages ran."""
     fnd = _load("findings")
     index, files = {}, []
     for path in sorted((case_dir / "findings").glob("*.md")):
@@ -194,13 +205,62 @@ def load_findings(case_dir):
             }
         )
         for f in found:
-            index[f["id"]] = {
+            index[(path.stem, f["id"])] = {
+                "id": f["id"],
                 "stage": stage,
                 "file": path.name,
                 "basis": fnd.first_word(f.get("Basis")),
                 "confidence": fnd.first_word(f.get("Confidence")),
             }
     return index, files
+
+
+def resolve_citations(text, index):
+    """Returns (keys, unknown, ambiguous) for the finding citations in
+    text. keys: resolved (stem, id) pairs in first-seen order; unknown:
+    ids no findings file defines; ambiguous: {id: [files]} for a bare id
+    that more than one file defines."""
+    by_id = {}
+    for key in index:
+        by_id.setdefault(key[1], []).append(key)
+    keys, unknown, ambiguous, named = [], [], {}, set()
+
+    def add(key):
+        if key not in keys:
+            keys.append(key)
+
+    for m in LINK_CITE_RE.finditer(text):
+        key = (m.group("stem"), m.group("id").upper())
+        if key in index:
+            add(key)
+        elif key[1] not in unknown:
+            unknown.append(f"{key[1]} (in {key[0]}.md)")
+    for m in NAMED_CITE_RE.finditer(text):
+        who, fid = m.group("who"), m.group("id")
+        candidates = by_id.get(fid, [])
+        exact = [k for k in candidates if k[0] == who]
+        by_stage = [k for k in candidates if index[k]["stage"] == who]
+        hit = exact or by_stage
+        if len(hit) == 1:
+            add(hit[0])
+            named.add(m.start("id"))
+    for m in FINDING_REF_RE.finditer(text):
+        if m.start() in named:
+            continue
+        fid = m.group(0)
+        candidates = by_id.get(fid, [])
+        if len(candidates) == 1:
+            add(candidates[0])
+        elif not candidates:
+            if fid not in unknown:
+                unknown.append(fid)
+        else:
+            ambiguous[fid] = sorted(index[k]["file"] for k in candidates)
+    # A bare id that the same text also cites by link or by name (the
+    # `[F3](../findings/doc-search.md#f3-…)` shape) is that citation.
+    resolved_ids = {k[1] for k in keys}
+    ambiguous = {i: f for i, f in ambiguous.items() if i not in resolved_ids}
+    return keys, unknown, ambiguous
 
 
 # --- checks ---------------------------------------------------------------
@@ -490,26 +550,32 @@ def check_hypotheses(lines, secs, index, problems, warnings):
             continue
         confidence = m.group(1).upper()
 
-        cited = []
-        for ref in dict.fromkeys(FINDING_REF_RE.findall(text)):
-            if ref in index:
-                cited.append(ref)
-            else:
-                problems.append(
-                    f"C1/ref: {where} cites {ref}, which no findings file "
-                    "defines"
-                )
+        cited, unknown, ambiguous = resolve_citations(text, index)
+        for ref in unknown:
+            problems.append(
+                f"C1/ref: {where} cites {ref}, which no findings file defines"
+            )
+        for ref, owners in ambiguous.items():
+            warnings.append(
+                f"{where} cites a bare {ref}, which {', '.join(owners)} all "
+                "define — name the stage (`jira-trace F1`) or link the "
+                "finding's anchor; it is left out of the rank rule"
+            )
         if not cited:
-            warnings.append(f"{where} cites no finding — every claim needs one")
+            if not unknown:
+                warnings.append(f"{where} cites no finding — every claim needs one")
             continue
 
-        bases = {ref: index[ref]["basis"] for ref in cited}
-        verified = [r for r, b in bases.items() if b == "VERIFIED"]
-        reasoned = [r for r, b in bases.items() if b == "REASONED"]
-        stages = {index[r]["stage"] for r in reasoned}
+        def label(key):
+            return f"{index[key]['stage']} {key[1]}"
+
+        bases = {key: index[key]["basis"] for key in cited}
+        verified = [k for k, b in bases.items() if b == "VERIFIED"]
+        reasoned = [k for k, b in bases.items() if b == "REASONED"]
+        stages = {index[k]["stage"] for k in reasoned}
 
         if confidence == "HIGH" and not verified and len(stages) < 2:
-            shown = ", ".join("{}={}".format(r, bases[r] or "?") for r in cited)
+            shown = ", ".join("{}={}".format(label(k), bases[k] or "?") for k in cited)
             problems.append(
                 f"C1/basis: {where} ranks HIGH on {shown} — HIGH needs one "
                 "VERIFIED finding, or two REASONED ones from different stages"
@@ -517,19 +583,19 @@ def check_hypotheses(lines, secs, index, problems, warnings):
         elif confidence != "LOW" and bases and set(bases.values()) == {"ASSUMED"}:
             problems.append(
                 f"C1/basis: {where} ranks {confidence} on ASSUMED findings only "
-                f"({', '.join(cited)}) — repetition of an assumption is not "
+                f"({', '.join(label(k) for k in cited)}) — repetition of an assumption is not "
                 "convergence"
             )
 
 
 def check_orphans(lines, index, warnings):
     text = "\n".join(lines)
-    cited = set(FINDING_REF_RE.findall(text))
+    cited = set(resolve_citations(text, index)[0])
     orphans = [
-        f"{ref} [{index[ref]['confidence'] or '?'}/{index[ref]['basis'] or '?'}] "
-        f"in {index[ref]['file']}"
-        for ref in sorted(index, key=lambda r: int(re.sub(r"\D", "", r)))
-        if ref not in cited
+        f"{key[1]} [{index[key]['confidence'] or '?'}/{index[key]['basis'] or '?'}] "
+        f"in {index[key]['file']}"
+        for key in sorted(index, key=lambda k: (k[0], int(re.sub(r"\D", "", k[1]))))
+        if key not in cited
     ]
     if orphans:
         warnings.append(

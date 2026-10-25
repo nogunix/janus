@@ -84,10 +84,13 @@ contradiction — synthesize and the lead's gates reject it.
 - **Frontmatter**: include `supplement_of: <parent-file>.md` and
   `source: <mcp-name>` alongside the standard stage/case/date/status
   fields
-- **Finding numbers**: globally unique within the case. The parent
-  stage owns F1–F19 (or whatever range it used). Each supplement
-  starts at the next available block of 10: F20–F29, F30–F39, etc.
-  Check existing files before assigning numbers.
+- **Finding numbers**: a supplement never reuses its parent's numbers
+  (`findings.py lint` FAILs it). The parent stage owns F1–F19 (or
+  whatever range it used). Each supplement starts at the next
+  available block of 10: F20–F29, F30–F39, etc. Check existing files
+  before assigning numbers. Separate stages each number from F1, so
+  ids can repeat across stages; a citation names its file — a link
+  to the anchor, or `<stage> F<n>` — and reportlint resolves it there.
 - **Delta field**: each finding in a supplement should include a
   `Delta from <prior_case>:` line when `case.yaml` has a
   `prior_case` reference, documenting what is new vs. the prior

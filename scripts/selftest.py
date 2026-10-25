@@ -570,6 +570,27 @@ def test_versioncheck():
         check("4.16.41" not in joined and "5.14.0" not in joined,
               "an in-scope z-stream and a different-family kernel do not warn")
 
+        # A wrapped Detail is read whole; a finding spanning versions its
+        # Ref also pins is not crossed; a heading backs a report claim.
+        (case / "findings" / "doc-search.md").write_text(
+            "### F1: fixed in 4.17.3\n"
+            "- **Detail**: the first line names nothing,\n"
+            "  but the wrapped line names OCP 4.15.2.\n"
+            "- **Ref**: doc 4.16\n\n"
+            "### F2: spans two minors\n"
+            "- **Detail**: GA on 4.16 and on 4.17.\n"
+            "- **Ref**: release notes 4.16 and 4.17\n")
+        (case / "results" / "synthesis.md").write_text(
+            "# Report\nThe fix shipped in 4.17.3.\n")
+        _, warnings, _, _ = version.run(case)
+        joined = " | ".join(warnings)
+        check("doc-search.md F1" in joined and "4.15.2" in joined,
+              "a version on a wrapped Detail line is read, not dropped")
+        check(not any("F2" in w and "crossed" in w for w in warnings),
+              "a Detail version its Ref also pins is not a crossed attribution")
+        check("4.17.3 asserted" not in joined,
+              "a report version backed by a finding heading is not unbacked")
+
 
 def test_caselint():
     cl = load("caselint")
@@ -1215,6 +1236,51 @@ def test_reportlint():
     check(any("never cites" in w and "F2" in w for w in warnings),
           "reportlint: a finding the report drops is a warning, not a FAIL")
 
+    # --- stages each number from F1: ids collide across files
+    jira = (
+        "---\nstage: jira-trace\ncase: 2026-01-01-rl\ndate: 2026-01-01\n"
+        "status: complete\nmodel: sonnet-x\n---\n\n"
+        "### F1: ticket says otherwise\n- **Confidence**: MEDIUM\n"
+        "- **Basis**: REASONED\n- **Ref**: OCPBUGS-1\n"
+    )
+    collided = (
+        RL_REPORT
+        .replace("HIGH: 1, MEDIUM: 1, LOW: 1", "HIGH: 1, MEDIUM: 2, LOW: 1")
+        .replace("VERIFIED: 1, REASONED: 2,", "VERIFIED: 1, REASONED: 3,")
+        .replace("| doc-search | complete | 2 |",
+                 "| doc-search | complete | 2 |\n| jira-trace | complete | 1 |")
+        .replace("crash-analyze=opus-x,", "crash-analyze=opus-x, jira-trace=sonnet-x,")
+        .replace("| find the cause | Achieved | F1, F2 |",
+                 "| find the cause | Achieved | doc-search F1, F2, jira-trace F1 |")
+    )
+
+    def collided_run(report):
+        with tempfile.TemporaryDirectory() as td:
+            case = rl_case(td, report)
+            (case / "findings" / "jira-trace.md").write_text(jira)
+            return rl.run(case)
+
+    named = collided.replace("- [docs] F1 — the timeout is documented",
+                             "- [docs] doc-search F1 — the timeout is documented")
+    problems, warnings = collided_run(named)
+    check(not any("Execution Metadata says" in p for p in problems),
+          "reportlint: colliding ids across files are all counted, none overwritten")
+    check(not any("C1/" in p for p in problems) and not any("bare" in w for w in warnings),
+          "reportlint: `doc-search F1` resolves to that file's F1 for the rank rule")
+
+    linked = collided.replace(
+        "- [docs] F1 — the timeout is documented",
+        "- [docs] [F1](../findings/doc-search.md#f1-probe-timeout) — the timeout is documented")
+    problems, warnings = collided_run(linked)
+    check(not any("C1/" in p for p in problems) and not any("bare" in w for w in warnings),
+          "reportlint: a link to the finding's anchor resolves a colliding id")
+
+    problems, warnings = collided_run(collided)
+    check(any("bare F1" in w and "jira-trace.md" in w for w in warnings),
+          "reportlint: a bare id two files define is flagged as ambiguous")
+    check(any("C1/basis" in p and "ranks HIGH" in p for p in problems),
+          "reportlint: an ambiguous id is left out of the rank rule, not guessed")
+
     import contextlib, io
     with tempfile.TemporaryDirectory() as td:
         case = rl_case(td)
@@ -1419,6 +1485,10 @@ def test_findings():
             rc = fnd.main(["findings.py", "digest", str(case)])
         check(rc == 0 and "lint: OK" in buf.getvalue(),
               "findings: digest says lint: OK for a clean file instead of staying silent")
+
+    check(fnd.shared_ids({"a.md": {"F1", "F2", "F10"}, "b.md": {"F1", "F10"},
+                          "c.md": {"F3"}}) == ["F1", "F10"],
+          "findings: ids two files define are reported, in numeric order")
 
 
 def main():

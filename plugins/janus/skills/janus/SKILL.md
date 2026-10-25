@@ -377,7 +377,10 @@ python3 <skill-dir>/scripts/findings.py digest cases/<id>
 
 Per file it prints the frontmatter status line, one line per finding
 (`F3 [HIGH/VERIFIED] <title>`), the **Gaps section** verbatim, and
-`findings.py lint`'s verdicts (`lint: OK` for a clean file). Read it
+`findings.py lint`'s verdicts (`lint: OK` for a clean file). A closing
+`note:` line lists the ids more than one file defines — every stage
+numbers from F1 — and is what step 6's brief must pass on: cite as
+`<stage> F<n>` with the anchor link, never a bare id. Read it
 from the command output — do not redirect it to a file; it is cheap to
 rerun, and a lead scratch file belongs under `cases/<id>/`, never
 `/tmp`. That is everything the routing decision

@@ -24,8 +24,13 @@ Read everything in `cases/<id>/findings/`:
 
 **Discovery**: run `ls cases/<id>/findings/*.md` — supplement files are
 not a fixed list. Each has `supplement_of:` in its frontmatter linking
-it to the parent stage. Finding numbers are globally unique across all
-files in a case (the parent owns F1–F19, supplements start at F20+).
+it to the parent stage. A supplement never reuses its parent's numbers
+(the parent owns F1–F19, supplements start at F20+), but **separate
+stages each number from F1** — doc-search F1 and jira-trace F1 are
+different findings. Cite a finding by its stage and number with a link
+to its anchor (`[jira-trace F1](../findings/jira-trace.md#f1-…)`), never
+as a bare `F1`; the lead's digest prints a `note:` line listing the ids
+that collide in the case.
 
 Some files may be missing (stage failed, was skipped, or not applicable).
 Work with what exists. Note gaps explicitly.
@@ -73,10 +78,14 @@ LOW, no matter how many stages repeat it — repetition of an assumption
 is not convergence.
 
 This rule is checked mechanically. `reportlint.py` collects every
-`F<N>` inside a hypothesis block, looks up each one's Basis in the
-findings file that defines it, and FAILs the report under `C1/basis`
+finding citation inside a hypothesis block, resolves it to one file —
+by the link's target, by a stage name in front of the number
+(`jira-trace F1`), or because only one file defines that number —
+looks up its Basis there, and FAILs the report under `C1/basis`
 when the cited bases do not carry the stated confidence — and under
-`C1/ref` when a cited number exists in no findings file. Two
+`C1/ref` when a cited number exists in no findings file. A bare number
+that several files define is ambiguous: reportlint warns and leaves it
+out of the rank rule rather than guess. Two
 consequences for how you write: **cite every finding a hypothesis rests
 on inside that hypothesis's own block** (evidence mentioned only in a
 neighbouring section does not count toward its rank), and never invent

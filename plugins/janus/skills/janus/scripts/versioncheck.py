@@ -39,8 +39,10 @@ from pathlib import Path
 # A product version token: dotted numbers with 2-3 components. The
 # lookbehind/lookahead reject a token bounded by a dot or digit, which
 # excludes 4-octet IPs (10.0.0.1) and longer sequences without a special
-# case — no interior 2-3 component slice of an IP is ever isolated.
-VERSION_RE = re.compile(r"(?<![\d.])\d+\.\d+(?:\.\d+)?(?![\d.])")
+# case — no interior 2-3 component slice of an IP is ever isolated. The
+# lookahead rejects a following digit or `.digit`, not a bare `.`, so a
+# version that ends a sentence ("fixed in 4.16.55.") is still a token.
+VERSION_RE = re.compile(r"(?<![\d.])\d+\.\d+(?:\.\d+)?(?!\d|\.\d)")
 
 # A source location inside a Ref: path/to/file.ext:line — the signature
 # of a source citation (drgn/lab/slack/doc Refs never match this shape).
@@ -121,11 +123,18 @@ def parse_findings(md):
     for i in range(len(starts) - 1):
         block = text[starts[i]:starts[i + 1]]
         label = block.splitlines()[0].lstrip("# ").strip()
-        fields = {}
+        fields, key = {}, None
         for line in block.splitlines()[1:]:
             m = FIELD_RE.match(line)
             if m:
-                fields[m.group("key").strip().lower()] = m.group("val").strip()
+                key = m.group("key").strip().lower()
+                fields[key] = m.group("val").strip()
+            elif key and line[:1] in (" ", "\t") and line.strip():
+                # a wrapped Detail/Ref continues on indented lines; reading
+                # only the first line misses most of a long Detail
+                fields[key] += " " + line.strip()
+            else:
+                key = None
         out.append((label, fields.get("type", ""), fields.get("detail", ""),
                     fields.get("ref", "")))
     return out
@@ -149,7 +158,8 @@ def run(case_dir):
         for label, ftype, detail, ref in parse_findings(md):
             where = f"{rel} {label}"
             dv, rv = versions(detail), versions(ref)
-            finding_versions |= dv | rv
+            # the heading backs a report claim as much as the Detail does
+            finding_versions |= dv | rv | versions(label)
 
             # 1. HARD FAIL: a source location with no version anywhere in
             #    the Ref (NVR, casket path, or commit sha) — which version
@@ -166,20 +176,28 @@ def run(case_dir):
             #    (4.16 vs 4.18) — a crossed version, not two products. A
             #    z-stream refines its minor (4.16 vs 4.16.41), so only a
             #    prefix-incompatible pair counts.
-            crossed = sorted({
-                (d, r) for d in dv for r in rv
-                if _family(d) == _family(r) and not _in_scope(d, {r})})
-            for d, r in crossed:
-                warnings.append(
-                    f"{where}: Detail cites {d} but Ref pins {r} — "
-                    "attribution may be crossed")
+            #    A Detail version the Ref also pins is not crossed, so a
+            #    finding spanning 4.20/4.21/4.22 with all three in its Ref
+            #    stays quiet; only a version the Ref pins no match for warns.
+            #    Compared at the minor: two z-streams of one minor
+            #    (4.16.55 named, 4.16.41 read) are not the 4.16-vs-4.18 cross.
+            for d in sorted(dv):
+                same = sorted(r for r in rv if _family(r) == _family(d))
+                minors = {".".join(r.split(".")[:2]) for r in same}
+                if same and ".".join(d.split(".")[:2]) not in minors:
+                    warnings.append(
+                        f"{where}: Detail cites {d} but Ref pins "
+                        f"{', '.join(same)} — attribution may be crossed")
 
             # 3. WARN: a finding version in a scoped family but off-scope.
-            for v in sorted(dv | rv):
-                if _family(v) in scope_families and not _in_scope(v, scope):
-                    warnings.append(
-                        f"{where}: version {v} not in version_scope "
-                        f"{sorted(scope)}")
+            #    One line per finding: a long Detail can name several.
+            off = [v for v in sorted(dv | rv)
+                   if _family(v) in scope_families and not _in_scope(v, scope)]
+            if off:
+                noun = "version" if len(off) == 1 else "versions"
+                warnings.append(
+                    f"{where}: {noun} {', '.join(off)} not in version_scope "
+                    f"{sorted(scope)}")
 
     # 4. WARN: a report version in a scoped family, off-scope, and backed
     #    by no finding — the attribution-drift signal. Needs a declared

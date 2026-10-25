@@ -2,6 +2,52 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.39.0 — 2026-10-25
+
+**Every stage numbers its findings from F1. reportlint assumed nobody
+did.** A case with doc-search (F1–F22), jira-trace (F1–F8) and iac-author
+(F1–F7, F40–F44) handed synthesize a correct report, and reportlint failed
+it four times under `C2/section`: Execution Metadata said 47 findings, the
+script counted 32. `load_findings()` keyed its index by the bare id, so
+each later file overwrote the earlier file's F1–F8. The miscount was the
+visible half. The same collided index fed the rank rule, so `C1/basis`
+was checking each hypothesis against whichever file happened to load
+last, and the orphan check could not see the findings it had overwritten:
+re-run on the fixed script, that case's report turned out to leave four
+findings uncited. Nothing in the format told stages to keep ids unique
+across a case; only supplements are required to avoid their parent's
+numbers. synthesize.md said the opposite ("globally unique across all
+files"), which is how the collision reached the report unnoticed.
+
+The same case surfaced two blind spots in versioncheck, both silent
+misses rather than false alarms.
+
+- **`reportlint.py`** keys findings by `(file, id)`. A citation resolves
+  to one file by the link's anchor target, by a stage or file name in
+  front of the number (`jira-trace F1`), or because only one file defines
+  that number. A bare id several files define is a warning and is left
+  out of the rank rule, never guessed. Counts, `C1/basis`, `C1/ref` and
+  the orphan check all use the resolved citations. Cases whose ids do not
+  collide behave exactly as before.
+- **`versioncheck.py`** reads a wrapped `Detail`/`Ref` whole. It read only
+  the first line, so a version on a continuation line backed nothing and
+  was never scope-checked — the case's report flagged four versions as
+  "backed by no finding" that its findings did state. A finding's heading
+  now backs a report claim too. A version ending a sentence
+  (`fixed in 4.16.55.`) is a token again; the lookahead that keeps IP
+  octets out also rejected the full stop. With more of each Detail read,
+  two warnings were reshaped to stay readable: a Detail version is
+  "crossed" only when its Ref pins no version of the same minor (a finding
+  spanning 4.20/4.21/4.22 with all three in its Ref no longer produces a
+  cross-product of warnings), and off-scope versions are reported once per
+  finding.
+- **`findings.py digest`** ends with a `note:` line listing ids more than
+  one file defines. **SKILL.md** step 5 tells the lead to pass it to
+  synthesize's brief. **`agents/synthesize.md`** and
+  **`references/findings-format.md`** now say what is true: supplements
+  avoid their parent's numbers, separate stages repeat them, and a
+  citation names its file.
+
 ## 0.38.1 — 2026-10-20
 
 **A provider schema says which arguments exist. It does not say what the

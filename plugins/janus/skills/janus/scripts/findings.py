@@ -223,7 +223,26 @@ def cmd_digest(case_dir):
         if not problems and not warnings:
             print("  lint: OK")
         failed = failed or bool(problems)
+    shared = shared_ids(ids)
+    if shared:
+        print(
+            f"note: {', '.join(shared)} are defined in more than one file — "
+            "every stage numbers from F1, so tell synthesize to cite these as "
+            "`<stage> F<n>` or by a link to the finding's anchor; a bare id is "
+            "ambiguous to reportlint"
+        )
     return 1 if failed else 0
+
+
+def shared_ids(ids):
+    """Finding ids that more than one file defines, in numeric order.
+    ids maps file name → set of ids (case_ids)."""
+    seen = {}
+    for name, found in ids.items():
+        for fid in found:
+            seen.setdefault(fid, set()).add(name)
+    return sorted((i for i, owners in seen.items() if len(owners) > 1),
+                  key=lambda s: int(re.sub(r"\D", "", s)))
 
 
 def main(argv):
