@@ -367,7 +367,7 @@ or a path never sealed, so it cannot be used to drop live evidence, and the
 mandatory reason field is there so a reader can judge the removal instead
 of taking it on trust. Six selftests cover the boundary.
 
-This came out of JANUS-024's third shell-write incident, where a stage with
+This came out of one case's third shell-write incident, where a stage with
 no `Edit` in its toolset and `Write` refused outright by the permission
 classifier had no compliant way to add a finding at all. It used a
 non-destructive shell append via a scratch file — disclosed, content
@@ -375,13 +375,13 @@ intact — and left behind a sealed path pointing at nothing.
 
 ## 0.33.0 — 2026-10-15
 
-Closes the last of the three ways JANUS-024 found to slip past the
+Closes the last of the three ways one case found to slip past the
 evidence chain, and promotes the lessons two live AWS lab runs produced.
 
 - **An out-of-band write was only ever caught by accident.** The chain
   seals on every tracked write, so a shell redirect followed by an
   `Edit` gets re-sealed as legitimate and `chain.py verify` goes back to
-  reporting intact. JANUS-024 hit this twice: the first shell write
+  reporting intact. That case hit this twice: the first shell write
   happened to be the last write to that file, so `verify` caught it and
   the case stopped for a human; the second was followed by dozens of
   `Edit` calls, `verify` reported intact throughout, and the only reason
@@ -395,8 +395,8 @@ evidence chain, and promotes the lessons two live AWS lab runs produced.
   instructions to report it to the lead rather than retry. Files the
   ledger has never sealed are out of scope, so fresh findings files and
   unsealed `audit/` logs pass untouched. Fail-open, like its neighbours.
-  Four selftests pin the boundary, including the exact JANUS-024
-  sequence.
+  Four selftests pin the boundary, including the exact sequence
+  that case produced.
 
   With `findings-truncation.py` (0.32.0), all three observed gaps are
   now closed: shell-write-then-nothing (caught by `verify` already),
@@ -437,7 +437,7 @@ evidence chain, and promotes the lessons two live AWS lab runs produced.
 ## 0.32.0 — 2026-10-14
 
 **The evidence chain cannot see content loss, and a case proved it.** In
-JANUS-024 a resumed iac-author wrote `F160-F167` over a findings file that
+one case a resumed iac-author wrote `F160-F167` over a findings file that
 also held `F80-F89` and `F140-F148`, deleting 19 findings the report cited
 in 36 places. `chain.py verify` reported **intact** for the entire time the
 content was gone: `Write` is a tracked tool, so the PostToolUse hook
@@ -1341,7 +1341,7 @@ this time a live host wrongly reported dead.
   *reset* proves the host resolved and completed the TCP handshake — it
   is provably live — so it is now a non-blocking `warn`, alongside
   5xx/timeout. Unresolvable-host and connection-*refused* stay hard
-  FAILs. Found by case 2026-07-19-strace-eacces-svc (OCPBUGS-4077
+  FAILs. Found by a case (OCPBUGS-4077
   reported dead while returning HTTP 200 by hand). Fail-open, stdlib-only.
 - **selftest.py** — two cases added: a reset from a live host warns (not
   FAILs); a connection refused stays a hard FAIL.
@@ -1424,7 +1424,7 @@ checking for case evidence:
 
 ## 0.14.0 — 2026-07-15
 
-deck: pptx quality items C2–C4 from the JANUS-004 follow-up list (C1 —
+deck: pptx quality items C2–C4 from a case's follow-up list (C1 —
 body() run-level sizes — had already shipped in 0.12.0):
 
 - **`d.add_code_block(slide, l, t, w, code, lang=…)` (C2 + C4)** — dark
@@ -1507,7 +1507,7 @@ IDs stay in the project-local janus-lessons file):
 
 ## 0.11.0 — 2026-07-13
 
-deck skill improvements from case JANUS-002's IMPROVE feedback
+deck skill improvements from a case's IMPROVE feedback
 (`review-queue/IMPROVE_2026-07-13-deck.md`; items 1–5 shipped, item 6 —
 JANUS-report→slide semi-automation — deferred):
 

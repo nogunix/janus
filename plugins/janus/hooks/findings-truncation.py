@@ -4,7 +4,7 @@
 `Write` replaces a file wholesale. A stage resumed for a later round
 reads part of its own findings file, writes "its" findings, and silently
 destroys every earlier round's — which is exactly what happened in
-JANUS-024: a resumed iac-author wrote F160-F167 over a file that also
+one case: a resumed iac-author wrote F160-F167 over a file that also
 held F80-F89 and F140-F148, deleting 19 findings the report cited in 36
 places.
 

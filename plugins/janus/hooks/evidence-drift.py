@@ -8,7 +8,7 @@ seal, and then the *next* tracked write re-seals the drifted content as
 though it were legitimate. `chain.py verify` goes back to reporting
 intact, and the window closes behind itself.
 
-JANUS-024 hit this twice. The first shell write happened to be the last
+One case hit this twice. The first shell write happened to be the last
 write to that file, so `verify` caught it and the case stopped for a
 human. The second was followed by dozens of `Edit` calls; `verify`
 reported intact throughout, and the only reason anyone knew was that the

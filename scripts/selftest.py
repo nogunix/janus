@@ -84,7 +84,7 @@ def test_chain():
 def test_findings_truncation_hook():
     """A Write that drops findings is denied; one that keeps them is not.
 
-    JANUS-024: a resumed stage wrote its own round over a findings file
+    From a real case: a resumed stage wrote its own round over a findings file
     that also held two earlier rounds, deleting 19 findings the report
     cited. chain.py verify said "intact" throughout — Write is a tracked
     tool, so the overwrite sealed cleanly. The chain cannot see content
@@ -176,7 +176,7 @@ def test_evidence_drift_hook():
     followed by a tracked one re-seals the drift as legitimate and
     `verify` goes back to reporting intact. Whether an out-of-band write
     is ever noticed then depends on whether anything happens to be
-    written afterwards — which is how JANUS-024's second shell write
+    written afterwards — which is how one case's second shell write
     stayed invisible while its first was caught. This hook checks the
     one moment the evidence still exists: just before the next tracked
     write.
@@ -792,10 +792,10 @@ def test_anchors():
     # anchors.py slug must match linkcheck.py slug on every input
     cases = [
         ("F1: VM migration fails on OCP 4.18.41", "f1-vm-migration-fails-on-ocp-41841"),
-        ("F10: ODF 4.18→4.19 アップグレード: NooBaa DB 移行デッドロック",
-         "f10-odf-418419-アップグレード-noobaa-db-移行デッドロック"),
-        ("F4: DFBUGS-8895 — ODF 4.18/4.19 NooBaa DB 移行 (ON_QA, 修正中)",
-         "f4-dfbugs-8895-odf-418419-noobaa-db-移行-on_qa-修正中"),
+        ("F10: OCP 4.16→4.17 アップグレード: Operator 更新の停止",
+         "f10-ocp-416417-アップグレード-operator-更新の停止"),
+        ("F4: EXAMPLE-1234 — OCP 4.16/4.17 Operator 更新 (ON_QA, 修正中)",
+         "f4-example-1234-ocp-416417-operator-更新-on_qa-修正中"),
         ("F1: 管理者 ACK が必須 — Kubernetes 1.32 API 削除への対応",
          "f1-管理者-ack-が必須-kubernetes-132-api-削除への対応"),
         ("根拠となる所見", "根拠となる所見"),
@@ -818,7 +818,7 @@ def test_anchors():
         f = findings / "doc-search.md"
         f.write_text(
             "### F1: probe timeout\n\n"
-            "### F10: ODF 4.18→4.19 アップグレード: NooBaa DB 移行デッドロック\n\n"
+            "### F10: OCP 4.16→4.17 アップグレード: Operator 更新の停止\n\n"
             "### F1: probe timeout\n"
         )
         rows = list(anchors_mod.extract(f))
@@ -827,7 +827,7 @@ def test_anchors():
             "extract yields correct (slug, title) for F1",
         )
         check(
-            rows[1][0] == "f10-odf-418419-アップグレード-noobaa-db-移行デッドロック",
+            rows[1][0] == "f10-ocp-416417-アップグレード-operator-更新の停止",
             "extract handles version arrows and Japanese correctly",
         )
         check(

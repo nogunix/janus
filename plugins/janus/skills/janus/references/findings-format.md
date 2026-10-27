@@ -69,7 +69,7 @@ contradiction — synthesize and the lead's gates reject it.
 | lab | command + cluster ver | `oc get pods (OCP 4.20.0) → audit/lab-1.log` |
 | terraform | `namespace/provider@version resource` or `module@version` | `hashicorp/azurerm@4.14.0 azurerm_redhat_openshift_cluster` |
 | iac | file + static-check output | `iac/terraform/main.tf → audit/iac-1.log` |
-| slack | `#channel, YYYY-MM-DD` | `#forum-kubevirt, 2026-06-15` |
+| slack | `#channel, YYYY-MM-DD` | `#example-channel, 2026-06-15` |
 | github | `owner/repo#N` or commit SHA + URL | `kubevirt/kubevirt#14309` |
 | mslearn | Learn URL | `https://learn.microsoft.com/azure/openshift/support-lifecycle` |
 | aws-docs | `docs.aws.amazon.com` URL | `https://docs.aws.amazon.com/rosa/latest/userguide/rosa-sts.html` |
@@ -104,7 +104,7 @@ contradiction — synthesize and the lead's gates reject it.
 ```yaml
 ---
 stage: doc-search
-case: JANUS-006
+case: 2026-08-19-example
 date: 2026-08-19T07:00:00Z
 status: complete
 supplement_of: doc-search.md

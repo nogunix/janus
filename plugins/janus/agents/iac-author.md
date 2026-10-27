@@ -84,7 +84,7 @@ other end of the integration. It clusters around resources that
 **route, transform, or ingest** data rather than merely allocate it —
 ingestion rules, stream/table mappings, event subscriptions, log pipelines.
 
-Worked example (JANUS-009): an Azure Monitor Data Collection Rule's
+Worked example: an Azure Monitor Data Collection Rule's
 `data_flow` omitted `transform_kql` and `output_stream`. Both are optional
 in the azurerm schema. Both are documented by the Logs Ingestion API as
 how a stream reaches its table. `terraform validate` passed; ingestion
