@@ -2,6 +2,26 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.41.0 — 2026-10-27
+
+**Building the PPTX is not where gslides adds value.** Workflow 3 split
+into the part that makes a PPTX and the part that turns it into Google
+Slides. The first now rides on Anthropic's `pptx` skill (document-skills)
+when it is installed — its template-editing path duplicates prototype
+slides and keeps SVG/EMF template art, which python-pptx can do neither
+of, and its `validate.py --original` catches the package faults PowerPoint
+and Drive conversion refuse. The second — conversion on upload, QA from
+the Drive PDF, Playwright capture traps, click-target boxes — stays here.
+
+- **`gslides/SKILL.md` Workflow 3**: procedure decks keep
+  `procedure_deck.py`; other brand-template decks go to the pptx skill's
+  template-editing steps, or to deck's `decklib.py` when it is absent.
+  Absence is the normal state, not an error, and the skill is not vendored
+  (its license does not allow redistribution).
+- `validate.py --original template-base.pptx` runs on either path's
+  output; local visual QA on macOS stays `qa_thumbs.py`, since the pptx
+  skill's `thumbnail.py` renders through LibreOffice (deck gotcha #12).
+
 ## 0.40.0 — 2026-10-27
 
 **A procedure deck has to look like the brand template and show where to
