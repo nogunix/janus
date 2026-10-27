@@ -397,6 +397,54 @@ gws slides presentations batchUpdate \
   --json '{ "requests": [ ... ] }'
 ```
 
+## Workflow 3: PPTX-first（ブランドテンプレートの手順書・ハンズオン資料）
+
+Slides API で作るスライドは、社内テンプレートのマスター・中扉のデザイン・
+フォントを忠実に再現できない。画面写真＋番号付き手順＋コピペ用コードが並ぶ
+**手順書**は、python-pptx でテンプレートの見本スライドの上に組み、PPTX を
+Drive にアップロードして変換する方が確実。
+
+1. **テンプレートを 4 枚にする**: Google スライドのテンプレートをコピーし、
+   表紙・中扉・本文・締めの 4 枚だけ残して PPTX で書き出す（`template-base.pptx`）。
+   社内テンプレートはリポジトリにコミットしない。
+2. **組む**: `scripts/procedure_deck.py` の `ProcedureDeck`（使用例は docstring）。
+   `two_shots`（画面 2 枚＋説明）、`one_shot`（画面 1 枚＋手順＋コード枠）、
+   `divider`（中扉＋目安時間）、`table`、`code` がある。画面写真は
+   `shot_dirs` の先頭から探すので、赤枠付き（deck スキルの
+   `annotate_shots.py`）を先に、元画像を後に並べる。
+3. **QA（ローカル）**: macOS なら deck スキルの `qa_thumbs.py`。
+4. **アップロードして変換**:
+   ```bash
+   # 新規作成（マイドライブ直下）
+   gws drive files create --params '{"fields":"id,name,webViewLink"}' \
+     --json '{"name":"手順書（サンプル）","mimeType":"application/vnd.google-apps.presentation","parents":["root"]}' \
+     --upload deck.pptx \
+     --upload-content-type application/vnd.openxmlformats-officedocument.presentationml.presentation
+   # 既存ファイルを上書き（中身を差し替え、名前も変えるなら --json '{"name":"…"}' を足す）
+   gws drive files update --params '{"fileId":"ID"}' --upload deck.pptx \
+     --upload-content-type application/vnd.openxmlformats-officedocument.presentationml.presentation
+   ```
+5. **QA（Google 上）**: Drive から PDF を書き出して目視する（Gotcha 17）。
+   Google が描画するのでテンプレートのフォントで表示され、日本語の PDF も
+   正しく出る。配布用 PDF はこれを使う。
+
+### 画面写真を Playwright で撮るときの注意
+
+- **OpenShift コンソールは最初の表示で 2 回読み込む**。タイトルが一度
+  正しく出た後にもう一度スピナーに戻るので、`wait_for` の直後に撮らず、
+  もう 15〜20 秒待ってから撮る。
+- **コンソール初回ログイン**ではガイドツアーのダイアログと OpenShift
+  Lightspeed のパネルが画面を覆う。Escape と Lightspeed の Minimize で閉じて
+  から撮る（資料にも「事前に閉じる」と書く）。
+- **YAML のインポート**（Monaco エディタ）は打鍵すると自動インデントで崩れる。
+  `window.monaco.editor.getModels()[0].setValue(yaml)` で入れる。
+- **Pod のターミナル**（xterm）は `.xterm-helper-textarea` に
+  `pressSequentially` で打ち、Enter で実行する。
+- **スクリーンショットの保存先**は Playwright の作業ルート配下だけ（`/tmp` は
+  拒否される）。資料用は直接 `docs/images/...` に書き出す。
+- **ページのスナップショット（`.playwright-mcp/*.yml`）に接続情報の
+  パスワードがそのまま残る**ことがある。作業の最後に grep して削除する。
+
 ## Diagrams
 
 ### SVG diagrams (HTML → PNG)
@@ -489,8 +537,24 @@ gws drive files export \
     （`-o` はカレントディレクトリ配下しか受け付けない。`/tmp` は拒否される）
     書き出したPDFを読んで、各ページの下端が切れていないか確認する。
 
+18. **PPTX のアップロードで Google スライドに変換される.** `files create` の
+    `--json` に `"mimeType":"application/vnd.google-apps.presentation"` を付け、
+    `--upload-content-type` に PPTX の MIME を渡す。`files update` は既存の
+    Google スライドの中身を PPTX で丸ごと置き換える（版の履歴から戻せる）。
+
+19. **ユーザーの既存ファイルへの上書きは、権限確認で止められることがある.**
+    Claude Code の auto mode は他人（ユーザー）のファイルの上書きを外部書き込みと
+    して拒否しうる。回避を試みず、新規ファイルとして作るか、ユーザーに
+    `!` 付きでコマンドを実行してもらう。自分で作ったファイルの更新は通る。
+
+20. **20 枚を超える PPTX は部品名の重複に注意.** テンプレートの見本スライドを
+    残したまま `add_slide` を重ねると `Duplicate name: ppt/slides/slideNN.xml`
+    になる。保存前に `prs.part.rename_slide_parts([s.rId for s in prs.slides._sldIdLst])`
+    （`procedure_deck.py` の `save()` は実施済み）。
+
 ## Files
 
 - `scripts/build_gslides.py` — declarative driver: YAML/JSON spec → Google Slides.
 - `scripts/svgtools.py` — render SVG diagrams from HTML to PNG, light-recolor.
 - `scripts/recolor_image.py` — dark→light raster diagram recolor.
+- `scripts/procedure_deck.py` — Workflow 3: brand-template procedure decks as PPTX (python-pptx), then upload with conversion.

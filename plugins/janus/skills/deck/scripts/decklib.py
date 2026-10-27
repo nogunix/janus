@@ -590,5 +590,12 @@ class Deck:
 
     # ---------------- output ----------------
     def save(self, path):
+        # A slide kept by strip_slides() keeps its template partname (e.g.
+        # slide20.xml), while add() names new parts slide<N> by count. Once a
+        # deck grows past the kept slide's number the two collide and the zip
+        # gets a duplicate entry ("Duplicate name: ppt/slides/slide20.xml"),
+        # which PowerPoint may refuse to open. Renumber in deck order first.
+        self.prs.part.rename_slide_parts(
+            [sldId.rId for sldId in self.prs.slides._sldIdLst])
         self.prs.save(path)
         return path

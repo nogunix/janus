@@ -244,6 +244,25 @@ scripts/render.sh OUT.pdf 80 /tmp/qa            # PNGs + /tmp/qa-montage.png
 Read the montage, then read individual pages, fix the build script, and repeat.
 Do not declare done without viewing the rendered pages.
 
+**macOS where LibreOffice drops Japanese glyphs** (gotcha #12): skip
+topdf/render and QuickLook each slide instead —
+```bash
+python3 scripts/qa_thumbs.py OUT.pptx /tmp/qa      # /tmp/qa/montage.png + s01.pptx.png …
+```
+It clears its own previous output first, so a reused directory never mixes a
+stale run into the contact sheet.
+
+### 7. Screenshot callouts for procedure docs (red boxes)
+Step-by-step decks read far better when each screenshot marks what to click.
+Keep the raw captures, write annotated copies to a separate directory, and let
+the build prefer it:
+```bash
+python3 scripts/annotate_shots.py shots.json        # spec format in the script's docstring
+```
+Coordinates are the source image's pixels — read the capture at native size
+(a 1600x900 shot displayed unscaled maps 1:1) and check the annotated output
+afterwards; a box that misses its target misleads more than no box.
+
 ## Gotchas (the things that actually break)
 1. **Placeholder geometry zero-bug.** Setting only `.width` or `.top` on an
    inherited placeholder leaves the other dims at 0 → the box flies to the
@@ -289,6 +308,19 @@ Do not declare done without viewing the rendered pages.
    placeholder is taken, add a `d.add_textbox` at fixed inches (see step 3). For a
    fixed event/presentation date rather than the build date, pass that string
    explicitly instead of `date.today()`.
+11. **A deck past ~20 slides can come out with a duplicate zip entry.** A slide
+   kept by `strip_slides()` keeps its template partname (say `slide20.xml`)
+   while `add()` names new parts `slide<N>` by count; when N reaches the kept
+   number python-pptx warns `Duplicate name: ppt/slides/slide20.xml` and the
+   file may not open in PowerPoint. `decklib.save()` now renumbers parts in
+   deck order before writing — keep that call if you save through
+   `d.prs.save()` yourself.
+12. **Some macOS LibreOffice builds render no Japanese at all in pptx→pdf.**
+   The text is in the PDF (`pdftotext` finds it) but every CJK glyph is blank;
+   fonts and cache resets do not help. Use `qa_thumbs.py` for visual QA, and
+   for a deliverable PDF either convert on Linux or upload the pptx to Google
+   Slides and export from there (gslides skill, Workflow 3) — Google renders
+   the Japanese correctly. Never leave a glyph-less PDF in the output folder.
 
 ## Files
 - `scripts/build_deck.py` — declarative driver: YAML/JSON deck spec → pptx (step 3). Needs `decklib.py` beside it.
@@ -297,4 +329,6 @@ Do not declare done without viewing the rendered pages.
 - `scripts/recolor_image.py` — dark→light *raster* diagram recolor (`recolor`, `recolor_blob`, CLI).
 - `scripts/inspect_template.py` — dump a template's layouts & sample slides.
 - `scripts/topdf.sh` — pptx→pdf with the JP-font fix + CJK-font report.
+- `scripts/qa_thumbs.py` — per-slide QuickLook thumbnails + contact sheet (macOS; no LibreOffice).
+- `scripts/annotate_shots.py` — red click-target boxes on screenshots from a JSON spec (pillow).
 - `scripts/render.sh` — pdf→PNGs + contact sheet for review.

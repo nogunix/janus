@@ -2,6 +2,39 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.40.0 — 2026-10-27
+
+**A procedure deck has to look like the brand template and show where to
+click. Neither slide skill did both.** Building a hands-on procedure deck in
+a corporate Google Slides template exposed three gaps. The Slides API
+path (build_gslides.py) cannot reproduce a corporate template's masters and
+divider art, so the deck was built as PPTX on the template's own prototype
+slides and uploaded with conversion — a workflow neither skill described.
+At slide 20 decklib produced a pptx with a duplicate zip entry
+(`Duplicate name: ppt/slides/slide20.xml`): the closing slide kept by
+`strip_slides()` keeps its template partname while `add()` numbers new parts
+by count. And on macOS, LibreOffice rendered every Japanese glyph blank in
+pptx→pdf, so topdf/render could not be used for QA at all.
+
+- **`deck/decklib.py`** `save()` renumbers slide parts in deck order before
+  writing; the collision no longer depends on how many slides a deck has.
+- **`deck/qa_thumbs.py`** (new): per-slide QuickLook thumbnails and a contact
+  sheet, for macOS where LibreOffice cannot render Japanese. Clears its own
+  previous output so a reused directory cannot mix in a stale run.
+- **`deck/annotate_shots.py`** (new): red click-target boxes on screenshots
+  from a JSON spec, written to a separate directory so the raw captures stay
+  untouched and one capture can carry different targets on two slides.
+- **`gslides/procedure_deck.py`** (new) and **Workflow 3** in the gslides
+  skill: build on a four-slide template export (cover, divider, interior,
+  closing) with `two_shots` / `one_shot` / `divider` / `code` / `table`,
+  upload with `files create|update` converting to Google Slides, and QA from
+  the Drive-exported PDF — which is also the way to get a Japanese PDF that
+  renders. The section records Playwright capture traps from the same work:
+  the OpenShift console's double load, the first-login tour and Lightspeed
+  panel, Monaco and xterm input, and page snapshots that keep credentials.
+- Gotchas: deck #11–#12, gslides #18–#20 (conversion on upload, an overwrite
+  of the user's own file being refused by auto mode, the partname guard).
+
 ## 0.39.0 — 2026-10-25
 
 **Every stage numbers its findings from F1. reportlint assumed nobody
