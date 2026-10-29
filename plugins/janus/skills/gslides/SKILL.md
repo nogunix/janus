@@ -99,12 +99,14 @@ for l in data.get('layouts', []):
 1. **スライド一覧を決める** — 各スライドのレイアウトとタイトルを列挙
 2. **`styles:` を定義する** — 2枚以上のスライドで繰り返す要素（サブタイトル、脚注、コンテンツボックスなど）はスタイルとして定義
 3. **`brand:` を決める** — フォント、色、サイズ
-4. **座標の基準を決める** — インチ座標 (`xi`/`yi`/`wi`/`hi`) を使用。APIで作成したスライドは **16:9 = 10in x 5.625in**
+4. **座標の基準を決める** — インチ座標 (`xi`/`yi`/`wi`/`hi`) を使用。APIで作成したスライドは **16:9 = 10in x 5.625in**。
+   テンプレートを複製した場合は**テンプレートのページサイズ**になる（PowerPoint 由来の 16:9 は 13.333in x 7.5in が多い）。
+   `presentations get` の `pageSize`（EMU）を読んで決めること（Gotcha 16）
 
-**`yi` が 5.625 を超えた要素は画面外に落ちる。** エラーにならず、黙って消える。
-縦位置を決めるときは必ず 5.625 を上限として設計すること。
+**下端を超えた要素は画面外に落ちる。** エラーにならず、黙って消える。
+縦位置を決めるときは必ずページの高さ（新規作成なら 5.625）を上限として設計すること。
 
-**インチ座標クイックリファレンス (16:9):**
+**インチ座標クイックリファレンス (16:9、APIで新規作成した 10in x 5.625in):**
 
 | 位置 | インチ | EMU相当 |
 |------|--------|---------|
@@ -318,7 +320,7 @@ styles:
 
 ### Position/size values
 
-**インチ座標 (推奨):** `xi`, `yi`, `wi`, `hi` — APIで作成したスライド = **16:9 = 10in x 5.625in**
+**インチ座標 (推奨):** `xi`, `yi`, `wi`, `hi` — APIで作成したスライド = **16:9 = 10in x 5.625in**（テンプレート複製時はテンプレートの `pageSize`）
 
 **EMU座標 (後方互換):** `x`, `y`, `w`, `h` — 1 inch = 914400 EMU
 
@@ -352,7 +354,9 @@ styles:
 YAML specで表現できない操作のためのエスケープハッチ。
 **注意: 反復的なスライド作業では使わない。** 直接 batchUpdate はコンテキストを急速に消費し、コンテキスト溢れの原因になる。
 
-パターンは常に **2フェーズ**:
+基本は **2フェーズ**（作成 → プレースホルダーIDを発見 → 挿入）。
+`createSlide` に `placeholderIdMappings` を付けてプレースホルダーに自分でIDを振れば、
+発見を省いて作成と挿入を1回の batchUpdate にまとめられる（Gotcha 2）。
 
 ### Phase 1: プレゼンテーション + スライド作成
 
@@ -508,12 +512,25 @@ gws drive files export \
 1. **Object ID minimum 5 characters.** `createSlide` with `objectId: "s1"`
    fails. Use `"slide_01"` or longer.
 
-2. **Placeholder IDs are auto-generated.** You cannot specify them at
-   creation time. Always GET after createSlide and parse the
-   `SLIDES_API...` IDs before inserting text.
+2. **Placeholder IDs are auto-generated — unless you map them.** By default
+   `createSlide` assigns `SLIDES_API...` IDs you must discover with a GET.
+   Pass `placeholderIdMappings` to name them yourself:
+   ```json
+   {"createSlide": {"objectId": "slide_02", "insertionIndex": 1,
+     "slideLayoutReference": {"predefinedLayout": "TITLE_AND_BODY"},
+     "placeholderIdMappings": [
+       {"layoutPlaceholder": {"type": "TITLE", "index": 0}, "objectId": "slide_02_title"},
+       {"layoutPlaceholder": {"type": "BODY",  "index": 0}, "objectId": "slide_02_body"}]}}
+   ```
+   For a template layout, `{"layoutPlaceholderObjectId": "<layout element id>"}`
+   replaces `layoutPlaceholder`. A placeholder you do not want can be mapped
+   and then `deleteObject`-ed in the same batch.
 
-3. **Two-phase batchUpdate is mandatory.** You cannot createSlide and
-   insertText into its placeholders in the same request.
+3. **Two phases only when the IDs are unknown.** Requests in one
+   batchUpdate apply in order, so with mapped IDs a single batch can
+   `createSlide` and then `insertText` into its placeholders. Without a
+   mapping you must GET between the two. `build_gslides.py` still uses the
+   GET (it works either way).
 
 4. **gws CLI prefixes JSON output with `Using keyring backend: keyring`.**
    When piping to python, strip: `data = json.loads(output[output.index('{'):])`
@@ -555,7 +572,14 @@ gws drive files export \
     左マージン xi: 0.22 (≈200000), 全幅 wi: 9.51 (≈8700000),
     コンテンツ開始 yi: 1.3 (≈1188720)。
 
-16. **スライドは 16:9 (10in x 5.625in)。** 4:3 の 7.5in ではない。
+16. **APIで新規作成したスライドは 16:9 (10in x 5.625in)。** 4:3 の 7.5in ではない。
+    ただしテンプレートを複製したデッキはテンプレートのサイズを引き継ぐ
+    （PowerPoint 由来の 16:9 なら 13.333in x 7.5in）。10in 前提の座標を
+    そのまま置くと、左上に寄って右と下が空く。実際のサイズは
+    `presentations get` の `pageSize` で確かめる。`page_numbers:` の位置は
+    10in x 5.625in 前提の固定値なので、大きいテンプレートでは紙面の途中に
+    出る。その場合はテンプレート側のスライド番号を使い、`page_numbers:` は
+    付けない。
     `yi` が 5.625 を超えた要素はエラーにならず画面外へ落ちる。出典行や
     ページ番号を 6.5-7.1 あたりに置くと、ビルドは成功したのに紙面に
     何も出ない、という形で失敗する。

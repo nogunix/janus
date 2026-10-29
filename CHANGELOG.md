@@ -2,6 +2,28 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.42.1 — 2026-10-29
+
+**Two gslides gotchas stated limits the Slides API does not have.** Gotchas
+2 and 3 said placeholder IDs cannot be chosen at creation and that creating
+a slide and filling its placeholders must take two batchUpdates.
+`createSlide` accepts `placeholderIdMappings`; with it, one batch creates
+the slide and inserts into the mapped IDs (confirmed against the live API).
+Gotcha 16 and the coordinate guidance gave 10in x 5.625in as the slide
+size outright. That holds for an API-created deck only. A deck copied
+from a template keeps the template's page size, often 13.333in x 7.5in.
+
+- **`gslides/SKILL.md`**:
+  - Gotchas 2–3 now show the mapping, both for predefined layouts
+    (`layoutPlaceholder`) and template layouts
+    (`layoutPlaceholderObjectId`). Two phases are needed only when the
+    IDs are unknown.
+  - Workflow 2 points to the single-batch form.
+  - Gotcha 16, §2 and the position reference say to read `pageSize` from
+    `presentations get`. Gotcha 16 also notes that `page_numbers:`
+    positions are fixed for 10in x 5.625in.
+- `build_gslides.py` is unchanged. Its GET-based discovery stays correct.
+
 ## 0.42.0 — 2026-10-29
 
 **Static checks passed the lab's IaC, and the lab still found two dozen
