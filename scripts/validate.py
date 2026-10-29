@@ -132,21 +132,19 @@ def validate_pipeline_stage_sync(plugin_dir: Path) -> None:
 
 
 def validate_skill_references(plugin_dir: Path) -> None:
-    """SKILL.md loads its reference files on demand, by path. A path that
-    resolves to nothing is a section the lead silently never reads; a
-    reference SKILL.md never names is one it never knows to read."""
-    skill_dir = plugin_dir / "skills" / "janus"
-    skill_md = skill_dir / "SKILL.md"
-    if not skill_md.exists():
-        return
-    text = skill_md.read_text()
-    named = set(re.findall(r"`(references/[\w.-]+\.md)`", text))
-    for ref in sorted(named):
-        if not (skill_dir / ref).exists():
-            error(f"SKILL.md names missing reference file: {ref}")
-    for ref_md in sorted((skill_dir / "references").glob("*.md")):
-        if f"references/{ref_md.name}" not in named:
-            error(f"{rel(ref_md)} is never named in SKILL.md, so the lead never reads it")
+    """A SKILL.md loads its reference files on demand, by path. A path that
+    resolves to nothing is a section the skill silently never reads; a
+    reference its SKILL.md never names is one it never knows to read."""
+    for skill_md in sorted((plugin_dir / "skills").glob("*/SKILL.md")):
+        skill_dir = skill_md.parent
+        text = skill_md.read_text()
+        named = set(re.findall(r"`(references/[\w.-]+\.md)`", text))
+        for ref in sorted(named):
+            if not (skill_dir / ref).exists():
+                error(f"{rel(skill_md)} names missing reference file: {ref}")
+        for ref_md in sorted((skill_dir / "references").glob("*.md")):
+            if f"references/{ref_md.name}" not in named:
+                error(f"{rel(ref_md)} is never named in {rel(skill_md)}, so it is never read")
 
 
 # Prose in README and plugin.json spells its counts as words.

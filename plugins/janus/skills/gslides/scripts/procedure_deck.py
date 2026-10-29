@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Procedure / hands-on decks in a Google Slides brand template, built as PPTX.
 
-Workflow 3 of SKILL.md. The YAML driver (build_gslides.py) creates slides
-through the Slides API, which cannot reproduce a corporate template's masters,
+Workflow 3 of the gslides skill (references/pptx-first.md). The YAML driver
+(build_gslides.py) creates slides through the Slides API, which cannot reproduce a corporate template's masters,
 divider art and fonts faithfully. For step-by-step procedure decks
 (screenshots + numbered steps + copy-paste code) it is more reliable to:
 
@@ -11,7 +11,7 @@ divider art and fonts faithfully. For step-by-step procedure decks
      as template-base.pptx. Do NOT commit it if the template is internal.
   2. Build the deck with python-pptx on those four prototypes (this module).
   3. Upload with conversion:  gws drive files create ... --upload deck.pptx
-     (new file) or files update (overwrite) -- see SKILL.md Workflow 3.
+     (new file) or files update (overwrite) -- see references/pptx-first.md.
   4. QA by exporting the converted file back to PDF from Drive.
 
 Example:

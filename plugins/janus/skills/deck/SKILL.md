@@ -319,7 +319,7 @@ afterwards; a box that misses its target misleads more than no box.
    The text is in the PDF (`pdftotext` finds it) but every CJK glyph is blank;
    fonts and cache resets do not help. Use `qa_thumbs.py` for visual QA, and
    for a deliverable PDF either convert on Linux or upload the pptx to Google
-   Slides and export from there (gslides skill, Workflow 3) — Google renders
+   Slides and export from there (`gslides/references/pptx-first.md`) — Google renders
    the Japanese correctly. Never leave a glyph-less PDF in the output folder.
 
 ## Files

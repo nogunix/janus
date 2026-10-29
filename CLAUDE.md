@@ -190,10 +190,15 @@ stay usable. Preserve that property when touching them.
   The lead loads SKILL.md on every `/janus` run, so sections it needs
   only conditionally (check internals and fail direction, findings
   schema, evidence-chain semantics, MCP setup) sit in reference files
-  that SKILL.md names with the moment to read them. `validate.py`'s
-  `validate_skill_references()` fails on a named file that is missing or
-  a reference file SKILL.md never names. The roster and Model strategy
-  tables must stay in SKILL.md — `validate.py` parses them there.
+  that SKILL.md names with the moment to read them. The same holds for
+  every plugin skill (gslides splits its spec, escape hatches and
+  gotchas into `skills/gslides/references/`). `validate.py`'s
+  `validate_skill_references()` checks each skill: it fails on a named
+  file that is missing or a reference file its SKILL.md never names. A
+  backticked `references/…` path resolves against the skill it is
+  written in, so cite another skill's file as `gslides/references/…`.
+  The roster and Model strategy tables must stay in the janus SKILL.md —
+  `validate.py` parses them there.
 - **Versioning**: bump `plugins/janus/.claude-plugin/plugin.json` and add a
   `CHANGELOG.md` entry in the same commit — these have drifted before.
   `validate.py` fails when the current version has no CHANGELOG section.

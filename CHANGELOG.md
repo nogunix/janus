@@ -2,6 +2,30 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.42.2 — 2026-10-29
+
+**gslides loaded 613 lines on every call. Most of them only matter in one
+situation.** The YAML spec reference, the direct-batchUpdate escape hatch,
+the PPTX-first workflow and the twenty gotchas all lived in SKILL.md.
+SKILL.md is now 212 lines: the workflow plus a table of four reference
+files and when to read each. This is the lean-SKILL.md rule the janus
+skill already follows.
+
+- **`gslides/references/`**:
+  - `spec.md` holds the examples and the full key reference.
+  - `batchupdate.md` holds Workflow 2 and `pptx-first.md` holds Workflow 3
+    plus the Playwright capture notes.
+  - `gotchas.md` keeps the original numbers so citations stay stable.
+- SKILL.md keeps a Must-know list of the six gotchas that fail silently
+  or block every run (#2, #4–6, #9, #16–17).
+- **Fix**: both spec examples put the `citation` style at `yi: 7.1`. On an
+  API-created 10in x 5.625in deck that is below the slide, so the text
+  never shows (gotcha #16). It is now `yi: 5.3`.
+- **`validate.py`**: `validate_skill_references()` now checks every
+  skill's SKILL.md ↔ `references/`, not just the janus skill. It caught
+  a cross-skill path in `deck/SKILL.md` that resolved against the wrong
+  skill.
+
 ## 0.42.1 — 2026-10-29
 
 **Two gslides gotchas stated limits the Slides API does not have.** Gotchas
