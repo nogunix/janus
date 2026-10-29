@@ -2,6 +2,47 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.42.0 — 2026-10-29
+
+**Static checks passed the lab's IaC, and the lab still found two dozen
+defects.** A multi-day air-gapped mirror lab on AWS ran every phase it was
+approved for, and nearly every phase stopped first on something `fmt`,
+`validate` and `ansible-lint` had passed. Most were case-specific. Four
+shapes recur in any air-gapped cloud lab and belong in the authoring stage;
+two more belong in how a long dynamic stage and its lead keep the evidence
+chain honest.
+
+- **`agents/iac-author.md`**, Phase 2 pre-deploy check gains four items:
+  - *Egress needs a path, not a permission.* An egress rule to
+    `0.0.0.0/0` was authored into a subnet whose route table has no
+    default route. A security group permits traffic; only a route gives it
+    somewhere to go.
+  - *An air-gapped subnet needs an endpoint for every API the tools call.*
+    The installer's quota preflight, the destroy's tagging calls and an
+    SDK's global STS hostname each failed one install attempt in turn.
+    Some endpoint services exist only in some AZs or one region, and a
+    tool that validates endpoint overrides by calling them breaks when you
+    set one.
+  - *The image must carry what the management path assumes.* The chosen
+    RHEL image had no SSM agent, so the SSM-only hosts could not be
+    reached.
+  - *Disks by stable ID.* An NVMe rename between boots pointed an fstab
+    entry at the root disk and booted a host into emergency mode.
+- **`agents/iac-author.md`**, new pattern *A cost guard must cover what it
+  can strand.* The guard stopped the lab hosts on schedule, including the
+  only host able to destroy a human-installed cluster, whose nodes no
+  guard covered and which ran on for over a day.
+- **`agents/lab-verify.md`**, new pattern *The session is not the lab.*
+  The stage was stopped twice mid-run while host-side work and billing
+  continued. Long steps run as host-side units started without blocking;
+  a checkpoint names every billable resource and its teardown before any
+  wait, including hand-offs to a human with a time window.
+- **SKILL.md**: the stage contract now names `sed -i` and one-line
+  frontmatter updates explicitly. The same out-of-band write happened
+  twice in one case, once by a stage and once by the lead on `case.yaml`;
+  step 1 now states the lead's rule and the recovery (restore the sealed
+  content, redo with Edit, record in `audit/`).
+
 ## 0.41.0 — 2026-10-27
 
 **Building the PPTX is not where gslides adds value.** Workflow 3 split

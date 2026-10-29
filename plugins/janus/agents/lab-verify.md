@@ -287,6 +287,18 @@ is actually empty, and distinguish a stale tagging index from a real
 orphan by probing the ARNs individually. The one thing worse than a
 lab that failed is a lab that is still charging.
 
+**The session is not the lab.** Your session can end — the lead's
+process exits, a human stops you by mistake — while the lab keeps
+running and billing. Run any step longer than a connection timeout as a
+host-side unit you start without blocking and then poll, so it survives
+you; write a findings checkpoint before every wait, naming each
+billable resource, who owns its teardown and the exact command. A
+resumed session starts from that checkpoint and the live state, not
+from memory. Hand-offs to a human (a step only they may run) are waits
+too: say what to run, where, and any time window — a follow-up step
+that must start within N minutes of theirs needs the lead to resume you
+the moment they start.
+
 Safety: provisioning a lab / any live-target intervention is the **dynamic
 track — requires human APPROVE_* before execution**; kind's local disposable
 clusters are the lightest but still human-triggered. Read-only, never

@@ -119,6 +119,31 @@ sharp edge:
   known-good environment) before you pin it. If you cannot confirm it,
   record it as a Gap and leave the variable un-defaulted rather than
   inventing a plausible-looking value.
+- **Egress needs a path, not a permission.** A security-group or NSG
+  egress rule allows traffic; only a route (internet or NAT gateway,
+  peering, a private endpoint) gives it somewhere to go. An egress rule
+  to `0.0.0.0/0` in a subnet whose route table has no default route
+  passes `validate` and fails at run time. When you open an exception,
+  name the route that carries it.
+- **An air-gapped subnet needs an endpoint for every API the tools
+  call, not the ones you expect.** Installers and SDKs call more than
+  their main service: an OpenShift AWS install ran a Service Quotas
+  preflight, its destroy used the Resource Groups Tagging API, and its
+  provider called the global STS hostname that a regional STS endpoint's
+  private DNS does not cover. Some endpoint services exist only in some
+  AZs or one region. List each call, check the endpoint service exists
+  where the subnet is, and record the ones you could not enumerate as a
+  `TODO(lab-verify)` with the probe — an endpoint override in the
+  tool's own config can also break it, if the tool validates the URL by
+  calling it.
+- **The image must carry what the management path assumes.** If a host
+  is reachable only through SSM (or any agent), confirm the chosen image
+  ships that agent; some RHEL images do not. Otherwise the host comes
+  up and can never be reached.
+- **Disks by stable ID.** NVMe device names are assigned at boot and
+  can swap between boots, so an fstab line or variable naming
+  `/dev/nvme1n1` can point at the root disk next time. Use
+  `/dev/disk/by-id/` paths derived from the volume IDs.
 
 Anything you could not confirm here is a **Gap in your findings and a
 `TODO(iac-author)` comment at the exact line in the code** — never a
@@ -315,6 +340,19 @@ the next reader "fixes" it back.
 **Author for teardown from the start.** Everything under one resource
 group / one prefix / one kind cluster name, so `destroy` is total and
 verifiable. Orphans are how the next case's provision fails.
+
+**A cost guard must cover what it can strand.** A guard on the hosts you
+provision does nothing for resources created outside your IaC — a
+cluster a human installs, the load balancers and volumes it creates.
+Worse, a guard that powers off the one host able to run that cluster's
+destroy leaves the cluster billing with no way to remove it until
+someone restarts the host. In one lab the guarded hosts stopped on
+schedule while two unguarded cluster nodes ran on for over a day. Either
+guard the out-of-band resources too, or make the guard refuse to stop
+the teardown host while they exist, and state in "What this builds"
+which billable resources no guard covers. A guard whose deadline has
+already passed fires shortly after boot, so the runbook must extend it
+before any long step on a restarted host.
 
 **Degrade honestly when a server is missing.** With the `terraform` MCP
 absent you can still write HCL, but every version pin drops to REASONED

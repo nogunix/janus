@@ -196,6 +196,12 @@ mode = artifact → includes crash-analyze
        theme → does not include crash-analyze (unless debug is explicit in tracks)
 ```
 
+The same rule binds the lead: after intake, change `case.yaml` only with
+Edit — a `status:` flip with `sed -i` is an unobserved write to a sealed
+file, the chain reports TAMPER, and `seal` will not repair it (restore
+the sealed content, then redo the change with Edit, and record it in
+`audit/`).
+
 Then lint the file before anything reads it:
 
 ```bash
@@ -289,9 +295,10 @@ Stage contract:
    python3 <skill-dir>/scripts/findings.py lint cases/<id>/findings/<stage>.md
    and fix every FAIL before SendMessage (a completion notice, not the
    result). Create and change findings/ and results/ files only with
-   Write or Edit — never a shell redirect, heredoc or script. The
-   evidence chain seals only Write/Edit; any other write to a sealed
-   file reads as tampering and stops the case at NEEDS_HUMAN.
+   Write or Edit — never a shell redirect, heredoc, script or `sed -i`,
+   and that includes one-line frontmatter updates such as tool_calls or
+   duration_s. The evidence chain seals only Write/Edit; any other write
+   to a sealed file reads as tampering and stops the case at NEEDS_HUMAN.
 1a. If your findings file already exists — you are a resumed stage, or a
    later round — **append with Edit**. A `Write` replaces the file
    wholesale, so a payload holding only your current round silently
