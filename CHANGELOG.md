@@ -2,6 +2,50 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.44.0 — 2026-10-29
+
+**gslides knew how to draw slides, not what to put on them, and its spec
+could not draw the components a designed deck is made of.** A
+consulting-style Slides skill from another team (gslides-deck) carries
+both halves. It has a design method (outline approval, one message per
+slide, accent-for-words / structure-for-structure, a component catalog)
+and the shape vocabulary to build it. The method is now a brand-neutral
+reference, and the vocabulary is in the YAML spec.
+
+- **`gslides/references/deck-design.md`** (new):
+  - the process: gather and read the source figures, ask for the presenter
+    name, get outline approval before building, QA with `--thumbs`;
+  - the slide anatomy, framed for both the 10in API page and the 13.333in
+    PowerPoint page (inches scale with the page, points do not, so a 12pt
+    minimum on 13.333in is 9pt on 10in);
+  - color roles and the type scale;
+  - components C1–C12, each with the ops that build it, and starter
+    `styles:`.
+  - The kit was built live and checked in thumbnails.
+- **`build_gslides.py`**:
+  - inline `**bold**` and `{color:text}` in any text, with ranges in
+    UTF-16 code units so an emoji does not shift the emphasis after it;
+  - shape `outline` / `outline_weight` / `dash` / `valign`, `fill: none`
+    and `outline: none`. Without `fill: none`, an outline-only frame got
+    the theme's gray fill and hid what it framed, which was caught in the
+    live check.
+  - a `line` op for connectors and arrows, normalized to draw in either
+    direction;
+  - `link` for a clickable source line.
+- **`references/gotchas.md`**:
+  - #22 `createSlide` may only use the preceding slide's master;
+  - #23 `duplicateObject` renumbers child IDs unless `objectIds` maps them;
+  - #24 `files.copy` keeps `g…` IDs but may regenerate API-assigned ones;
+  - #25 text indexes are UTF-16.
+  - #22 and #24 are marked as reported by gslides-deck, not reproduced
+    here.
+- **Fix in `references/spec.md`**: the Text autofit note said autofit was
+  on by default and that `autofit: true` enabled it. The API accepts only
+  `NONE`, and the script already ignores `true` with a warning. The note
+  now says so.
+- **`selftest.py`**: `test_gslides` gains markup range, literal-brace,
+  line normalization and up-right-skip checks.
+
 ## 0.43.1 — 2026-10-29
 
 **The gslides skill was the one skill still written mostly in Japanese.**

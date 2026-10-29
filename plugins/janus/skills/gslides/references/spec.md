@@ -187,17 +187,53 @@ When both are present, the inch key wins.
 | Op | Description | Key args |
 |----|-------------|----------|
 | `title` | Fill the TITLE/CENTERED_TITLE placeholder | `text`, `size`, `bold`, `italic`, `color`, `font`, `autofit` |
-| `subtitle` | Fill the SUBTITLE placeholder | same as `title` (autofit on by default) |
-| `body` | Fill the BODY placeholder | same as `title` (autofit on by default) |
+| `subtitle` | Fill the SUBTITLE placeholder | same as `title` |
+| `body` | Fill the BODY placeholder | same as `title` |
 | `table` | Create a table | `header`, `rows`, `header_bg`, `xi`/`yi`/`wi`/`hi`, `font_size`, `style` |
-| `shape` | Add a text box or shape | `text`, `xi`/`yi`/`wi`/`hi`, `size`, `bold`, `color`, `fill`, `shape_type`, `style`, paragraph style keys |
+| `shape` | Add a text box or shape | `text`, `xi`/`yi`/`wi`/`hi`, `size`, `bold`, `color`, `link`, `fill`, `shape_type`, `outline`, `outline_weight`, `dash`, `valign`, `style`, paragraph style keys |
+| `line` | Add a straight connector or arrow | `x1i`/`y1i` → `x2i`/`y2i`, `color`, `weight`, `dash`, `arrow`, `style` |
 | `background` | Set the slide background color | `color` |
 | `image` | Insert an image by URL | `url`, `xi`/`yi`/`wi`/`hi`, `style` |
+
+**Shape keys:**
+- `shape_type`: any Slides shape type, e.g. `TEXT_BOX` (default),
+  `RECTANGLE`, `ROUND_RECTANGLE`, `ELLIPSE`, `CHEVRON`, `RIGHT_ARROW`.
+- `fill`: a color, or `none` for a transparent shape. `outline`: a color,
+  or `none`. Without these, a non-TEXT_BOX shape gets the theme's gray fill
+  and outline. An "outline only" frame needs `fill: none`.
+- `outline` options: `outline_weight` is in pt (default 1). `dash` is
+  `DASH`, `DOT`, `DASH_DOT`, `LONG_DASH` or `LONG_DASH_DOT`.
+- `valign`: `TOP`, `MIDDLE` or `BOTTOM`. Use `MIDDLE` for labels and
+  pills.
+
+**`line`:**
+- Coordinates are in inches.
+- `arrow` is `none` (default), `end`, `start` or `both`. `weight` is in pt
+  (default 0.75). `color` defaults to `595959`.
+- Horizontal, vertical and down-right lines work in either direction. An
+  up-right (or down-left) diagonal is skipped with a warning, because a
+  line's bounding box cannot express it unflipped.
+
+**`link`** (title/subtitle/body/shape): a URL; the whole text becomes an underlined hyperlink.
 
 **Paragraph style keys** (usable on title/subtitle/body/shape):
 `line_spacing` (%), `space_above` / `space_below` (pt), `alignment` (`START`/`CENTER`/`END`/`JUSTIFIED`), `indent_start` (pt)
 
-**Text autofit:** `body` and `subtitle` have TEXT_AUTOFIT on by default. `autofit: false` turns it off; `autofit: true` turns it on for `title` too.
+**Inline emphasis** (in any `text`):
+- `**word**` makes the word bold.
+- `{name:word}` makes it bold in a color: a `brand.colors` key or a
+  6-digit hex.
+- Use one emphasis style per span; neither can be nested.
+- Ranges are computed in UTF-16 code units, the API's text index, so an
+  emoji does not shift the emphasis that follows it.
+- A brace that is not `{name:` (JSON in a code box, for instance) stays
+  literal.
+
+**Text autofit:** shrink-to-fit cannot be turned on through the API.
+- The Slides API accepts only `autofitType: NONE`.
+- `autofit: false` sets `NONE`. `autofit: true` is ignored with a warning.
+- Shapes never shrink their text, so size the box to fit the text or
+  shorten the text (deck-design.md).
 
 **Color values:** a `brand.colors` key (e.g. `primary`) or 6-digit hex (e.g. `2563EB`)
 

@@ -6,7 +6,8 @@ ledger-edit detection, plus lock/unlock), the evidence-lock hook's deny
 logic, quotecheck.py's quote extraction and verbatim matching, and
 urlcheck.py's URL extraction and classification constants, and gates.py's
 status classification and end-to-end run (urlcheck skipped), and
-build_gslides.py's page-size math and in-place rebuild plan. No network,
+build_gslides.py's page-size math, in-place rebuild plan, inline markup
+and line normalization. No network,
 no MCP servers; stdlib-only, like validate.py. Exit 1 on any failure.
 """
 
@@ -1529,6 +1530,20 @@ def test_gslides():
           and len(gs.ID_PREFIX) <= 8,
           "gslides: --update prefixes object IDs so new and old generations never collide")
     gs.ID_PREFIX = ""
+
+    plain, spans = gs.parse_markup("A 🚀 **bold** and {accent:red}")
+    check(plain == "A 🚀 bold and red" and spans == [(5, 9, None), (14, 17, "accent")],
+          "gslides: markup ranges count UTF-16 units, so text after an emoji is not shifted")
+    check(gs.parse_markup('{"k": 1} and **') == ('{"k": 1} and **', []),
+          "gslides: braces and stray ** that are not markup stay literal")
+    rev = gs.line_request("lin_001", "s1", {"x1i": 5, "y1i": 1, "x2i": 3, "y2i": 1,
+                                            "arrow": "end"}, {})
+    lp = rev[1]["updateLineProperties"]["lineProperties"]
+    check(rev[0]["createLine"]["elementProperties"]["transform"]["translateX"] == 3 * 914400
+          and lp["startArrow"] == "FILL_ARROW" and lp["endArrow"] == "NONE",
+          "gslides: a right-to-left line is normalized and its arrow moves to the other end")
+    check(gs.line_request("lin_002", "s1", {"x1i": 1, "y1i": 3, "x2i": 2, "y2i": 1}, {}) == [],
+          "gslides: an up-right diagonal is skipped rather than drawn flipped")
 
 
 def main():

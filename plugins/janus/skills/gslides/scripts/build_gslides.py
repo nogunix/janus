@@ -355,6 +355,12 @@ def build_text_style(op, brand):
         }
         fields.append("foregroundColor")
 
+    link = op.get("link")
+    if link:
+        style["link"] = {"url": link}
+        style["underline"] = True
+        fields += ["link", "underline"]
+
     return style, ",".join(fields)
 
 
@@ -388,6 +394,92 @@ def build_paragraph_style(op):
         fields.append("indentStart")
 
     return style, ",".join(fields)
+
+
+# Inline emphasis inside any text op: **bold**, and {name:text} for bold in a
+# brand color (a `brand.colors` key) or a 6-digit hex. The Slides API indexes
+# text in UTF-16 code units, so an emoji or other non-BMP character counts
+# two. Ranges are measured that way here; Python's len() would drift.
+MARKUP_RE = re.compile(r"\*\*(.+?)\*\*|\{([A-Za-z]\w*|[0-9a-fA-F]{6}):(.+?)\}", re.S)
+
+
+def u16len(text):
+    return len(text.encode("utf-16-le")) // 2
+
+
+def parse_markup(text):
+    """Return (plain_text, [(start, end, color_or_None), ...]) in UTF-16 units."""
+    plain, spans, pos, last = [], [], 0, 0
+    for m in MARKUP_RE.finditer(text):
+        before = text[last:m.start()]
+        plain.append(before)
+        pos += u16len(before)
+        inner = m.group(1) if m.group(1) is not None else m.group(3)
+        color = None if m.group(1) is not None else m.group(2)
+        plain.append(inner)
+        spans.append((pos, pos + u16len(inner), color))
+        pos += u16len(inner)
+        last = m.end()
+    plain.append(text[last:])
+    return "".join(plain), spans
+
+
+def span_requests(obj_id, spans, brand):
+    reqs = []
+    for start, end, color in spans:
+        style, fields = {"bold": True}, ["bold"]
+        if color:
+            style["foregroundColor"] = {
+                "opaqueColor": {"rgbColor": resolve_color(color, brand)}}
+            fields.append("foregroundColor")
+        reqs.append({"updateTextStyle": {
+            "objectId": obj_id, "style": style, "fields": ",".join(fields),
+            "textRange": {"type": "FIXED_RANGE", "startIndex": start,
+                          "endIndex": end}}})
+    return reqs
+
+
+def line_request(line_id, slide_obj_id, op, brand):
+    """Straight connector from (x1i, y1i) to (x2i, y2i). Returns the requests,
+    or [] with a warning for an up-right/down-left diagonal, which a line's
+    unflipped bounding box cannot express."""
+    x1, y1 = op.get("x1i", 0), op.get("y1i", 0)
+    x2, y2 = op.get("x2i", x1), op.get("y2i", y1)
+    arrow = op.get("arrow", "none")
+    start_arrow, end_arrow = arrow in ("start", "both"), arrow in ("end", "both")
+    if x2 < x1 or (x2 == x1 and y2 < y1):
+        x1, y1, x2, y2 = x2, y2, x1, y1
+        start_arrow, end_arrow = end_arrow, start_arrow
+    if y2 < y1:
+        print(f"  warn: line on {slide_obj_id} runs up-right; use horizontal, "
+              f"vertical or down-right lines. Skipped.", file=sys.stderr)
+        return []
+    w = max(int((x2 - x1) * EMU_PER_INCH), 1)
+    h = max(int((y2 - y1) * EMU_PER_INCH), 1)
+    props = {
+        "lineFill": {"solidFill": {"color": {"rgbColor": resolve_color(
+            op.get("color", "595959"), brand)}}},
+        "weight": {"magnitude": op.get("weight", 0.75), "unit": "PT"},
+        "startArrow": "FILL_ARROW" if start_arrow else "NONE",
+        "endArrow": "FILL_ARROW" if end_arrow else "NONE",
+    }
+    fields = "lineFill,weight,startArrow,endArrow"
+    if op.get("dash"):
+        props["dashStyle"] = op["dash"]
+        fields += ",dashStyle"
+    return [
+        {"createLine": {"objectId": line_id, "category": "STRAIGHT",
+                        "elementProperties": {
+                            "pageObjectId": slide_obj_id,
+                            "size": {"width": {"magnitude": w, "unit": "EMU"},
+                                     "height": {"magnitude": h, "unit": "EMU"}},
+                            "transform": {"scaleX": 1, "scaleY": 1,
+                                          "translateX": int(x1 * EMU_PER_INCH),
+                                          "translateY": int(y1 * EMU_PER_INCH),
+                                          "unit": "EMU"}}}},
+        {"updateLineProperties": {"objectId": line_id, "lineProperties": props,
+                                  "fields": fields}},
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -428,7 +520,7 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
             op_args = {"text": op_args}
         op_args = dict(op_args or {})
 
-        if op_name in ("shape", "table", "image"):
+        if op_name in ("shape", "table", "image", "line"):
             op_args = resolve_style(op_args, styles or {})
 
         # $today substitution
@@ -447,7 +539,7 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
                       file=sys.stderr)
                 continue
 
-            text = op_args.get("text", "")
+            text, spans = parse_markup(op_args.get("text", ""))
             requests.append({"insertText": {"objectId": ph_id, "text": text}})
 
             size = op_args.get("size")
@@ -483,6 +575,7 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
                         "fields": para_fields,
                     }
                 })
+            requests.extend(span_requests(ph_id, spans, brand))
 
             # The Slides API accepts only autofitType NONE on
             # updateShapeProperties — "Autofit types other than NONE are not
@@ -667,7 +760,7 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
                     },
                 }
             })
-            text = op_args.get("text", "")
+            text, spans = parse_markup(op_args.get("text", ""))
             if not op_args.get("font"):
                 op_args["font"] = brand.get("font")
             if not op_args.get("size"):
@@ -699,22 +792,50 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
                         }
                     })
 
+                requests.extend(span_requests(shape_id, spans, brand))
+
+            # Fill, outline and vertical alignment share one request.
+            # `fill: none` / `outline: none` remove the theme fill and outline
+            # a non-TEXT_BOX shape would otherwise get.
+            shape_props, shape_fields = {}, []
             fill = op_args.get("fill")
-            if fill:
+            if fill == "none":
+                shape_props["shapeBackgroundFill"] = {
+                    "propertyState": "NOT_RENDERED"}
+                shape_fields.append("shapeBackgroundFill")
+            elif fill:
+                shape_props["shapeBackgroundFill"] = {"solidFill": {
+                    "color": {"rgbColor": resolve_color(fill, brand)}}}
+                shape_fields.append("shapeBackgroundFill")
+            outline = op_args.get("outline")
+            if outline == "none":
+                shape_props["outline"] = {"propertyState": "NOT_RENDERED"}
+                shape_fields.append("outline")
+            elif outline:
+                ol = {"outlineFill": {"solidFill": {"color": {
+                          "rgbColor": resolve_color(outline, brand)}}},
+                      "weight": {"magnitude": op_args.get("outline_weight", 1),
+                                 "unit": "PT"}}
+                if op_args.get("dash"):
+                    ol["dashStyle"] = op_args["dash"]
+                shape_props["outline"] = ol
+                shape_fields.append("outline")
+            if op_args.get("valign"):
+                shape_props["contentAlignment"] = op_args["valign"]
+                shape_fields.append("contentAlignment")
+            if shape_fields:
                 requests.append({
                     "updateShapeProperties": {
                         "objectId": shape_id,
-                        "shapeProperties": {
-                            "shapeBackgroundFill": {
-                                "solidFill": {
-                                    "color": {"rgbColor": resolve_color(
-                                        fill, brand)}
-                                }
-                            }
-                        },
-                        "fields": "shapeBackgroundFill",
+                        "shapeProperties": shape_props,
+                        "fields": ",".join(shape_fields),
                     }
                 })
+
+        elif op_name == "line":
+            counter[0] += 1
+            requests.extend(line_request(oid(f"lin_{counter[0]:03d}"),
+                                         slide_obj_id, op_args, brand))
 
         elif op_name == "background":
             color = op_args.get("color", "FFFFFF")

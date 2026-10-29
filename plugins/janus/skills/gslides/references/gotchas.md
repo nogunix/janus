@@ -117,3 +117,27 @@ stable: append new items, do not renumber.
     current directory.** The response body is empty and gws saves it to a
     file. Run deletes outside the repository, or remove the file
     afterwards, or it shows up as an untracked file.
+
+22. **`createSlide` may only use a layout from the master of the slide
+    before the insertion point.** Inserting an interior slide right after
+    a cover that belongs to a different master fails with "layout is not
+    present in the current master". Insert after a slide of the same master,
+    then move it with `updateSlidesPosition`. (Reported by the gslides-deck
+    skill's authors on a two-master template; not reproduced here.)
+
+23. **`duplicateObject` gives the copy's child elements new IDs.** After
+    duplicating a sample slide you cannot address its title box by the old
+    ID. Either pass `objectIds: {"<old id>": "<new id>", ...}` in the same
+    request to choose them, or GET afterwards and find elements by position
+    or text.
+
+24. **`files.copy` keeps a template's original `g…` element IDs, but may
+    regenerate IDs you assigned through the API** (e.g. `tpl_interior_blank`).
+    Key template lookups on the `g…` IDs, or on layout display names.
+    (Reported by the gslides-deck skill's authors; not reproduced here.)
+
+25. **Text indexes are UTF-16 code units.** `FIXED_RANGE` `startIndex` /
+    `endIndex` count an emoji or other non-BMP character as two. Ranges
+    computed with Python's `len()` drift after the first such character.
+    `build_gslides.py`'s inline markup measures in UTF-16 (`u16len`). Do
+    the same in any hand-written batchUpdate.

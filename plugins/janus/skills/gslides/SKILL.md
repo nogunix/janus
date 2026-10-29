@@ -95,6 +95,11 @@ for l in data.get('layouts', []):
 
 Settle the whole deck first. This step is what keeps styling consistent.
 
+If you are shaping the content yourself (an article, report or
+investigation into slides), read `references/deck-design.md` first. Show
+the user an outline and get approval before building, and ask for the
+presenter name.
+
 1. **List the slides**: the layout and title of each.
 2. **Define `styles:`** for every element that repeats on two or more
    slides (subtitle, footnote, content box, ...).
@@ -181,6 +186,7 @@ python3 scripts/build_gslides.py deck.yaml --update PRES_ID --slides 4,12 --thum
 
 | File | Read when |
 |---|---|
+| `references/deck-design.md` | Planning a deck whose content you shape: outline-approval process, slide anatomy, color and type roles, component catalog (C1–C12) with how to build each, starter `styles:` |
 | `references/spec.md` | Writing or editing a YAML spec: examples, and every top-level, `brand`, `styles`, `page_numbers`, coordinate and `do:` key |
 | `references/batchupdate.md` | An operation the spec cannot express needs a direct batchUpdate (Workflow 2) |
 | `references/pptx-first.md` | The deck must reproduce a corporate template's masters and fonts, or is a procedure deck with screenshots (Workflow 3, Playwright capture notes) |
@@ -234,8 +240,8 @@ gws drive files export \
 
 ## Files
 
-- `scripts/build_gslides.py` — declarative driver: YAML/JSON spec → Google Slides; `--update`/`--slides` rebuild in place, `--thumbs` for visual QA.
+- `scripts/build_gslides.py` — declarative driver: YAML/JSON spec → Google Slides; inline `**bold**` / `{color:text}`, shape outlines, `line` arrows; `--update`/`--slides` rebuild in place, `--thumbs` for visual QA.
 - `scripts/svgtools.py` — render SVG diagrams from HTML to PNG, light-recolor.
 - `scripts/recolor_image.py` — dark→light raster diagram recolor.
 - `scripts/procedure_deck.py` — Workflow 3: brand-template procedure decks as PPTX (python-pptx), then upload with conversion.
-- `references/` — spec / batchupdate / pptx-first / gotchas (see References above).
+- `references/` — deck-design / spec / batchupdate / pptx-first / gotchas (see References above).
