@@ -1,79 +1,99 @@
-# Workflow 3: PPTX-first（ブランドテンプレートの資料・手順書）
+# Workflow 3: PPTX-first (brand-template decks and procedure decks)
 
-Read when the deck must match a corporate template's masters/fonts, or is a
-hands-on procedure deck with screenshots.
+Read when the deck must match a corporate template's masters and fonts, or
+is a hands-on procedure deck with screenshots.
 
+Slides built through the Slides API cannot faithfully reproduce a corporate
+template's masters, divider artwork or fonts. For a template-faithful deck,
+build a PPTX and upload it to Drive with conversion. That is more reliable.
 
-Slides API で作るスライドは、社内テンプレートのマスター・中扉のデザイン・
-フォントを忠実に再現できない。テンプレートに忠実な資料は PPTX で組み、
-Drive にアップロードして変換する方が確実。
+The workflow has two halves: **building the PPTX** and **turning it into
+Google Slides**.
 
-このワークフローは **PPTX を組む部分**と **Google スライドにする部分**に分かれる。
-組む部分は、Anthropic 公式の `pptx` スキル（`anthropics/skills` の
-document-skills）が入っていればそれに乗る。テンプレートの複製・編集・検証は
-向こうの方が手厚い。入っていなければ、このスキルの `procedure_deck.py` と
-deck スキルの `decklib.py` で組む。どちらでも 4〜5 は同じ。
+- **Building**: if Anthropic's official `pptx` skill (document-skills from
+  `anthropics/skills`) is installed, use it. It is stronger at duplicating,
+  editing and validating template slides. Otherwise build with this skill's
+  `procedure_deck.py` or the deck skill's `decklib.py`.
+- **Steps 4–5 are the same either way.**
+- **The official `pptx` skill is not vendored**, because its license does
+  not allow redistribution.
+  - It is available if `pptx` (`document-skills:pptx`) appears in the skill
+    list. Its absence is the normal state, not an error.
+  - To install it, the user runs
+    `/plugin marketplace add anthropics/skills` →
+    `/plugin install document-skills@anthropic-agent-skills`.
+- **The Google-specific parts stay in this skill**: conversion on upload,
+  QA from the Drive PDF, the Playwright capture notes below, and the deck
+  skill's red-box `annotate_shots.py`.
 
-- 公式 `pptx` スキルは同梱しない（ライセンスが再配布を認めていない）。使える
-  かはスキル一覧に `pptx`（`document-skills:pptx`）があるかで判断する。
-  無いことは普通の状態で、エラーにしない。入れるならユーザーが
-  `/plugin marketplace add anthropics/skills` →
-  `/plugin install document-skills@anthropic-agent-skills`。
-- Google スライドに固有の部分（アップロード時の変換、Drive の PDF での QA、
-  Playwright の撮影の注意、赤枠の `annotate_shots.py`）はこのスキルが持つ。
+## Steps
 
-1. **テンプレートを書き出す**: Google スライドのテンプレートをコピーし、PPTX で
-   書き出す（`template-base.pptx`）。`procedure_deck.py` を使うなら表紙・中扉・
-   本文・締めの 4 枚だけ残す。社内テンプレートはリポジトリにコミットしない。
-2. **組む**: 内容で選ぶ。
-   - **画面写真＋番号付き手順＋コピペ用コードの手順書** →
-     `scripts/procedure_deck.py` の `ProcedureDeck`（使用例は docstring）。
-     `two_shots`（画面 2 枚＋説明）、`one_shot`（画面 1 枚＋手順＋コード枠）、
-     `divider`（中扉＋目安時間）、`table`、`code` がある。画面写真は
-     `shot_dirs` の先頭から探すので、赤枠付き（deck スキルの
-     `annotate_shots.py`）を先に、元画像を後に並べる。
-   - **それ以外**（定型に収まらないレイアウト、テンプレートのアイコンや
-     SVG/EMF の図を流用する資料）→ 公式 `pptx` スキルの「テンプレートを
-     編集する」手順（展開 → `add_slide.py` で見本スライドを複製 →
-     `slideN.xml` を編集 → `clean.py` → zip）。python-pptx は見本スライドの
-     複製も SVG/EMF の読み込みもできないので、ここは向こうに任せる。
-     公式スキルが無ければ deck スキル（`decklib.py`）で組む。
-3. **検証（ローカル）**:
-   - 公式 `pptx` スキルがあれば、どちらで組んだ PPTX にも
+1. **Export the template.**
+   - Copy the Google Slides template and export it as PPTX
+     (`template-base.pptx`).
+   - For `procedure_deck.py`, keep exactly four slides: cover, divider,
+     interior, closing.
+   - Never commit an internal template to the repository.
+2. **Build.** Choose by content:
+   - **Procedure deck** (screenshots + numbered steps + copy-paste code) →
+     `ProcedureDeck` in `scripts/procedure_deck.py` (usage in its
+     docstring).
+     - Slide types: `two_shots` (two screenshots + explanation),
+       `one_shot` (one screenshot + steps + code box), `divider` (divider +
+       time estimate), `table`, `code`.
+     - Screenshots are looked up in `shot_dirs` in order. List the
+       red-boxed directory (deck skill's `annotate_shots.py`) before the
+       originals.
+   - **Anything else** (layouts outside the fixed types, decks reusing the
+     template's icons or SVG/EMF art) → the official `pptx` skill's
+     template-editing procedure: unpack → duplicate a prototype slide with
+     `add_slide.py` → edit `slideN.xml` → `clean.py` → zip.
+     - python-pptx can neither duplicate prototype slides nor load SVG/EMF,
+       so leave this path to that skill.
+     - Without it, build with the deck skill (`decklib.py`).
+3. **Validate locally.**
+   - If the official `pptx` skill is present, run
      `python scripts/office/validate.py deck.pptx --original template-base.pptx`
-     を通す（パスは pptx スキルのディレクトリ基準）。PowerPoint や Drive の
-     変換が拒む壊れ方を、直し方つきで指摘する。
-   - 目視は、macOS なら deck スキルの `qa_thumbs.py`。公式スキルの
-     `thumbnail.py` は LibreOffice で描画するので、macOS では日本語が空白に
-     なりうる（deck Gotcha 12）。Linux ならどちらでもよい。
-4. **アップロードして変換**:
+     on the PPTX, whichever path built it. The path is relative to the pptx
+     skill's directory. It reports, with fixes, the breakage that
+     PowerPoint or Drive conversion would reject.
+   - For a visual check on macOS, use the deck skill's `qa_thumbs.py`. The
+     official skill's `thumbnail.py` renders through LibreOffice, where
+     Japanese can come out blank on macOS (deck gotcha #12). On Linux
+     either works.
+4. **Upload with conversion:**
    ```bash
-   # 新規作成（マイドライブ直下）
+   # New file (My Drive root)
    gws drive files create --params '{"fields":"id,name,webViewLink"}' \
-     --json '{"name":"手順書（サンプル）","mimeType":"application/vnd.google-apps.presentation","parents":["root"]}' \
+     --json '{"name":"Procedure (sample)","mimeType":"application/vnd.google-apps.presentation","parents":["root"]}' \
      --upload deck.pptx \
      --upload-content-type application/vnd.openxmlformats-officedocument.presentationml.presentation
-   # 既存ファイルを上書き（中身を差し替え、名前も変えるなら --json '{"name":"…"}' を足す）
+   # Overwrite an existing file's content (add --json '{"name":"…"}' to rename too)
    gws drive files update --params '{"fileId":"ID"}' --upload deck.pptx \
      --upload-content-type application/vnd.openxmlformats-officedocument.presentationml.presentation
    ```
-5. **QA（Google 上）**: Drive から PDF を書き出して目視する（gotchas.md #17）。
-   Google が描画するのでテンプレートのフォントで表示され、日本語の PDF も
-   正しく出る。配布用 PDF はこれを使う。
+5. **QA on Google's side.** Export a PDF from Drive and look at it
+   (gotchas.md #17).
+   - Google renders it, so the template's fonts are used and Japanese
+     comes out correctly.
+   - Use this PDF for distribution.
 
-## 画面写真を Playwright で撮るときの注意
+## Capturing screenshots with Playwright
 
-- **OpenShift コンソールは最初の表示で 2 回読み込む**。タイトルが一度
-  正しく出た後にもう一度スピナーに戻るので、`wait_for` の直後に撮らず、
-  もう 15〜20 秒待ってから撮る。
-- **コンソール初回ログイン**ではガイドツアーのダイアログと OpenShift
-  Lightspeed のパネルが画面を覆う。Escape と Lightspeed の Minimize で閉じて
-  から撮る（資料にも「事前に閉じる」と書く）。
-- **YAML のインポート**（Monaco エディタ）は打鍵すると自動インデントで崩れる。
-  `window.monaco.editor.getModels()[0].setValue(yaml)` で入れる。
-- **Pod のターミナル**（xterm）は `.xterm-helper-textarea` に
-  `pressSequentially` で打ち、Enter で実行する。
-- **スクリーンショットの保存先**は Playwright の作業ルート配下だけ（`/tmp` は
-  拒否される）。資料用は直接 `docs/images/...` に書き出す。
-- **ページのスナップショット（`.playwright-mcp/*.yml`）に接続情報の
-  パスワードがそのまま残る**ことがある。作業の最後に grep して削除する。
+- **The OpenShift console loads twice on first display.** The title
+  renders correctly once, then the spinner returns. Do not capture right
+  after `wait_for`. Wait another 15–20 seconds.
+- **On first console login**, the guided-tour dialog and the OpenShift
+  Lightspeed panel cover the screen. Close them with Escape and
+  Lightspeed's Minimize before capturing. The deck should also tell
+  readers to close them first.
+- **Importing YAML** (Monaco editor) by typing breaks under
+  auto-indentation. Set it with
+  `window.monaco.editor.getModels()[0].setValue(yaml)`.
+- **Pod terminal** (xterm): type into `.xterm-helper-textarea` with
+  `pressSequentially`, then press Enter.
+- **Screenshots can only be saved under Playwright's working root.** `/tmp`
+  is refused. Write deck images straight to `docs/images/...`.
+- **Page snapshots (`.playwright-mcp/*.yml`) can contain connection
+  passwords in plain text.** Grep for them and delete them at the end of
+  the session.

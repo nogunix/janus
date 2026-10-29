@@ -2,6 +2,28 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.43.1 — 2026-10-29
+
+**The gslides skill was the one skill still written mostly in Japanese.**
+Its SKILL.md and reference files are instructions Claude reads, and the
+repo's convention already puts agent-to-agent content in English. They
+are now English and reorganized for scanning: each step leads with the
+action, compound rules are split into lists, and the questions to put to
+the user are given as instructions rather than quoted Japanese.
+
+- **`gslides/SKILL.md` and all four `references/` files** are translated.
+  Japanese stays only where it is matched or emitted: the trigger phrases,
+  and data that ends up in the output (the `date_format` default,
+  `procedure_deck.py`'s sample text). The spec examples now use English
+  sample text.
+- **Fix in `references/batchupdate.md`**: the Phase 1 example deleted the
+  default slide `p` before creating any slides, which leaves the
+  presentation empty mid-batch. It now creates first, as
+  `build_gslides.py` does. Gotcha #7 now states the ordering.
+- `md2pdf/SKILL.md`: one remaining Japanese instruction line is translated.
+- **CLAUDE.md**: the Language convention now covers every plugin skill's
+  SKILL.md and `references/`, and lists what stays Japanese.
+
 ## 0.43.0 — 2026-10-29
 
 **Every gslides fix made a new presentation, and nothing looked at the

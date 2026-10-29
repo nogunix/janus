@@ -3,7 +3,6 @@
 Numbered so other files can cite them (`gotchas.md #16`). Keep numbers
 stable: append new items, do not renumber.
 
-
 1. **Object ID minimum 5 characters.** `createSlide` with `objectId: "s1"`
    fails. Use `"slide_01"` or longer.
 
@@ -38,7 +37,9 @@ stable: append new items, do not renumber.
    get 403.
 
 7. **Default slide `p` must be deleted.** A new presentation always has one
-   blank slide with objectId `p`. Delete it in the first batchUpdate.
+   blank slide with objectId `p`. Delete it in the first batchUpdate, after
+   the requests that create your slides — a presentation may never be left
+   with zero slides.
 
 8. **Table text styling requires cellLocation.** Include
    `"cellLocation": {"rowIndex": R, "columnIndex": C}` in updateTextStyle.
@@ -56,51 +57,63 @@ stable: append new items, do not renumber.
     SUBTITLE in both header and footer. The script picks the topmost
     (smallest Y coordinate).
 
-13. **スタイルドリフト防止.** 2枚以上のスライドで同じ要素（サブタイトル、脚注など）が
-    異なる座標やサイズになる場合、`styles:` エントリを定義して `style: name` で参照する。
-    座標のコピペは不統一の原因になる。
+13. **Prevent style drift.** When the same element (subtitle, footnote, ...)
+    appears on two or more slides, define it once under `styles:` and
+    reference it with `style: name`. Copy-pasted coordinates drift apart.
 
-14. **コンテキスト溢れ防止.** YAML specアプローチは直接batchUpdateの約1/10のトークン量。
-    反復的な修正は必ずYAMLを編集して再実行する。
+14. **Prevent context overflow.** A YAML spec costs roughly 1/10 the tokens
+    of the equivalent raw batchUpdate JSON. Make iterative fixes by editing
+    the YAML and re-running.
 
-15. **インチ→EMU変換.** `xi: 1.0` = 914400 EMU。よく使う値:
-    左マージン xi: 0.22 (≈200000), 全幅 wi: 9.51 (≈8700000),
-    コンテンツ開始 yi: 1.3 (≈1188720)。
+15. **Inch → EMU.** `xi: 1.0` = 914400 EMU. Common values: left margin
+    xi 0.22 (≈200000), full width wi 9.51 (≈8700000), content start yi 1.3
+    (≈1188720).
 
-16. **APIで新規作成したスライドは 16:9 (10in x 5.625in)。** 4:3 の 7.5in ではない。
-    ただしテンプレートを複製したデッキはテンプレートのサイズを引き継ぐ
-    （PowerPoint 由来の 16:9 なら 13.333in x 7.5in）。10in 前提の座標を
-    そのまま置くと、左上に寄って右と下が空く。実際のサイズは
-    `presentations get` の `pageSize` で確かめる。`build_gslides.py` は
-    `pageSize` を読み、`page_numbers:` の位置もページの端から計算する
-    （ビルド時に `page: W x H` と表示する）。
-    `yi` が 5.625 を超えた要素はエラーにならず画面外へ落ちる。出典行や
-    ページ番号を 6.5-7.1 あたりに置くと、ビルドは成功したのに紙面に
-    何も出ない、という形で失敗する。
+16. **An API-created deck is 16:9 at 10in x 5.625in — not the 7.5in of 4:3.**
+    - **A deck copied from a template keeps the template's size** (13.333in
+      x 7.5in for a 16:9 deck that came from PowerPoint). Coordinates made
+      for 10in then crowd the top-left and leave the right and bottom
+      empty.
+    - **Check the real size** in `pageSize` from `presentations get`.
+      `build_gslides.py` reads `pageSize`, computes `page_numbers:`
+      positions from the page edges, and prints `page: W x H` at build
+      time.
+    - **An element with `yi` past the page height drops off the slide
+      without an error.** Putting citations or page numbers around 6.5–7.1
+      on a 5.625in page fails this way: the build succeeds and nothing
+      shows.
 
-17. **ビルド後は必ずPDFに書き出して目視する.** はみ出しと重なりはAPIの
-    成功応答では検出できない。
-    `gws drive files export --params '{"fileId":"ID","mimeType":"application/pdf"}' -o deck.pdf`
-    （`-o` はカレントディレクトリ配下しか受け付けない。`/tmp` は拒否される）
-    書き出したPDFを読んで、各ページの下端が切れていないか確認する。
-    スライド単位で見るなら `build_gslides.py --thumbs DIR`（`pages.getThumbnail`、
-    `--slides` と組み合わせると作り直した枚だけ）の方が速い。
+17. **Always look at the result after a build.** The API's success response
+    cannot detect overflow or overlap.
+    - **Per slide**: `build_gslides.py --thumbs DIR` (`pages.getThumbnail`)
+      is fastest. With `--slides`, it captures only the rebuilt slides.
+    - **Whole deck / distribution copy**: export a PDF and check that no
+      page is cut off at the bottom.
+      `gws drive files export --params '{"fileId":"ID","mimeType":"application/pdf"}' -o deck.pdf`
+      (`-o` accepts only paths under the current directory; `/tmp` is
+      refused).
 
-18. **PPTX のアップロードで Google スライドに変換される.** `files create` の
-    `--json` に `"mimeType":"application/vnd.google-apps.presentation"` を付け、
-    `--upload-content-type` に PPTX の MIME を渡す。`files update` は既存の
-    Google スライドの中身を PPTX で丸ごと置き換える（版の履歴から戻せる）。
+18. **Uploading a PPTX converts it to Google Slides.**
+    - **New file**: `files create` with
+      `"mimeType":"application/vnd.google-apps.presentation"` in `--json`
+      and the PPTX MIME type in `--upload-content-type`.
+    - **Existing file**: `files update` replaces an existing deck's content
+      wholesale with the PPTX. Version history can restore it.
 
-19. **ユーザーの既存ファイルへの上書きは、権限確認で止められることがある.**
-    Claude Code の auto mode は他人（ユーザー）のファイルの上書きを外部書き込みと
-    して拒否しうる。回避を試みず、新規ファイルとして作るか、ユーザーに
-    `!` 付きでコマンドを実行してもらう。自分で作ったファイルの更新は通る。
+19. **Overwriting the user's existing file can be blocked by the permission
+    check.** Claude Code's auto mode may treat overwriting another
+    person's (the user's) file as an external write and deny it.
+    - Do not try to work around it. Create a new file instead, or ask the
+      user to run the command themselves with the `!` prefix.
+    - Updating a file you created yourself goes through.
 
-20. **20 枚を超える PPTX は部品名の重複に注意.** テンプレートの見本スライドを
-    残したまま `add_slide` を重ねると `Duplicate name: ppt/slides/slideNN.xml`
-    になる。保存前に `prs.part.rename_slide_parts([s.rId for s in prs.slides._sldIdLst])`
-    （`procedure_deck.py` の `save()` は実施済み）。
+20. **Over 20 slides, watch for duplicate part names in a PPTX.** Stacking
+    `add_slide` while the template's prototype slides remain produces
+    `Duplicate name: ppt/slides/slideNN.xml`. Before saving, run
+    `prs.part.rename_slide_parts([s.rId for s in prs.slides._sldIdLst])`
+    (`procedure_deck.py`'s `save()` already does).
 
-21. **`gws drive files delete` はカレントディレクトリに空の `download.html` を残す.**
-    応答本文が空のため、gws がそれをファイルに保存する。リポジトリ内で実行すると
-    未追跡ファイルが増えるので、削除はリポジトリの外で行うか、後で消す。
+21. **`gws drive files delete` leaves an empty `download.html` in the
+    current directory.** The response body is empty and gws saves it to a
+    file. Run deletes outside the repository, or remove the file
+    afterwards, or it shows up as an untracked file.

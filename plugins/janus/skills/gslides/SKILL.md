@@ -38,6 +38,7 @@ use).
 4. Verify: `gws slides presentations create --json '{"title":"test"}' && echo OK`
 5. (Optional) `pyyaml` for YAML specs: `pip install pyyaml`
 6. (Optional) `rsvg-convert` or `inkscape` for SVG diagram rendering
+7. (Optional) ImageMagick `montage` for the `--thumbs` contact sheet
 
 If you get `403 insufficient authentication scopes`, delete the token cache
 and re-login:
@@ -48,18 +49,16 @@ gws auth login --services drive,docs,sheets,slides,calendar,gmail
 
 ## Workflow
 
-### 1. テンプレート確認 (Inspect)
+### 1. Inspect the template
 
-Ask the user:
+Ask the user, in their language, whether there is a Google Slides deck to
+use as the template, and to paste its URL if so. Without one, build on the
+default theme.
 
-> テンプレートとして使う Google Slides はありますか？
-> URL があれば貼ってください（なければデフォルトテーマで作成します）
+From a URL like `https://docs.google.com/presentation/d/XXXXX/edit...`,
+take the presentation ID (`XXXXX`) and set `template_id` in the spec.
 
-If the user provides a URL like
-`https://docs.google.com/presentation/d/XXXXX/edit...`, extract the
-presentation ID (`XXXXX`) and set `template_id` in the spec.
-
-**Template layout discovery:**
+**List the template's layouts:**
 
 ```bash
 gws slides presentations get \
@@ -92,85 +91,100 @@ for l in data.get('layouts', []):
 | BIG_NUMBER | p11 | TITLE, BODY |
 | BLANK | p12 | (none) |
 
-### 2. スライド設計 (Plan the mapping)
+### 2. Plan the deck before writing YAML
 
-**全スライドの構成を先に決めてからYAMLを書く。** この手順がスタイル統一の鍵。
+Settle the whole deck first. This step is what keeps styling consistent.
 
-1. **スライド一覧を決める** — 各スライドのレイアウトとタイトルを列挙
-2. **`styles:` を定義する** — 2枚以上のスライドで繰り返す要素（サブタイトル、脚注、コンテンツボックスなど）はスタイルとして定義
-3. **`brand:` を決める** — フォント、色、サイズ
-4. **座標の基準を決める** — インチ座標 (`xi`/`yi`/`wi`/`hi`) を使用。APIで作成したスライドは **16:9 = 10in x 5.625in**。
-   テンプレートを複製した場合は**テンプレートのページサイズ**になる（PowerPoint 由来の 16:9 は 13.333in x 7.5in が多い）。
-   `presentations get` の `pageSize`（EMU）を読んで決めること（gotchas.md #16）
+1. **List the slides**: the layout and title of each.
+2. **Define `styles:`** for every element that repeats on two or more
+   slides (subtitle, footnote, content box, ...).
+3. **Decide `brand:`**: font, colors, sizes.
+4. **Fix the coordinate frame.** Use inch keys (`xi`/`yi`/`wi`/`hi`).
+   - An API-created deck is **16:9 = 10in x 5.625in**.
+   - A copied template keeps **its own page size**. 16:9 decks that came
+     from PowerPoint are usually 13.333in x 7.5in.
+   - Read `pageSize` (EMU) from `presentations get` (gotchas.md #16).
 
-**下端を超えた要素は画面外に落ちる。** エラーにならず、黙って消える。
-縦位置を決めるときは必ずページの高さ（新規作成なら 5.625）を上限として設計すること。
+**Anything below the bottom edge disappears silently.** There is no error.
+Use the page height (5.625 on a new deck) as the hard limit for every `yi`.
 
-**インチ座標クイックリファレンス (16:9、APIで新規作成した 10in x 5.625in):**
+**Inch quick reference (API-created 10in x 5.625in):**
 
-| 位置 | インチ | EMU相当 |
+| Position | Inches | EMU |
 |------|--------|---------|
-| 左マージン | xi: 0.22 | 200000 |
-| 右端 | xi: 9.78 | 8940000 |
-| タイトル下（サブタイトル） | yi: 0.88 | 804672 |
-| コンテンツ開始 | yi: 1.25-1.35 | 1143000-1234440 |
-| ボトムゾーン（出典・ページ番号） | yi: 5.22-5.35 | 4773168-4892040 |
-| スライド下端 | yi: 5.625 | 5143500 |
-| 全幅 | wi: 9.51 | 8700000 |
-| ハーフ幅 | wi: 4.59 | 4200000 |
+| Left margin | xi: 0.22 | 200000 |
+| Right edge | xi: 9.78 | 8940000 |
+| Below title (subtitle) | yi: 0.88 | 804672 |
+| Content start | yi: 1.25-1.35 | 1143000-1234440 |
+| Bottom zone (citations, page numbers) | yi: 5.22-5.35 | 4773168-4892040 |
+| Slide bottom | yi: 5.625 | 5143500 |
+| Full width | wi: 9.51 | 8700000 |
+| Half width | wi: 4.59 | 4200000 |
 
-**テーブルの行高は指定できない。** Slidesはフォントサイズとセル余白から自動で決め、
-`font_size: 8-9` でも1行あたり約 0.66in になる。ヘッダ込みで N 行なら
-`N × 0.66` インチを確保すること。16:9 では `yi: 1.2` 開始で **ヘッダ＋5行が上限**。
-行数が多い表は2枚に分割する。
+**Table row height cannot be set.** Slides derives it from font size and
+cell padding. Even at `font_size: 8-9` a row takes about 0.66in, so reserve
+`N × 0.66` in for N rows including the header. Starting at `yi: 1.2` on
+16:9, **header + 5 rows is the limit**. Split longer tables across two
+slides.
 
-### 3. YAML spec作成 (Build the spec)
+### 3. Write the YAML spec
 
-**ルール: 変更は全てYAML経由で行う。** 直接 batchUpdate を叩かない。YAML specを編集して再実行するのが正しいワークフロー。
+**Rule: every change goes through the YAML.** Do not call batchUpdate
+directly. Edit the spec and re-run.
 
-spec を書く前に `references/spec.md`（例2つ＋全キーの仕様）を読む。最小形:
+Read `references/spec.md` (two examples and the full key reference) before
+writing a spec. Minimal form:
 
 ```yaml
-title: "提案資料"
+title: "Proposal"
 brand: {font: "Noto Sans JP", title_size: 28, body_size: 16}
 slides:
   - layout: TITLE
     do:
-      - title: {text: "提案資料", bold: true}
-      - subtitle: {text: "○○株式会社 様\n$today"}
+      - title: {text: "Proposal", bold: true}
+      - subtitle: {text: "For Example Corp.\n$today"}
 ```
 
-### 4. ビルド実行 (Execute)
+### 4. Build
 
 ```bash
-python3 scripts/build_gslides.py deck.yaml --dry-run   # まず確認
-python3 scripts/build_gslides.py deck.yaml              # 本番実行
+python3 scripts/build_gslides.py deck.yaml --dry-run   # check the requests first
+python3 scripts/build_gslides.py deck.yaml              # build
 ```
 
-出力されたURLをブラウザで開く。
+The script prints the deck URL.
 
-### 5. 確認・修正 (QA loop)
+### 5. QA loop
 
 ```bash
-python3 scripts/build_gslides.py deck.yaml --update PRES_ID --thumbs qa/              # 全枚を作り直して全枚を撮る
-python3 scripts/build_gslides.py deck.yaml --update PRES_ID --slides 4,12 --thumbs qa/  # 直した枚だけ
+python3 scripts/build_gslides.py deck.yaml --update PRES_ID --thumbs qa/               # rebuild and capture every slide
+python3 scripts/build_gslides.py deck.yaml --update PRES_ID --slides 4,12 --thumbs qa/  # only the slides you fixed
 ```
 
-1. サムネイル（`qa/NN.png`、ImageMagick があれば `qa/sheet.png`）を Read で全枚見る:
-   はみ出し・不自然な改行、要素の重なり、下端への侵入、上下の偏った余白、フォント統一
-2. 問題があれば YAML を直し、`--update PRES_ID --slides N,…` でその枚だけ作り直す。
-   URL は変わらない（共同編集・共有済みのリンクが生きたまま）。`--slides` の番号は spec の
-   1 始まりの位置で、デッキの枚数が spec と同じときだけ使える（違えば `--slides` なしで全枚）
-3. **確認せずに完了と宣言しない**。配布用は PDF でも確認する（gotchas.md #17）
+1. Read every thumbnail (`qa/NN.png`, plus `qa/sheet.png` when ImageMagick
+   is installed). Check for:
+   - overflow and awkward line breaks;
+   - overlapping elements;
+   - anything intruding into the bottom zone;
+   - lopsided vertical spacing;
+   - mixed fonts.
+2. Fix the YAML, then rebuild only those slides with
+   `--update PRES_ID --slides N,...`.
+   - The URL stays the same, so co-editors and shared links keep working.
+   - `--slides` takes 1-based spec positions. It works only when the deck
+     has exactly as many slides as the spec. Otherwise run `--update`
+     without `--slides`.
+3. **Do not report done without looking.** For a deck that will be
+   distributed, also check the PDF export (gotchas.md #17).
 
-## References — read when the moment comes
+## References: read at the moment named
 
-| ファイル | 読むとき |
+| File | Read when |
 |---|---|
-| `references/spec.md` | YAML spec を書く・直すとき（例、top-level / `brand` / `styles` / `page_numbers` / 座標 / `do:` の全仕様） |
-| `references/batchupdate.md` | spec で表現できない操作を batchUpdate で直接送るとき（Workflow 2） |
-| `references/pptx-first.md` | 社内テンプレートのマスター・フォントを忠実に再現したいとき、画面写真入りの手順書を作るとき（Workflow 3、Playwright 撮影の注意） |
-| `references/gotchas.md` | API がエラーを返したとき、結果が想定と違うとき（番号付き。他のファイルは `gotchas.md #N` で参照する） |
+| `references/spec.md` | Writing or editing a YAML spec: examples, and every top-level, `brand`, `styles`, `page_numbers`, coordinate and `do:` key |
+| `references/batchupdate.md` | An operation the spec cannot express needs a direct batchUpdate (Workflow 2) |
+| `references/pptx-first.md` | The deck must reproduce a corporate template's masters and fonts, or is a procedure deck with screenshots (Workflow 3, Playwright capture notes) |
+| `references/gotchas.md` | The API returns an error or the result is not what you expected. Items are numbered; cite them as `gotchas.md #N` |
 
 ## Diagrams
 
@@ -201,14 +215,22 @@ gws drive files export \
 - **Google Drive** with public sharing
 - Any publicly accessible HTTPS URL
 
-## Must-know (全文は `references/gotchas.md`)
+## Must-know (full text in `references/gotchas.md`)
 
-- **#16 ページの下端を超えた要素は黙って消える。** APIで新規作成したデッキは 10in x 5.625in、テンプレート複製はテンプレートの `pageSize`。
-- **#17 ビルド後は必ず PDF に書き出して目視する。** はみ出し・重なりは API の成功応答ではわからない。
-- **#9 update 系リクエストは `fields` マスク必須。** 省くと黙って何もしない。
-- **#4 / #5 gws の癖。** 出力の先頭に `Using keyring backend: keyring` が付く（`{` から読む）。本文は `--json`、パラメータは `--params`。
-- **#6 スコープを足しても 403 が続く** ときは `~/.config/gws/token_cache.json` を消して再ログイン。
-- **#2 プレースホルダーIDは `placeholderIdMappings` で自分で振れる。** 振れば作成と文字入れを1回の batchUpdate にまとめられる。
+- **#16 Elements below the page's bottom edge vanish silently.** A new deck
+  is 10in x 5.625in. A copied template uses its own `pageSize`.
+- **#17 Always look at the result after a build.** The API's success
+  response says nothing about overflow or overlap.
+- **#9 Every update request needs a `fields` mask.** Without one it
+  silently does nothing.
+- **#4 / #5 gws quirks.**
+  - Output starts with `Using keyring backend: keyring`, so parse from the
+    first `{`.
+  - Request bodies go in `--json`, URL/path parameters in `--params`.
+- **#6 Still 403 after adding a scope?** Delete
+  `~/.config/gws/token_cache.json` and log in again.
+- **#2 You can name placeholder IDs yourself with `placeholderIdMappings`.**
+  Then one batchUpdate can both create a slide and fill it.
 
 ## Files
 

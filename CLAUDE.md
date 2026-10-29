@@ -210,6 +210,10 @@ stay usable. Preserve that property when touching them.
   Omit the version for changes that do not bump the plugin.
 - **Language**: agent-to-agent content (SKILL.md, agent prompts, findings
   format) is written in English; human-facing prose may be Japanese.
+  This covers every plugin skill's SKILL.md and `references/`, which
+  Claude reads, not the user. Japanese stays only where it is matched or
+  emitted: trigger phrases (`description`, "When to use") and data that
+  lands in the output (sample deck text, `%Y年%-m月%-d日`, textlint terms).
 - **Scripts stay stdlib-only and offline-testable** — that is why CI needs
   no install step.
 - `plugins/janus/.mcp.json` is intentionally empty. MCP server paths are

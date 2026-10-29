@@ -6,10 +6,10 @@ copies a template — then use the template's `pageSize` (gotchas.md #16).
 
 ## Examples
 
-**Spec例 (blank, スタイル + インチ座標使用):**
+**Example: blank deck, with styles and inch coordinates**
 
 ```yaml
-title: "提案資料"
+title: "Proposal"
 brand:
   font: "Noto Sans JP"
   title_size: 28
@@ -46,17 +46,17 @@ page_numbers:
 slides:
   - layout: TITLE
     do:
-      - title: {text: "提案資料", bold: true, size: 40, color: primary}
-      - subtitle: {text: "○○株式会社 様\n$today", size: 18}
+      - title: {text: "Proposal", bold: true, size: 40, color: primary}
+      - subtitle: {text: "For Example Corp.\n$today", size: 18}
 
   - layout: TITLE_ONLY
     do:
-      - title: {text: "現状の課題", bold: true}
+      - title: {text: "Current challenges", bold: true}
       - shape:
           style: section_subtitle
-          text: "3つの主要課題を特定"
+          text: "Three key challenges identified"
       - shape:
-          text: "❶ 課題A\n❷ 課題B\n❸ 課題C"
+          text: "1. Challenge A\n2. Challenge B\n3. Challenge C"
           xi: 0.22
           yi: 1.53
           wi: 9.51
@@ -68,14 +68,14 @@ slides:
 
   - layout: MAIN_POINT
     do:
-      - title: {text: "お問い合わせ", bold: true, color: primary}
+      - title: {text: "Contact", bold: true, color: primary}
 ```
 
-**Spec例 (template-based):**
+**Example: template-based**
 
 ```yaml
 template_id: "YOUR_TEMPLATE_PRESENTATION_ID"
-title: "サービス提案書"
+title: "Service proposal"
 brand:
   font: "Noto Sans JP"
   title_size: 28
@@ -84,13 +84,13 @@ brand:
 slides:
   - layout: "Title slide"
     do:
-      - title: {text: "サービス提案書"}
-      - subtitle: {text: "○○株式会社 様"}
+      - title: {text: "Service proposal"}
+      - subtitle: {text: "For Example Corp."}
 
   - layout: "Title and body"
     do:
-      - title: {text: "現状の課題"}
-      - body: {text: "課題1\n課題2\n課題3"}
+      - title: {text: "Current challenges"}
+      - body: {text: "Challenge 1\nChallenge 2\nChallenge 3"}
 
   - layout: "Closing"
     do:
@@ -101,26 +101,26 @@ slides:
 
 | Key | Description |
 |-----|-------------|
-| `title` | プレゼンテーションタイトル |
-| `template_id` | テンプレートのプレゼンテーションID (省略可) |
-| `brand` | フォント、サイズ、色のデフォルト設定 |
-| `styles` | 名前付きスタイル定義 (省略可) |
-| `page_numbers` | 自動ページ番号設定 (省略可) |
-| `slides` | スライドのリスト |
+| `title` | Presentation title |
+| `template_id` | Presentation ID of a template to copy (optional) |
+| `brand` | Default font, sizes and colors |
+| `styles` | Named reusable styles (optional) |
+| `page_numbers` | Automatic page numbers (optional) |
+| `slides` | List of slides |
 
 ## `brand` keys
 
 | Key | Description | Example |
 |-----|-------------|---------|
-| `font` | デフォルトフォント | `"Noto Sans JP"` |
-| `title_size` | タイトルのデフォルトサイズ (pt) | `28` |
-| `body_size` | 本文のデフォルトサイズ (pt) | `16` |
-| `date_format` | `$today` のstrftime形式 | `"%Y年%-m月%-d日"` |
-| `colors` | 名前付き色マップ (6桁hex, `#`なし) | `primary: "0078D4"` |
+| `font` | Default font | `"Noto Sans JP"` |
+| `title_size` | Default title size (pt) | `28` |
+| `body_size` | Default body size (pt) | `16` |
+| `date_format` | strftime format for `$today` | `"%Y年%-m月%-d日"` |
+| `colors` | Named color map (6-digit hex, no `#`) | `primary: "0078D4"` |
 
-## `styles:` — 名前付き再利用スタイル
+## `styles:` — named reusable styles
 
-shape/table/image opで `style: name` として参照。明示的な値がスタイルのデフォルトを上書きする。
+Reference one from a shape/table/image op with `style: name`. Values set on the op override the style's defaults.
 
 ```yaml
 styles:
@@ -145,62 +145,62 @@ styles:
     line_spacing: 120
 ```
 
-使用例:
+Usage:
 ```yaml
 - shape:
     style: section_subtitle
-    text: "このスライドのサブタイトル"
+    text: "Subtitle for this slide"
 - shape:
     style: citation
     text: "[1] https://example.com"
 ```
 
-位置を上書きしたい場合:
+Overriding the position:
 ```yaml
 - shape:
     style: content_box
-    text: "左カラム"
+    text: "Left column"
     xi: 0.22
     wi: 4.5
 ```
 
-## `page_numbers:` — 自動ページ番号
+## `page_numbers:` — automatic page numbers
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `skip_first` | `true` | 最初のスライド(表紙)をスキップ |
-| `skip_last` | `false` | 最後のスライド(Closing)をスキップ |
-| `size` | `8` | フォントサイズ (pt) |
-| `color` | `"595959"` | 文字色 (色名 or hex) |
-| `position` | `bottom_left` | `bottom_left`, `bottom_right`, `bottom_center`（ページの実寸から計算。テンプレートの大きいページでも端に付く） |
+| `skip_first` | `true` | Skip the first slide (cover) |
+| `skip_last` | `false` | Skip the last slide (closing) |
+| `size` | `8` | Font size (pt) |
+| `color` | `"595959"` | Text color (color name or hex) |
+| `position` | `bottom_left` | `bottom_left`, `bottom_right`, `bottom_center` — computed from the real page size, so they sit at the edge of a larger template page too |
 
 ## Position/size values
 
-**インチ座標 (推奨):** `xi`, `yi`, `wi`, `hi` — APIで作成したスライド = **16:9 = 10in x 5.625in**（テンプレート複製時はテンプレートの `pageSize`）
+**Inch coordinates (preferred):** `xi`, `yi`, `wi`, `hi` — an API-created deck is **16:9 = 10in x 5.625in**; a copied template uses its own `pageSize`.
 
-**EMU座標 (後方互換):** `x`, `y`, `w`, `h` — 1 inch = 914400 EMU
+**EMU coordinates (backward compatible):** `x`, `y`, `w`, `h` — 1 inch = 914400 EMU.
 
-インチキーが存在する場合、EMUキーより優先される。
+When both are present, the inch key wins.
 
 ## Slide ops (`do:` list)
 
 | Op | Description | Key args |
 |----|-------------|----------|
-| `title` | TITLE/CENTERED_TITLE placeholderを埋める | `text`, `size`, `bold`, `italic`, `color`, `font`, `autofit` |
-| `subtitle` | SUBTITLE placeholderを埋める | 同上 (autofit: デフォルトon) |
-| `body` | BODY placeholderを埋める | 同上 (autofit: デフォルトon) |
-| `table` | テーブルを作成 | `header`, `rows`, `header_bg`, `xi`/`yi`/`wi`/`hi`, `font_size`, `style` |
-| `shape` | テキストボックスや図形を追加 | `text`, `xi`/`yi`/`wi`/`hi`, `size`, `bold`, `color`, `fill`, `shape_type`, `style`, paragraph style keys |
-| `background` | スライド背景色を設定 | `color` |
-| `image` | URL指定で画像を挿入 | `url`, `xi`/`yi`/`wi`/`hi`, `style` |
+| `title` | Fill the TITLE/CENTERED_TITLE placeholder | `text`, `size`, `bold`, `italic`, `color`, `font`, `autofit` |
+| `subtitle` | Fill the SUBTITLE placeholder | same as `title` (autofit on by default) |
+| `body` | Fill the BODY placeholder | same as `title` (autofit on by default) |
+| `table` | Create a table | `header`, `rows`, `header_bg`, `xi`/`yi`/`wi`/`hi`, `font_size`, `style` |
+| `shape` | Add a text box or shape | `text`, `xi`/`yi`/`wi`/`hi`, `size`, `bold`, `color`, `fill`, `shape_type`, `style`, paragraph style keys |
+| `background` | Set the slide background color | `color` |
+| `image` | Insert an image by URL | `url`, `xi`/`yi`/`wi`/`hi`, `style` |
 
-**Paragraph style keys** (title/subtitle/body/shapeで利用可):
+**Paragraph style keys** (usable on title/subtitle/body/shape):
 `line_spacing` (%), `space_above` / `space_below` (pt), `alignment` (`START`/`CENTER`/`END`/`JUSTIFIED`), `indent_start` (pt)
 
-**Text autofit:** `body` と `subtitle` はデフォルトでTEXT_AUTOFITが有効。`autofit: false` で無効化、`autofit: true` で `title` にも有効化。
+**Text autofit:** `body` and `subtitle` have TEXT_AUTOFIT on by default. `autofit: false` turns it off; `autofit: true` turns it on for `title` too.
 
-**Color values:** `brand.colors` のキー名 (e.g. `primary`) or 6桁hex (e.g. `2563EB`)
+**Color values:** a `brand.colors` key (e.g. `primary`) or 6-digit hex (e.g. `2563EB`)
 
-**フォント継承:** shape/table は `brand.font` と `brand.body_size` を自動継承。明示的に指定した場合はそちらが優先。
+**Font inheritance:** shape/table inherit `brand.font` and `brand.body_size`; explicit values win.
 
-**`$today`** はビルド日に置換される。
+**`$today`** is replaced with the build date.

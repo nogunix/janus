@@ -2,14 +2,18 @@
 
 Read only when the YAML spec cannot express an operation.
 
-YAML specで表現できない操作のためのエスケープハッチ。
-**注意: 反復的なスライド作業では使わない。** 直接 batchUpdate はコンテキストを急速に消費し、コンテキスト溢れの原因になる。
+**Do not use this for iterative slide work.** Raw batchUpdate JSON consumes
+context quickly and is a common cause of context overflow (gotchas.md #14).
 
-基本は **2フェーズ**（作成 → プレースホルダーIDを発見 → 挿入）。
-`createSlide` に `placeholderIdMappings` を付けてプレースホルダーに自分でIDを振れば、
-発見を省いて作成と挿入を1回の batchUpdate にまとめられる（gotchas.md #2）。
+The default is **two phases**: create, then discover the placeholder IDs,
+then insert. Pass `placeholderIdMappings` to `createSlide` to name the
+placeholder IDs yourself. That skips discovery and puts creation and
+insertion in a single batchUpdate (gotchas.md #2, #3).
 
-## Phase 1: プレゼンテーション + スライド作成
+## Phase 1: Create the presentation and slides
+
+Create the new slides before deleting the default slide `p`. The API
+refuses to leave a presentation with no slides.
 
 ```bash
 PRES_ID=$(gws slides presentations create \
@@ -21,16 +25,16 @@ gws slides presentations batchUpdate \
   --params "{\"presentationId\": \"$PRES_ID\"}" \
   --json '{
     "requests": [
-      {"deleteObject": {"objectId": "p"}},
       {"createSlide": {"objectId": "slide_01", "insertionIndex": 0,
                         "slideLayoutReference": {"layoutId": "p2"}}},
       {"createSlide": {"objectId": "slide_02", "insertionIndex": 1,
-                        "slideLayoutReference": {"layoutId": "p4"}}}
+                        "slideLayoutReference": {"layoutId": "p4"}}},
+      {"deleteObject": {"objectId": "p"}}
     ]
   }'
 ```
 
-## Phase 2: Placeholder ID発見 → コンテンツ挿入
+## Phase 2: Discover placeholder IDs, then insert content
 
 ```bash
 gws slides presentations get \
@@ -47,7 +51,7 @@ for s in data.get('slides', []):
             print(f'  {el[\"objectId\"]}: {ph.get(\"type\")}')
 "
 
-# 発見したIDでbatchUpdate
+# batchUpdate with the discovered IDs
 gws slides presentations batchUpdate \
   --params "{\"presentationId\": \"$PRES_ID\"}" \
   --json '{ "requests": [ ... ] }'
