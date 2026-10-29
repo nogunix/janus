@@ -201,12 +201,35 @@ def gws_drive_cmd(args, params=None, json_body=None):
     return data
 
 
+# Homebrew's Python is externally managed (PEP 668), so `pip install pyyaml`
+# is refused there and Homebrew ships no pyyaml formula. Without PyYAML, a
+# YAML spec is converted to JSON by `yq` (brew install yq). mikefarah's yq
+# takes `-o=json`; kislyuk's jq wrapper of the same name emits JSON already.
+YQ_COMMANDS = (["yq", "-o=json", "."], ["yq", "."])
+
+
 def load_spec(path):
-    with open(path, encoding="utf-8") as f:
-        if path.endswith(".json"):
+    if path.endswith(".json"):
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
+    try:
         import yaml
-        return yaml.safe_load(f)
+    except ImportError:
+        yaml = None
+    if yaml:
+        with open(path, encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    if shutil.which("yq"):
+        for cmd in YQ_COMMANDS:
+            r = subprocess.run(cmd + [path], capture_output=True, text=True)
+            if r.returncode == 0 and r.stdout.strip():
+                return json.loads(r.stdout)
+    raise SystemExit(
+        "A YAML spec needs PyYAML or yq. Install one of:\n"
+        "  brew install yq\n"
+        "  python3 -m pip install --user pyyaml   "
+        "(Homebrew Python also needs --break-system-packages)\n"
+        "or write the spec as .json.")
 
 
 # ---------------------------------------------------------------------------

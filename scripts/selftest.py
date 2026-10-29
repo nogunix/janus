@@ -1531,6 +1531,30 @@ def test_gslides():
           "gslides: --update prefixes object IDs so new and old generations never collide")
     gs.ID_PREFIX = ""
 
+    import shutil
+    if shutil.which("yq"):
+        with tempfile.TemporaryDirectory() as td:
+            spec_path = Path(td) / "deck.yaml"
+            spec_path.write_text('title: "T"\nbrand: {colors: {a: "37A3A3"}}\n'
+                                 'slides:\n  - layout: BLANK\n    do:\n'
+                                 '      - shape: {text: "x", bold: true, xi: 1.5}\n')
+            import builtins
+            real_import = builtins.__import__
+
+            def no_yaml(name, *a, **k):  # hide PyYAML even where it is installed
+                if name == "yaml":
+                    raise ImportError(name)
+                return real_import(name, *a, **k)
+            builtins.__import__ = no_yaml
+            try:
+                got = gs.load_spec(str(spec_path))
+            finally:
+                builtins.__import__ = real_import
+            check(got == {"title": "T", "brand": {"colors": {"a": "37A3A3"}},
+                          "slides": [{"layout": "BLANK", "do": [
+                              {"shape": {"text": "x", "bold": True, "xi": 1.5}}]}]},
+                  "gslides: without PyYAML a YAML spec loads through yq")
+
     plain, spans = gs.parse_markup("A 🚀 **bold** and {accent:red}")
     check(plain == "A 🚀 bold and red" and spans == [(5, 9, None), (14, 17, "accent")],
           "gslides: markup ranges count UTF-16 units, so text after an emoji is not shifted")

@@ -141,3 +141,11 @@ stable: append new items, do not renumber.
     computed with Python's `len()` drift after the first such character.
     `build_gslides.py`'s inline markup measures in UTF-16 (`u16len`). Do
     the same in any hand-written batchUpdate.
+
+26. **YAML booleans differ between PyYAML and yq.**
+    - **PyYAML** (YAML 1.1) reads unquoted `yes`/`no`/`on`/`off` as
+      booleans.
+    - **yq** (YAML 1.2), which `build_gslides.py` uses when PyYAML is
+      absent, keeps them as strings.
+    - **Write `true`/`false`** so a spec means the same under both. Quote
+      hex colors either way: unquoted `595959` is a number.

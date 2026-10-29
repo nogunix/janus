@@ -2,6 +2,25 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.44.1 — 2026-10-29
+
+**A YAML spec could not be built on Homebrew's Python.** `build_gslides.py`
+imported PyYAML unconditionally. Homebrew's Python is externally managed
+(PEP 668), so a plain `pip install pyyaml` is refused, and Homebrew ships
+no pyyaml formula.
+
+- **`build_gslides.py`**: without PyYAML, a YAML spec is converted with
+  `yq` (`brew install yq`). Both mikefarah's yq and kislyuk's jq wrapper
+  of the same name are handled. With neither available, the script exits
+  naming what to install. JSON specs are unaffected.
+- **`gslides/SKILL.md`** prerequisites explain the choice.
+  **`references/gotchas.md` #26**: yq reads YAML 1.2, so unquoted
+  `yes`/`no` stay strings where PyYAML makes them booleans. Write
+  `true`/`false`.
+- **`selftest.py`**: when `yq` is on PATH, a YAML spec is loaded with
+  PyYAML hidden and compared to the expected structure. CI without yq
+  skips the check.
+
 ## 0.44.0 — 2026-10-29
 
 **gslides knew how to draw slides, not what to put on them, and its spec

@@ -36,7 +36,11 @@ use).
    gcloud services enable slides.googleapis.com --project=<PROJECT>
    ```
 4. Verify: `gws slides presentations create --json '{"title":"test"}' && echo OK`
-5. (Optional) `pyyaml` for YAML specs: `pip install pyyaml`
+5. For YAML specs, either `brew install yq` or PyYAML.
+   - Homebrew's Python refuses a plain `pip install pyyaml` (PEP 668), and
+     Homebrew has no pyyaml formula. `build_gslides.py` falls back to `yq`
+     when PyYAML is missing.
+   - A `.json` spec needs neither.
 6. (Optional) `rsvg-convert` or `inkscape` for SVG diagram rendering
 7. (Optional) ImageMagick `montage` for the `--thumbs` contact sheet
 
