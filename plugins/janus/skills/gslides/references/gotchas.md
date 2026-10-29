@@ -71,10 +71,9 @@ stable: append new items, do not renumber.
     ただしテンプレートを複製したデッキはテンプレートのサイズを引き継ぐ
     （PowerPoint 由来の 16:9 なら 13.333in x 7.5in）。10in 前提の座標を
     そのまま置くと、左上に寄って右と下が空く。実際のサイズは
-    `presentations get` の `pageSize` で確かめる。`page_numbers:` の位置は
-    10in x 5.625in 前提の固定値なので、大きいテンプレートでは紙面の途中に
-    出る。その場合はテンプレート側のスライド番号を使い、`page_numbers:` は
-    付けない。
+    `presentations get` の `pageSize` で確かめる。`build_gslides.py` は
+    `pageSize` を読み、`page_numbers:` の位置もページの端から計算する
+    （ビルド時に `page: W x H` と表示する）。
     `yi` が 5.625 を超えた要素はエラーにならず画面外へ落ちる。出典行や
     ページ番号を 6.5-7.1 あたりに置くと、ビルドは成功したのに紙面に
     何も出ない、という形で失敗する。
@@ -84,6 +83,8 @@ stable: append new items, do not renumber.
     `gws drive files export --params '{"fileId":"ID","mimeType":"application/pdf"}' -o deck.pdf`
     （`-o` はカレントディレクトリ配下しか受け付けない。`/tmp` は拒否される）
     書き出したPDFを読んで、各ページの下端が切れていないか確認する。
+    スライド単位で見るなら `build_gslides.py --thumbs DIR`（`pages.getThumbnail`、
+    `--slides` と組み合わせると作り直した枚だけ）の方が速い。
 
 18. **PPTX のアップロードで Google スライドに変換される.** `files create` の
     `--json` に `"mimeType":"application/vnd.google-apps.presentation"` を付け、
@@ -99,3 +100,7 @@ stable: append new items, do not renumber.
     残したまま `add_slide` を重ねると `Duplicate name: ppt/slides/slideNN.xml`
     になる。保存前に `prs.part.rename_slide_parts([s.rId for s in prs.slides._sldIdLst])`
     （`procedure_deck.py` の `save()` は実施済み）。
+
+21. **`gws drive files delete` はカレントディレクトリに空の `download.html` を残す.**
+    応答本文が空のため、gws がそれをファイルに保存する。リポジトリ内で実行すると
+    未追跡ファイルが増えるので、削除はリポジトリの外で行うか、後で消す。

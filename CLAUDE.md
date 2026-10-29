@@ -23,7 +23,7 @@ Both are stdlib-only and offline (no network, no MCP servers).
 `selftest.py` has no test filter. To run one test function in isolation
 (`test_chain`, `test_lock`, `test_quotecheck`, `test_urlcheck`,
 `test_versioncheck`, `test_linkcheck`, `test_anchors`, `test_prosecheck`,
-`test_gates`, `test_findings`):
+`test_gates`, `test_findings`, `test_gslides`):
 
 ```bash
 python3 -c "

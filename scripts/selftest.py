@@ -5,7 +5,8 @@ Covers chain.py (seal → verify → revision → tamper detection →
 ledger-edit detection, plus lock/unlock), the evidence-lock hook's deny
 logic, quotecheck.py's quote extraction and verbatim matching, and
 urlcheck.py's URL extraction and classification constants, and gates.py's
-status classification and end-to-end run (urlcheck skipped). No network,
+status classification and end-to-end run (urlcheck skipped), and
+build_gslides.py's page-size math and in-place rebuild plan. No network,
 no MCP servers; stdlib-only, like validate.py. Exit 1 on any failure.
 """
 
@@ -1491,6 +1492,45 @@ def test_findings():
           "findings: ids two files define are reported, in numeric order")
 
 
+def test_gslides():
+    gs = load("build_gslides", PLUGIN / "skills/gslides/scripts")
+    check([round(v, 3) for v in gs.page_number_position("bottom_right")] == [9.3, 5.25]
+          and [round(v, 3) for v in gs.page_number_position("bottom_center")] == [4.8, 5.25],
+          "gslides: page numbers on the API-created 10x5.625 page sit where they always did")
+    x, y = gs.page_number_position("bottom_right", (13.333, 7.5))
+    check(round(x, 3) == 12.633 and y == 7.125,
+          "gslides: page numbers follow a larger template page instead of landing mid-slide")
+    check(gs.page_size_in({"pageSize": {"width": {"magnitude": 12192000},
+                                        "height": {"magnitude": 6858000}}}) == (13.333333333333334, 7.5)
+          and gs.page_size_in({}) == gs.DEFAULT_PAGE_SIZE,
+          "gslides: pageSize is read from the GET response, default when absent")
+
+    new, lay, old = ["n1", "n2", "n3"], ["p2", "p4", "p6"], ["o1", "o2", "o3"]
+    full = gs.slide_requests(new, lay, old)
+    check([next(iter(r)) for r in full] == ["createSlide"] * 3 + ["deleteObject"] * 3,
+          "gslides: full build creates every slide before deleting any (the API keeps one)")
+    part = gs.slide_requests(new, lay, old, targets=[2, 3])
+    check([(next(iter(r)), r.get("createSlide", {}).get("insertionIndex"),
+            r.get("deleteObject", {}).get("objectId")) for r in part]
+          == [("createSlide", 1, None), ("deleteObject", None, "o2"),
+              ("createSlide", 2, None), ("deleteObject", None, "o3")],
+          "gslides: --slides replaces each target at its own index, others untouched")
+    pn = gs.build_page_numbers(new, {"skip_first": True}, {}, only={1})
+    check([r["createShape"]["elementProperties"]["pageObjectId"]
+           for r in pn if "createShape" in r] == ["n2"],
+          "gslides: a partial rebuild re-adds page numbers only on rebuilt slides")
+    try:
+        gs.parse_positions("2,9", 3)
+        check(False, "gslides: --slides rejects a position past the spec")
+    except SystemExit:
+        check(True, "gslides: --slides rejects a position past the spec")
+    gs.ID_PREFIX = gs.run_prefix()
+    check(gs.oid("slide_01").startswith("u") and gs.oid("slide_01") != "slide_01"
+          and len(gs.ID_PREFIX) <= 8,
+          "gslides: --update prefixes object IDs so new and old generations never collide")
+    gs.ID_PREFIX = ""
+
+
 def main():
     test_chain()
     test_lock()
@@ -1508,6 +1548,7 @@ def main():
     test_prosecheck()
     test_gates()
     test_findings()
+    test_gslides()
     if failures:
         print(f"{len(failures)} self-test(s) failed")
         return 1

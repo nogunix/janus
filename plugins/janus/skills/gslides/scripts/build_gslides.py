@@ -4,6 +4,9 @@
 Usage:
     python3 build_gslides.py deck.yaml
     python3 build_gslides.py deck.yaml --dry-run
+    python3 build_gslides.py deck.yaml --update PRES_ID              # rebuild in place
+    python3 build_gslides.py deck.yaml --update PRES_ID --slides 4,12  # only these
+    python3 build_gslides.py deck.yaml --update PRES_ID --slides 4 --thumbs qa/
 
 Supports two modes:
   1. Blank presentation (default): creates from scratch with default layouts.
@@ -55,8 +58,10 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import time
 from datetime import date
 
 DEFAULT_LAYOUT_MAP = {
@@ -83,6 +88,29 @@ DEFAULT_PLACEHOLDER_ROLE = {
 }
 
 EMU_PER_INCH = 914400
+
+# A presentation created through the API is 16:9 at 10in x 5.625in. A copied
+# template keeps its own pageSize (13.333in x 7.5in is common), read via GET.
+DEFAULT_PAGE_SIZE = (10.0, 5.625)
+
+# Object IDs a fresh build uses are fixed (slide_01, shp_001, ...). An
+# in-place --update creates its objects before deleting the old ones, so it
+# sets a per-run prefix to keep the two generations from colliding.
+ID_PREFIX = ""
+
+
+def oid(name):
+    return ID_PREFIX + name
+
+
+def run_prefix():
+    """Per-run object-ID prefix: starts with a letter, stays short."""
+    n, digits = int(time.time() * 10), "0123456789abcdefghijklmnopqrstuvwxyz"
+    out = ""
+    while n:
+        n, r = divmod(n, 36)
+        out = digits[r] + out
+    return f"u{out[-6:]}_"
 
 
 def resolve_dim(op, inch_key, emu_key, default):
@@ -206,6 +234,7 @@ def discover_layouts(pres_id):
         layout_map: {display_name: layout_object_id}
         layout_placeholders: {layout_object_id: {placeholder_type: [object_ids]}}
         slide_ids: [existing slide object IDs]
+        page_size: (width_in, height_in)
 
     When duplicate display names exist (e.g. light/dark themes), the first
     occurrence wins — override by using the raw layoutId in the spec.
@@ -233,7 +262,17 @@ def discover_layouts(pres_id):
         layout_placeholders[lid] = phs
 
     slide_ids = [s["objectId"] for s in data.get("slides", [])]
-    return layout_map, layout_placeholders, slide_ids
+    return layout_map, layout_placeholders, slide_ids, page_size_in(data)
+
+
+def page_size_in(data):
+    """(width, height) in inches from a presentations.get response."""
+    ps = data.get("pageSize", {})
+    w = ps.get("width", {}).get("magnitude")
+    h = ps.get("height", {}).get("magnitude")
+    if not w or not h:
+        return DEFAULT_PAGE_SIZE
+    return (w / EMU_PER_INCH, h / EMU_PER_INCH)
 
 
 def create_presentation(title):
@@ -475,7 +514,7 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
 
         elif op_name == "table":
             counter[0] += 1
-            tbl_id = f"tbl_{counter[0]:03d}"
+            tbl_id = oid(f"tbl_{counter[0]:03d}")
             header = op_args.get("header", [])
             rows = op_args.get("rows", [])
             cols = len(header) if header else (len(rows[0]) if rows else 1)
@@ -605,7 +644,7 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
 
         elif op_name == "shape":
             counter[0] += 1
-            shape_id = f"shp_{counter[0]:03d}"
+            shape_id = oid(f"shp_{counter[0]:03d}")
             x = resolve_dim(op_args, "xi", "x", 2000000)
             y = resolve_dim(op_args, "yi", "y", 2500000)
             w = resolve_dim(op_args, "wi", "w", 5000000)
@@ -696,7 +735,7 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
 
         elif op_name == "image":
             counter[0] += 1
-            img_id = f"img_{counter[0]:03d}"
+            img_id = oid(f"img_{counter[0]:03d}")
             url = op_args.get("url", "")
             x = resolve_dim(op_args, "xi", "x", 500000)
             y = resolve_dim(op_args, "yi", "y", 1500000)
@@ -728,24 +767,27 @@ def process_slide_ops(slide_obj_id, layout_name, ops, placeholders, brand,
 # Page numbers
 # ---------------------------------------------------------------------------
 
-# A Slides presentation created through the API is 16:9 — 10in x 5.625in, not
-# the 10in x 7.5in of 4:3. Anything placed below yi 5.625 lands off-slide and
-# renders nowhere, silently. These defaults sit in the 16:9 bottom margin.
-PAGE_NUMBER_POSITIONS = {
-    "bottom_left":   (0.22, 5.25),
-    "bottom_right":  (9.3, 5.25),
-    "bottom_center": (4.8, 5.25),
-}
+# Anything placed below the page height lands off-slide and renders nowhere,
+# silently, so positions are measured from the actual page edges. On the
+# API-created 10in x 5.625in page they come out at (0.22 | 9.3 | 4.8, 5.25).
+def page_number_position(name, page_size=DEFAULT_PAGE_SIZE):
+    w, h = page_size
+    x = {"bottom_left": 0.22, "bottom_right": w - 0.7,
+         "bottom_center": w / 2 - 0.2}.get(name, 0.22)
+    return x, h - 0.375
 
 
-def build_page_numbers(slide_count, config, brand):
+def build_page_numbers(slide_ids, config, brand, page_size=DEFAULT_PAGE_SIZE,
+                       only=None):
+    """Page-number boxes for slide_ids (spec order). `only` limits them to a
+    set of 0-based indexes, for a partial --slides rebuild."""
+    slide_count = len(slide_ids)
     skip_first = config.get("skip_first", True)
     skip_last = config.get("skip_last", False)
     size = config.get("size", 8)
     color = config.get("color", "595959")
     pos_name = config.get("position", "bottom_left")
-    xi, yi = PAGE_NUMBER_POSITIONS.get(pos_name,
-                                        PAGE_NUMBER_POSITIONS["bottom_left"])
+    xi, yi = page_number_position(pos_name, page_size)
     w = int(config.get("wi", 0.4) * EMU_PER_INCH)
     h = int(config.get("hi", 0.25) * EMU_PER_INCH)
     x = int(xi * EMU_PER_INCH)
@@ -758,8 +800,10 @@ def build_page_numbers(slide_count, config, brand):
             continue
         if skip_last and i == slide_count - 1:
             continue
-        slide_id = f"slide_{slide_num:02d}"
-        pn_id = f"pagenum_{slide_num:02d}"
+        if only is not None and i not in only:
+            continue
+        slide_id = slide_ids[i]
+        pn_id = oid(f"pagenum_{slide_num:02d}")
         requests.append({
             "createShape": {
                 "objectId": pn_id,
@@ -803,15 +847,124 @@ def build_page_numbers(slide_count, config, brand):
 
 
 # ---------------------------------------------------------------------------
+# Slide plan, partial rebuild, thumbnails
+# ---------------------------------------------------------------------------
+
+def parse_positions(text, n_slides):
+    """'4,12' → [4, 12] (1-based spec positions, sorted, deduplicated)."""
+    try:
+        pos = sorted({int(t) for t in text.split(",") if t.strip()})
+    except ValueError:
+        raise SystemExit(f"--slides: not a comma-separated list of numbers: {text}")
+    bad = [q for q in pos if not 1 <= q <= n_slides]
+    if bad or not pos:
+        raise SystemExit(f"--slides: positions must be 1..{n_slides}, got {text}")
+    return pos
+
+
+def slide_requests(new_ids, layout_ids, existing, targets=None):
+    """Phase 1 requests: create the new slides, then delete what they replace.
+
+    The API refuses to delete the last slide, so creation always comes first.
+    Full build (targets None): create every slide at the front, delete every
+    existing one. Partial rebuild: for each 1-based target, insert the new
+    slide at its index — pushing the old one down a place — and delete the
+    old one by ID, so every other slide keeps its position.
+    """
+    reqs = []
+    indexes = range(len(new_ids)) if targets is None else [t - 1 for t in targets]
+    for i in indexes:
+        reqs.append({"createSlide": {
+            "objectId": new_ids[i], "insertionIndex": i,
+            "slideLayoutReference": {"layoutId": layout_ids[i]}}})
+        if targets is not None:
+            reqs.append({"deleteObject": {"objectId": existing[i]}})
+    if targets is None:
+        reqs += [{"deleteObject": {"objectId": sid}} for sid in existing]
+    return reqs
+
+
+def thumbnails(pres_id, outdir, positions=None, size="LARGE"):
+    """Download per-slide thumbnails as outdir/NN.png (1-based positions).
+
+    getThumbnail is rate-limited (it counts as an expensive read), so calls
+    are spaced and retried. Downloads go through curl, like gws itself."""
+    os.makedirs(outdir, exist_ok=True)
+    # A reused directory must not mix a stale run into the review.
+    for f in os.listdir(outdir):
+        if re.fullmatch(r"\d{2,}\.png|sheet\.png", f):
+            os.remove(os.path.join(outdir, f))
+    data = gws_slides_cmd(["get"], params={"presentationId": pres_id,
+                                           "fields": "slides(objectId)"})
+    paths = []
+    for n, sl in enumerate(data.get("slides", []), start=1):
+        if positions and n not in positions:
+            continue
+        url = None
+        for attempt in range(4):
+            t = gws_slides_cmd(["pages", "getThumbnail"], params={
+                "presentationId": pres_id, "pageObjectId": sl["objectId"],
+                "thumbnailProperties.thumbnailSize": size})
+            url = t.get("contentUrl")
+            if url:
+                break
+            time.sleep(5 * (attempt + 1))
+        if not url:
+            print(f"  warn: no thumbnail for slide {n}", file=sys.stderr)
+            continue
+        path = os.path.join(outdir, f"{n:02d}.png")
+        subprocess.run(["curl", "-s", "-o", path, url], check=True)
+        paths.append(path)
+        time.sleep(1.2)
+    return paths
+
+
+# ImageMagick has no usable default font on stock macOS, so a -label without
+# -font fails the whole montage. Label only when a known font file exists.
+LABEL_FONTS = ("/System/Library/Fonts/Helvetica.ttc",
+               "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+               "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+
+
+def contact_sheet(paths, out, tile="3x"):
+    """Montage thumbnails into one image (labelled by slide number when a
+    font is available). Returns None when ImageMagick is absent or fails —
+    the per-slide PNGs are still there to read."""
+    if not paths or not shutil.which("montage"):
+        return None
+    font = next((f for f in LABEL_FONTS if os.path.exists(f)), None)
+    label = ["-font", font, "-label", "%t", "-pointsize", "24"] if font else []
+    r = subprocess.run(["montage", *label, *paths, "-tile", tile,
+                        "-geometry", "1000x563+6+6", out],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        print(f"  warn: montage failed: {r.stderr.strip()[:200]}",
+              file=sys.stderr)
+        return None
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 def main():
+    global ID_PREFIX
     ap = argparse.ArgumentParser(
         description="Build a Google Slides presentation from a YAML/JSON spec.")
     ap.add_argument("spec", help="deck spec (.yaml/.yml/.json)")
     ap.add_argument("--dry-run", action="store_true",
                     help="print batchUpdate JSON without sending")
+    ap.add_argument("--update", metavar="PRES_ID",
+                    help="rebuild into this existing presentation (URL kept) "
+                         "instead of creating a new one")
+    ap.add_argument("--slides", metavar="N,M",
+                    help="with --update: rebuild only these 1-based spec "
+                         "positions; the deck must have one slide per spec entry")
+    ap.add_argument("--thumbs", metavar="DIR",
+                    help="after building, save per-slide thumbnails to DIR "
+                         "(only the rebuilt ones with --slides) and a contact "
+                         "sheet DIR/sheet.png when ImageMagick is installed")
     args = ap.parse_args()
 
     spec = load_spec(os.path.abspath(args.spec))
@@ -824,11 +977,32 @@ def main():
     if not slides:
         print("No slides in spec", file=sys.stderr)
         sys.exit(1)
+    if args.slides and not args.update:
+        ap.error("--slides needs --update PRES_ID")
+    targets = parse_positions(args.slides, len(slides)) if args.slides else None
 
     # -----------------------------------------------------------------------
-    # Phase 0: Create or copy presentation
+    # Phase 0: Create, copy, or open the presentation
     # -----------------------------------------------------------------------
-    if template_id:
+    page_size = DEFAULT_PAGE_SIZE
+    layout_phs = {}
+    if args.update:
+        pres_id = args.update
+        ID_PREFIX = run_prefix()
+        print(f"Updating presentation: {pres_id}")
+        found, layout_phs, existing_slides, page_size = discover_layouts(pres_id)
+        if not existing_slides and not found:
+            print(f"Cannot read presentation {pres_id}", file=sys.stderr)
+            sys.exit(1)
+        # A deck built from scratch still carries the default p2..p12 layouts.
+        layout_map = found if template_id else {**found, **DEFAULT_LAYOUT_MAP}
+        if targets and len(existing_slides) != len(slides):
+            print(f"--slides: the deck has {len(existing_slides)} slides but "
+                  f"the spec has {len(slides)}, so positions do not line up. "
+                  "Run --update without --slides to rebuild every slide.",
+                  file=sys.stderr)
+            sys.exit(1)
+    elif template_id:
         print(f"Copying template: {template_id}")
         if args.dry_run:
             pres_id = "DRY_RUN_ID"
@@ -837,7 +1011,8 @@ def main():
         else:
             pres_id = copy_template(template_id, title)
             print(f"  Copied as: {pres_id}")
-            layout_map, layout_phs, existing_slides = discover_layouts(pres_id)
+            layout_map, layout_phs, existing_slides, page_size = \
+                discover_layouts(pres_id)
             print(f"  Layouts: {len(layout_map)}, "
                   f"Sample slides to strip: {len(existing_slides)}")
     else:
@@ -847,41 +1022,27 @@ def main():
         else:
             pres_id = create_presentation(title)
         layout_map = dict(DEFAULT_LAYOUT_MAP)
-        layout_phs = {}
         existing_slides = ["p"]  # default blank slide
-    print(f"  ID: {pres_id}")
+    print(f"  ID: {pres_id}  page: {page_size[0]:.3f}in x {page_size[1]:.3f}in")
+
+    slide_ids = [oid(f"slide_{i + 1:02d}") for i in range(len(slides))]
+    layout_ids = [layout_map.get(sl.get("layout", "BLANK"),
+                                 sl.get("layout", "BLANK")) for sl in slides]
+    build_idx = (range(len(slides)) if targets is None
+                 else [t - 1 for t in targets])
 
     # -----------------------------------------------------------------------
-    # Phase 1: Create new slides, then delete old ones
-    # (API requires at least one slide at all times — create first)
+    # Phase 1: Create new slides, then delete the ones they replace
     # -----------------------------------------------------------------------
-    phase1_requests = []
-
-    # Create new slides first
-    for i, sl in enumerate(slides):
-        layout_name = sl.get("layout", "BLANK")
-        layout_id = layout_map.get(layout_name, layout_name)
-        slide_id = f"slide_{i + 1:02d}"
-        phase1_requests.append({
-            "createSlide": {
-                "objectId": slide_id,
-                "insertionIndex": i,
-                "slideLayoutReference": {"layoutId": layout_id},
-            }
-        })
-
-    # Then delete all existing (sample) slides
-    for sid in existing_slides:
-        phase1_requests.append({"deleteObject": {"objectId": sid}})
-
+    phase1_requests = slide_requests(slide_ids, layout_ids, existing_slides,
+                                     targets)
     if args.dry_run:
-        print("\n=== Phase 1 (create slides + strip samples) ===")
+        print("\n=== Phase 1 (create slides + strip replaced) ===")
         print(json.dumps({"requests": phase1_requests}, indent=2,
                          ensure_ascii=False))
     else:
-        n_del = len(existing_slides)
-        print(f"  Creating {len(slides)} slides, "
-              f"stripping {n_del} samples...")
+        print(f"  Creating {len(build_idx)} slides, "
+              f"removing {len(existing_slides) if targets is None else len(targets)}...")
         batch_update(pres_id, phase1_requests)
 
     # -----------------------------------------------------------------------
@@ -895,13 +1056,12 @@ def main():
 
     counter = [0]
     phase2_requests = []
-    for i, sl in enumerate(slides):
-        layout_name = sl.get("layout", "BLANK")
-        slide_id = f"slide_{i + 1:02d}"
+    for i in build_idx:
+        sl = slides[i]
         ops = sl.get("do", [])
         if not ops:
             continue
-        reqs = process_slide_ops(slide_id, layout_name, ops,
+        reqs = process_slide_ops(slide_ids[i], sl.get("layout", "BLANK"), ops,
                                  placeholder_map, brand, counter,
                                  layout_phs=layout_phs if template_id
                                  else None,
@@ -922,8 +1082,9 @@ def main():
     # -----------------------------------------------------------------------
     page_numbers_config = spec.get("page_numbers")
     if page_numbers_config:
-        phase3_requests = build_page_numbers(len(slides),
-                                              page_numbers_config, brand)
+        phase3_requests = build_page_numbers(
+            slide_ids, page_numbers_config, brand, page_size,
+            only=None if targets is None else set(build_idx))
         if args.dry_run:
             print("\n=== Phase 3 (page numbers) ===")
             print(json.dumps({"requests": phase3_requests}, indent=2,
@@ -935,6 +1096,18 @@ def main():
                 batch_update(pres_id, phase3_requests)
 
     url = f"https://docs.google.com/presentation/d/{pres_id}/edit"
+
+    # -----------------------------------------------------------------------
+    # Phase 4: Thumbnails for visual QA (optional)
+    # -----------------------------------------------------------------------
+    if args.thumbs and not args.dry_run:
+        print(f"  Fetching thumbnails into {args.thumbs} ...")
+        paths = thumbnails(pres_id, args.thumbs, positions=targets)
+        sheet = contact_sheet(paths, os.path.join(args.thumbs, "sheet.png"))
+        print(f"  {len(paths)} thumbnails" +
+              (f", contact sheet: {sheet}" if sheet else
+               " (no contact sheet: ImageMagick `montage` not found)"))
+
     print(f"\nDone: {url}")
     return url
 

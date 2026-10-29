@@ -151,9 +151,17 @@ python3 scripts/build_gslides.py deck.yaml              # 本番実行
 
 ### 5. 確認・修正 (QA loop)
 
-1. Google Slidesで開いて確認: タイトル位置、フォント統一、テキスト溢れ、間隔
-2. 問題があればYAMLを修正して再実行（新しいプレゼンテーションが生成される）
-3. **確認せずに完了と宣言しない**
+```bash
+python3 scripts/build_gslides.py deck.yaml --update PRES_ID --thumbs qa/              # 全枚を作り直して全枚を撮る
+python3 scripts/build_gslides.py deck.yaml --update PRES_ID --slides 4,12 --thumbs qa/  # 直した枚だけ
+```
+
+1. サムネイル（`qa/NN.png`、ImageMagick があれば `qa/sheet.png`）を Read で全枚見る:
+   はみ出し・不自然な改行、要素の重なり、下端への侵入、上下の偏った余白、フォント統一
+2. 問題があれば YAML を直し、`--update PRES_ID --slides N,…` でその枚だけ作り直す。
+   URL は変わらない（共同編集・共有済みのリンクが生きたまま）。`--slides` の番号は spec の
+   1 始まりの位置で、デッキの枚数が spec と同じときだけ使える（違えば `--slides` なしで全枚）
+3. **確認せずに完了と宣言しない**。配布用は PDF でも確認する（gotchas.md #17）
 
 ## References — read when the moment comes
 
@@ -204,7 +212,7 @@ gws drive files export \
 
 ## Files
 
-- `scripts/build_gslides.py` — declarative driver: YAML/JSON spec → Google Slides.
+- `scripts/build_gslides.py` — declarative driver: YAML/JSON spec → Google Slides; `--update`/`--slides` rebuild in place, `--thumbs` for visual QA.
 - `scripts/svgtools.py` — render SVG diagrams from HTML to PNG, light-recolor.
 - `scripts/recolor_image.py` — dark→light raster diagram recolor.
 - `scripts/procedure_deck.py` — Workflow 3: brand-template procedure decks as PPTX (python-pptx), then upload with conversion.

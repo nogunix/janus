@@ -2,6 +2,45 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.43.0 — 2026-10-29
+
+**Every gslides fix made a new presentation, and nothing looked at the
+result one slide at a time.** Editing the YAML and re-running gave a fresh
+deck with a new URL, so links already shared broke on every QA round. The
+only visual check was a whole-deck PDF export. Both patterns come from
+another team's Slides skill (gslides-deck), rebuilt here against the
+declarative driver.
+
+- **`build_gslides.py --update PRES_ID`** rebuilds into an existing
+  presentation, so the URL is kept. **`--slides 4,12`** rebuilds only
+  those spec positions:
+  - each new slide is inserted at its own index and the old one deleted
+    by ID, so no other slide moves;
+  - it refuses to run when the deck and spec slide counts differ, since
+    the positions would not line up.
+  - Object IDs get a per-run prefix during an update, because the new
+    objects exist alongside the old ones until those are deleted. A fresh
+    build keeps its fixed IDs.
+- **`--thumbs DIR`** saves per-slide `pages.getThumbnail` images:
+  - only the rebuilt slides when `--slides` is given, spaced and retried
+    against the rate limit;
+  - plus a contact sheet when ImageMagick is installed. The sheet is
+    labelled only when a known font file exists (stock macOS ImageMagick
+    has no default font and fails the montage otherwise), and a montage
+    failure is a warning, not a crash.
+- **Page numbers follow the real page.** `page_numbers:` positions are
+  computed from the deck's `pageSize`. A larger template page used to put
+  them mid-slide. On the API-created 10in x 5.625in page the values are
+  unchanged.
+- **`gslides/SKILL.md`** §5 QA loop is rewritten around `--update`,
+  `--slides` and `--thumbs`. `gotchas.md` #16 and #17 are updated, and a
+  new #21 notes that `gws drive files delete` leaves an empty
+  `download.html` in the working directory.
+- **`selftest.py`**: new `test_gslides` covers the page-size math, the
+  full-build and partial-rebuild request plans, page numbers limited to
+  rebuilt slides, position validation and the ID prefix. The in-place
+  update was also run once against the live API.
+
 ## 0.42.2 — 2026-10-29
 
 **gslides loaded 613 lines on every call. Most of them only matter in one

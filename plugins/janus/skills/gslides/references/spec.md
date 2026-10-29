@@ -172,7 +172,7 @@ styles:
 | `skip_last` | `false` | 最後のスライド(Closing)をスキップ |
 | `size` | `8` | フォントサイズ (pt) |
 | `color` | `"595959"` | 文字色 (色名 or hex) |
-| `position` | `bottom_left` | `bottom_left`, `bottom_right`, `bottom_center` |
+| `position` | `bottom_left` | `bottom_left`, `bottom_right`, `bottom_center`（ページの実寸から計算。テンプレートの大きいページでも端に付く） |
 
 ## Position/size values
 
