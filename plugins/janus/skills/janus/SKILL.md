@@ -38,7 +38,7 @@ connects, it does not process.
 
 | Stage | Role | Output | Tools | Safety | Model |
 |---|---|---|---|---|---|
-| **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure, AWS docs for ROSA/AWS) | findings/doc-search.md | okp-mcp + rh-api-mcp + slack + mslearn + aws | Static | sonnet |
+| **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure, AWS docs for ROSA/AWS) | findings/doc-search.md | okp-mcp + rh-docs + rh-api-mcp + slack + mslearn + aws | Static | sonnet |
 | **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp (optional) | Static | sonnet |
 | **github-trace** | Upstream GitHub PR/issue/commit deep-dive | findings/github-trace.md | github MCP (read-only) | Static | sonnet |
 | **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | atlassian (Rovo MCP, read-only) | Static | sonnet |
@@ -218,16 +218,16 @@ Fix every FAIL before composing; warnings are advisory.
 
 Then check each composed stage's required MCP server with
 `claude mcp list` (`✔ Connected` — a tool being advertised is not the
-server being reachable): doc-search → okp-mcp (+ rh-api-mcp for live
-errata), source-trace → casket, github-trace → github, jira-trace →
+server being reachable): doc-search → okp-mcp (+ rh-docs for live
+docs.redhat.com content, + rh-api-mcp for live errata), source-trace → casket, github-trace → github, jira-trace →
 atlassian, crash-analyze → drgn, iac-author → terraform and/or
 ansible, lab-verify → linux.
 Match the name exactly: a stage's tool grants are a fixed enumeration, so
 a server connected under a different name is invisible to that stage and
 counts as not connected — say so in the step-2 presentation rather than
-launching a stage that will find no tools. (doc-search's optional cloud
-layers are the one exception: mslearn and the AWS servers are granted
-under both JANUS's short name and their upstream default — see
+launching a stage that will find no tools. (doc-search's optional
+layers are the one exception: mslearn, the AWS servers and rh-docs are
+granted under both JANUS's short name and their upstream default — see
 `references/mcp-dependencies.md`.)
 A stage whose server is not connected is **dropped from the composition
 and recorded as a gap** (note it in the step-2 presentation; synthesize
@@ -239,7 +239,10 @@ there. Without `terraform` its version pins are REASONED at best, and it
 must label them so. rh-api-mcp is optional for doc-search: okp-mcp alone
 is sufficient to run the stage, but when rh-api-mcp is not connected
 doc-search records the absence as a gap in cases where live errata lookup
-would have strengthened a finding.
+would have strengthened a finding. rh-docs is optional on the same terms:
+without it doc-search reads documentation through okp-mcp's snapshot and
+records a gap only where a document newer than the snapshot would have
+mattered (release notes, deprecations for a recent version).
 
 ### 2. Present the pipeline to the human
 

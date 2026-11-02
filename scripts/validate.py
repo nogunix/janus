@@ -331,6 +331,10 @@ MCP_SERVER_NAME_ALIASES = {
     "aws-knowledge": "aws-knowledge-mcp-server",
     "aws-support": "awslabs_aws-support-mcp-server",
     "aws-mcp": "plugin_aws-core_aws-mcp",
+    # The Docs team's mcp.json snippets. Red Hat's setup page suggests
+    # "Red Hat Documentation MCP Server", which `claude mcp add` rejects
+    # (spaces), so it is not an alias anyone can actually register.
+    "rh-docs": "Red-Hat-documentation",
 }
 
 

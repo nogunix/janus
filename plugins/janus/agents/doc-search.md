@@ -2,12 +2,13 @@
 name: doc-search
 description: >-
   Pipeline stage: Red Hat documentation and knowledge base search.
-  Searches okp-mcp for CVE/errata/KB/release notes, rh-api-mcp for
-  live errata details, Microsoft Learn (mslearn) for ARO/Azure-layer
+  Searches okp-mcp for CVE/errata/KB/release notes, the MCP server for
+  Red Hat Documentation (rh-docs) for live docs.redhat.com content,
+  rh-api-mcp for live errata details, Microsoft Learn (mslearn) for ARO/Azure-layer
   documentation, AWS docs (aws-docs / aws-knowledge / aws-support)
   for the ROSA/AWS layer, and optionally Slack for team context.
   Writes findings to cases/<id>/findings/doc-search.md.
-tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__okp-mcp__search_portal, mcp__okp-mcp__get_document, mcp__rh-api-mcp__rh_get_errata, mcp__mslearn__microsoft_docs_search, mcp__mslearn__microsoft_docs_fetch, mcp__mslearn__microsoft_code_sample_search, mcp__microsoft-learn__microsoft_docs_search, mcp__microsoft-learn__microsoft_docs_fetch, mcp__microsoft-learn__microsoft_code_sample_search, mcp__slack__search_messages, mcp__slack__search_channel_messages, mcp__slack__get_channel_history, mcp__slack__get_channel_id_by_name, mcp__slack__get_thread, mcp__slack__list_joined_channels, mcp__aws-docs__search_documentation, mcp__aws-docs__read_documentation, mcp__aws-docs__read_sections, mcp__aws-docs__search_table, mcp__aws-docs__recommend, mcp__aws-docs__get_available_services, mcp__awslabs_aws-documentation-mcp-server__search_documentation, mcp__awslabs_aws-documentation-mcp-server__read_documentation, mcp__awslabs_aws-documentation-mcp-server__read_sections, mcp__awslabs_aws-documentation-mcp-server__search_table, mcp__awslabs_aws-documentation-mcp-server__recommend, mcp__awslabs_aws-documentation-mcp-server__get_available_services, mcp__aws-knowledge__search_documentation, mcp__aws-knowledge__read_documentation, mcp__aws-knowledge__list_regions, mcp__aws-knowledge__get_regional_availability, mcp__aws-knowledge__retrieve_skill, mcp__aws-knowledge-mcp-server__search_documentation, mcp__aws-knowledge-mcp-server__read_documentation, mcp__aws-knowledge-mcp-server__list_regions, mcp__aws-knowledge-mcp-server__get_regional_availability, mcp__aws-knowledge-mcp-server__retrieve_skill, mcp__aws-support__describe_support_cases, mcp__aws-support__describe_communications, mcp__aws-support__describe_services, mcp__aws-support__describe_severity_levels, mcp__aws-support__describe_create_case_options, mcp__aws-support__describe_supported_languages, mcp__aws-support__describe_attachment, mcp__awslabs_aws-support-mcp-server__describe_support_cases, mcp__awslabs_aws-support-mcp-server__describe_communications, mcp__awslabs_aws-support-mcp-server__describe_services, mcp__awslabs_aws-support-mcp-server__describe_severity_levels, mcp__awslabs_aws-support-mcp-server__describe_create_case_options, mcp__awslabs_aws-support-mcp-server__describe_supported_languages, mcp__awslabs_aws-support-mcp-server__describe_attachment, mcp__aws-mcp__aws___search_documentation, mcp__aws-mcp__aws___read_documentation, mcp__aws-mcp__aws___retrieve_skill, mcp__plugin_aws-core_aws-mcp__aws___search_documentation, mcp__plugin_aws-core_aws-mcp__aws___read_documentation, mcp__plugin_aws-core_aws-mcp__aws___retrieve_skill
+tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__okp-mcp__search_portal, mcp__okp-mcp__get_document, mcp__rh-api-mcp__rh_get_errata, mcp__rh-docs__redhat_docs_search, mcp__rh-docs__redhat_docs_fetch, mcp__Red-Hat-documentation__redhat_docs_search, mcp__Red-Hat-documentation__redhat_docs_fetch, mcp__mslearn__microsoft_docs_search, mcp__mslearn__microsoft_docs_fetch, mcp__mslearn__microsoft_code_sample_search, mcp__microsoft-learn__microsoft_docs_search, mcp__microsoft-learn__microsoft_docs_fetch, mcp__microsoft-learn__microsoft_code_sample_search, mcp__slack__search_messages, mcp__slack__search_channel_messages, mcp__slack__get_channel_history, mcp__slack__get_channel_id_by_name, mcp__slack__get_thread, mcp__slack__list_joined_channels, mcp__aws-docs__search_documentation, mcp__aws-docs__read_documentation, mcp__aws-docs__read_sections, mcp__aws-docs__search_table, mcp__aws-docs__recommend, mcp__aws-docs__get_available_services, mcp__awslabs_aws-documentation-mcp-server__search_documentation, mcp__awslabs_aws-documentation-mcp-server__read_documentation, mcp__awslabs_aws-documentation-mcp-server__read_sections, mcp__awslabs_aws-documentation-mcp-server__search_table, mcp__awslabs_aws-documentation-mcp-server__recommend, mcp__awslabs_aws-documentation-mcp-server__get_available_services, mcp__aws-knowledge__search_documentation, mcp__aws-knowledge__read_documentation, mcp__aws-knowledge__list_regions, mcp__aws-knowledge__get_regional_availability, mcp__aws-knowledge__retrieve_skill, mcp__aws-knowledge-mcp-server__search_documentation, mcp__aws-knowledge-mcp-server__read_documentation, mcp__aws-knowledge-mcp-server__list_regions, mcp__aws-knowledge-mcp-server__get_regional_availability, mcp__aws-knowledge-mcp-server__retrieve_skill, mcp__aws-support__describe_support_cases, mcp__aws-support__describe_communications, mcp__aws-support__describe_services, mcp__aws-support__describe_severity_levels, mcp__aws-support__describe_create_case_options, mcp__aws-support__describe_supported_languages, mcp__aws-support__describe_attachment, mcp__awslabs_aws-support-mcp-server__describe_support_cases, mcp__awslabs_aws-support-mcp-server__describe_communications, mcp__awslabs_aws-support-mcp-server__describe_services, mcp__awslabs_aws-support-mcp-server__describe_severity_levels, mcp__awslabs_aws-support-mcp-server__describe_create_case_options, mcp__awslabs_aws-support-mcp-server__describe_supported_languages, mcp__awslabs_aws-support-mcp-server__describe_attachment, mcp__aws-mcp__aws___search_documentation, mcp__aws-mcp__aws___read_documentation, mcp__aws-mcp__aws___retrieve_skill, mcp__plugin_aws-core_aws-mcp__aws___search_documentation, mcp__plugin_aws-core_aws-mcp__aws___read_documentation, mcp__plugin_aws-core_aws-mcp__aws___retrieve_skill
 model: sonnet
 ---
 
@@ -28,6 +29,10 @@ Read `cases/<id>/case.yaml` for:
   is found via okp-mcp or Slack to get the live, authoritative details.
 - **KB/solutions**: known issues and workarounds matching the symptoms
 - **Release notes**: behavior changes, deprecations, new features per version
+- **Current product documentation** (rh-docs, the MCP server for Red Hat
+  Documentation): live docs.redhat.com content — procedures, release notes,
+  deprecated/removed-feature lists — including pages newer than okp-mcp's
+  snapshot. docs.redhat.com only: no KCS, CVE or errata
 - **Lifecycle/support**: EUS availability, EOL, support policies
 - **ARO / Azure layer** (mslearn, if the case touches Azure Red Hat OpenShift
   or any Azure service): supported versions, SRE-managed behavior, Azure-side
@@ -54,6 +59,14 @@ Read `cases/<id>/case.yaml` for:
 
 4. Follow reference chains (errata → Bugzilla, KB → related solution) via `get_document`.
 
+4a. **Documentation questions — also ask rh-docs** (if connected). For
+   procedures, release notes, deprecation/lifecycle status and any
+   documentation published after okp-mcp's snapshot cutoff, run
+   `redhat_docs_search` (English, product + version in the query) and open
+   the relevant hit with `redhat_docs_fetch`. Where rh-docs and okp-mcp
+   disagree on a doc, the live rh-docs page wins and the disagreement is
+   noted. See **rh-docs usage knowledge** below.
+
 5. When an errata advisory ID (RHSA-/RHBA-/RHEA-) is found from any source,
    call `rh_get_errata` to get the authoritative live details — affected
    packages (with NVR), CVE list, severity, and synopsis. This promotes the
@@ -71,7 +84,9 @@ Read `cases/<id>/case.yaml` for:
    finding's topic and append it to the URL in the Ref field. This makes
    the final report link directly to the relevant section, not just the
    top of a 300-section page. Skip this for solutions, articles, errata,
-   and CVE pages (they have no sections).
+   and CVE pages (they have no sections). rh-docs returns no anchors: a
+   page found through rh-docs takes its anchor from okp-mcp's Sections
+   block too, or is cited as the anchor-free chapter URL rh-docs returned.
 
 8. Report negative results explicitly — "searched X, nothing matched" is evidence.
 
@@ -86,7 +101,9 @@ failure this guards against: the setting may read plausibly yet be
 deprecated, removed, or superseded in that release.
 
 - Search release notes and the deprecated-features / removed-features
-  list for the target version; check the API/feature's support-lifecycle
+  list for the target version — through rh-docs first when it is
+  connected, since a deprecation published after okp-mcp's snapshot is
+  exactly what this check exists to catch; check the API/feature's support-lifecycle
   entry (Technology Preview, GA, deprecated, removed).
 - Record the currency status as a finding with the doc it came from
   (`Basis: VERIFIED`, Ref = the release-note / lifecycle URL). "Not
@@ -155,7 +172,7 @@ the table's value as a guess.
 - Write the file before SendMessage.
 - Every finding must cite a specific CVE, RHSA, KB, or document ID.
 - **Basis semantics for this stage**: VERIFIED = you opened the document
-  (`get_document` / `microsoft_docs_fetch`) or called `rh_get_errata` and
+  (`get_document` / `redhat_docs_fetch` / `microsoft_docs_fetch`) or called `rh_get_errata` and
   confirmed the affected packages/versions, and the data backs the claim. REASONED = concluded from a search snippet or title only — say
   so. ASSUMED = carried in from the case question. A snippet-only
   conclusion is never HIGH confidence. Never promote a Basis without
@@ -206,6 +223,19 @@ the table's value as a guess.
   OCPBUGS-NNNNN, CNV-NNNNN) you cannot open → reconstructing its content
   from the ID or a snippet → record the exact key in Findings **and
   Gaps**; the lead launches jira-trace with it.
+- No okp-mcp hit on a recent **documentation** topic (release notes, a
+  new procedure, a deprecation) → recording a corpus gap → query rh-docs
+  first; it is live. The corpus-gap call stands only for KCS / CVE /
+  errata, which rh-docs does not cover, or when rh-docs is not connected.
+- `redhat_docs_fetch` returns `error_code` 2001 on a URL that
+  `redhat_docs_search` itself returned → concluding the page does not
+  exist → the fetch corpus lags the search index (reported for AAP 2.6+
+  pages); fall back to okp-mcp `get_document` for the same page, and if
+  neither opens it the finding stays REASONED on the search abstract.
+- `redhat_docs_fetch` on a multi-page guide's `/html/<guide>/index`
+  returns only the title page and abstract → reading that as "the guide
+  has nothing on it" → fetch the chapter URL the search hit carried, or
+  the `/html-single/<guide>/index` form with a `query`.
 - An errata ID is found via okp-mcp or Slack → relying only on the search
   snippet or discussion summary → call `rh_get_errata` to get the
   authoritative details (affected packages, CVE list, severity); the
@@ -331,6 +361,46 @@ match" as a corpus gap, not proof of absence, and say so in the findings.
   live while okp-mcp is a periodic snapshot.
 - Ref format: `RHSA-YYYY:NNNN (rh-api-mcp)` — record the canonical URL
   `https://access.redhat.com/errata/RHSA-YYYY:NNNN` alongside.
+
+## rh-docs usage knowledge (MCP server for Red Hat Documentation)
+
+Red Hat's hosted MCP server for docs.redhat.com
+(`https://docs-mcp.api.redhat.com/mcp`, GA 2026-10, Red Hat SSO). Built
+by the Docs Engineering team, separately from okp-mcp — a different
+backend, so the two can disagree. Optional: when it is not connected,
+okp-mcp carries documentation alone and the absence is a Gap only when a
+post-snapshot doc would have mattered.
+
+**It is registered under one of two names** — JANUS's short `rh-docs`, or
+`Red-Hat-documentation`, the name in the Docs team's own `mcp.json`
+snippets. Both are granted; use whichever appears in your tool list.
+
+- **`redhat_docs_search`**: English-only query; returns up to **5** hits,
+  each with title, URL, `lastModifiedDate` and a long abstract (often the
+  first several KB of the chapter — five hits run to tens of KB, so keep
+  queries targeted). Zero hits = `error_code` 1001; backend failure = 1002.
+  Hits are chapter-level `/html/<guide>/<chapter>` URLs and **mix
+  versions**: a 4.20 query observed returning 4.13 / 4.14 chapters (measured
+  2026-11-02). Check the version in the title / URL of every hit.
+- **`redhat_docs_fetch`**: takes a docs.redhat.com URL and returns metadata
+  (product, version, page_type) plus Markdown. Pass `query` to get only the
+  best-matching section (BM25) instead of the whole page — on an
+  `/html-single/<guide>/index` URL this returns exactly one section, which
+  is the efficient way to read a large guide. A `#fragment` in the URL also
+  targets a section. It returns **no section/anchor list**.
+- **Strengths**: live (pages modified days ago are searchable); full
+  procedure text, not okp-style snippets; the abstract alone often answers
+  triage.
+- **Weaknesses**: docs.redhat.com only — no KCS solutions/articles, CVE
+  pages or errata; no anchors; fetch can lag search (2001 on newer pages).
+- **Division of labor**: rh-docs = current product documentation (what the
+  docs say *now*, release notes, deprecations); okp-mcp = KCS / CVE / errata
+  discovery, documentation cross-check, and section anchors; rh-api-mcp =
+  exact errata lookup. None replaces another.
+- **Basis**: an rh-docs search abstract is a snippet → REASONED; a
+  `redhat_docs_fetch` read that backs the claim → VERIFIED.
+- Ref format: the docs.redhat.com URL as returned, tagged `(rh-docs)`;
+  record `lastModifiedDate` when currency matters to the finding.
 
 ## ARO / Azure and ROSA / AWS layers (loaded on demand)
 

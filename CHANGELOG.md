@@ -2,6 +2,42 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.45.0 — 2026-11-02
+
+**doc-search could only read documentation through okp-mcp's offline
+snapshot.** A release note or deprecation published after the last
+rebuild was a corpus gap that the C1/currency check could not close. Red
+Hat's hosted MCP server for Red Hat Documentation went GA in 2026-10. It
+searches docs.redhat.com live and is built separately from okp-mcp (Docs
+Engineering, different backend).
+
+- **`agents/doc-search.md`** grants `redhat_docs_search` /
+  `redhat_docs_fetch` under two names: `rh-docs`, and
+  `Red-Hat-documentation`, the name in the Docs team's `mcp.json`
+  snippets. The name Red Hat's setup page suggests,
+  `Red Hat Documentation MCP Server`, is rejected by `claude mcp add`
+  because it contains spaces, so it is not granted. New step 4a
+  sends documentation questions to rh-docs. The currency check consults
+  rh-docs first. A `redhat_docs_fetch` read counts as VERIFIED. A new
+  **rh-docs usage knowledge** section records behaviour measured
+  2026-11-02:
+  - search returns up to 5 hits with long abstracts and mixes versions
+    (a 4.20 query returned 4.13 / 4.14 chapters)
+  - fetch with `query` returns one BM25-ranked section, and fetch on a
+    multi-page `/html/<guide>/index` returns only the abstract
+  - there is no anchor list, so anchors still come from okp-mcp
+  - fetch fails with 2001 on some pages that search returns
+  
+  Three failure patterns cover the corpus-gap call, 2001, and the
+  multi-page index.
+- **`validate.py`**: `rh-docs` ↔ `Red-Hat-documentation` added to
+  `MCP_SERVER_NAME_ALIASES`.
+- **`SKILL.md`**, **`references/mcp-dependencies.md`**, **README**: rh-docs
+  added to the intake MCP check, the dependency list and alias table, and
+  the setup section. rh-docs is optional, on the same terms as rh-api-mcp.
+- **`okp-doc-search/SKILL.md`**: principle 5 points post-cutoff
+  documentation at rh-docs.
+
 ## 0.44.1 — 2026-10-29
 
 **A YAML spec could not be built on Homebrew's Python.** `build_gslides.py`

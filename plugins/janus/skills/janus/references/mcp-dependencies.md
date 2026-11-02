@@ -21,6 +21,18 @@ REASONED to VERIFIED. Also provides subscription/system inventory via
 need entitlement or registration context. Read-only — JANUS never modifies
 subscriptions or system registrations. Optional: doc-search runs without it
 but records the absence as a gap when live errata lookup would have helped),
+`rh-docs` (the [MCP server for Red Hat
+Documentation](https://docs.redhat.com/en/documentation/mcp_server_for_red_hat_documentation/current)
+— Red Hat-hosted, GA 2026-10, live docs.redhat.com search and Markdown
+fetch via `redhat_docs_search` / `redhat_docs_fetch`. Covers product
+documentation only — no KCS, CVE or errata — so it complements okp-mcp
+rather than replacing it: rh-docs answers "what do the docs say now"
+past okp-mcp's snapshot cutoff, okp-mcp keeps KCS/CVE discovery and the
+section anchors rh-docs does not return. Authenticates with Red Hat SSO
+(OAuth; complete it once via `/mcp` → Authenticate):
+`claude mcp add --scope user --transport http rh-docs
+https://docs-mcp.api.redhat.com/mcp`. Optional: doc-search runs on
+okp-mcp alone),
 `mslearn`
 (Microsoft Learn docs — ARO/Azure layer for doc-search; public remote server,
 no auth: `claude mcp add --transport http mslearn
@@ -75,7 +87,7 @@ server under the name used above, and when a name contains a dot or a
 colon it is an underscore in the tool name
 (`plugin:aws-core:aws-mcp` → `mcp__plugin_aws-core_aws-mcp__…`).
 
-doc-search's optional cloud layers are the exception: each is granted
+doc-search's optional layers (the cloud layers and rh-docs) are the exception: each is granted
 twice, under JANUS's short name **and** under the name the upstream
 project's own install snippet produces, because those snippets are what
 users actually paste. `validate.py`'s `validate_mcp_server_aliases()`
@@ -88,6 +100,7 @@ keeps the two spellings in sync.
 | AWS Knowledge | `aws-knowledge` | `aws-knowledge-mcp-server` |
 | AWS Support | `aws-support` | `awslabs.aws-support-mcp-server` |
 | Agent Toolkit for AWS | `aws-mcp` | `plugin:aws-core:aws-mcp` |
+| Red Hat Documentation | `rh-docs` | `Red-Hat-documentation` |
 
 A layer registered under a third name must be renamed (`claude mcp
 remove` + re-add) — except `plugin:aws-core:aws-mcp`, whose name comes

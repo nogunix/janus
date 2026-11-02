@@ -39,6 +39,14 @@ URL into findable content.
    your own hits rather than pre-emptively excusing a miss. Past that
    cutoff, treat "no match" as a corpus gap, not proof of absence, and say
    so explicitly.
+5. **For documentation past the cutoff, ask the live server.** When the
+   MCP server for Red Hat Documentation (`rh-docs`:
+   `redhat_docs_search` / `redhat_docs_fetch`) is connected, it searches
+   docs.redhat.com live — use it for recent release notes, deprecations
+   and procedures okp-mcp's snapshot predates. It covers documentation
+   only (no KCS, CVE or errata) and returns no section anchors, so okp-mcp
+   stays the path for those. JANUS's doc-search agent carries the full
+   rh-docs mechanics.
 
 ## search_portal best practices
 

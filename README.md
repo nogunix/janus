@@ -118,7 +118,7 @@ flowchart TD
     fanout["2&nbsp;· Fan-out — launch stages in parallel"]
 
     subgraph stages["Static stages — each writes cases/&lt;id&gt;/findings/&lt;stage&gt;.md"]
-        ds["doc-search<br/>okp · mslearn · aws"]
+        ds["doc-search<br/>okp · rh-docs · mslearn · aws"]
         st["source-trace<br/>casket (optional)"]
         ca["crash-analyze<br/>drgn · gdb"]
         ia["iac-author<br/>terraform · ansible<br/>writes IaC, runs nothing"]
@@ -196,6 +196,7 @@ dependencies** below for setup commands).
 | Server | Used by | Required? |
 |--------|---------|-----------|
 | [okp-mcp](https://github.com/rhel-lightspeed/okp-mcp) | doc-search (CVE / errata / KB) | Recommended |
+| [MCP server for Red Hat Documentation](https://docs.redhat.com/en/documentation/mcp_server_for_red_hat_documentation/current) (`rh-docs`) | doc-search (live docs.redhat.com) | Recommended |
 | [casket-mcp](https://github.com/nogunix/ocp-source-collector/blob/main/mcp/README.md) | source-trace (versioned source) | Optional |
 | [drgn-mcp](https://github.com/walac/drgn-mcp) | crash-analyze (vmcore) | For crash cases |
 | [GitHub MCP](https://github.com/github/github-mcp-server) | github-trace, upstream-adviser | Optional |
@@ -209,7 +210,7 @@ dependencies** below for setup commands).
 
 Register each server under the name used here — a subagent's tool list is a
 fixed enumeration, so a differently named server is invisible to the stage.
-doc-search's optional cloud layers accept their upstream default names too;
+doc-search's optional layers (cloud docs, rh-docs) accept their upstream default names too;
 see [Server names matter](#server-names-matter).
 
 ### Optional CLI tools
@@ -357,6 +358,24 @@ spec:
   restartPolicy: Always
 ```
 
+### rh-docs — MCP server for Red Hat Documentation (live docs.redhat.com)
+Red Hat's hosted MCP server for product documentation (GA 2026-10). doc-search
+uses `redhat_docs_search` / `redhat_docs_fetch` for what the docs say *now* —
+release notes, deprecations and procedures newer than okp-mcp's snapshot.
+It covers docs.redhat.com only (no KCS, CVE or errata) and returns no section
+anchors, so it complements okp-mcp rather than replacing it. Needs a Red Hat
+account; authentication is Red Hat SSO (OAuth) in the browser.
+
+```bash
+claude mcp add --scope user --transport http rh-docs https://docs-mcp.api.redhat.com/mcp
+# then in Claude Code: /mcp → rh-docs → Authenticate (Red Hat SSO, once)
+```
+
+The Docs team's `mcp.json` snippets name it `Red-Hat-documentation`;
+doc-search grants both spellings (see [Server names](#server-names-matter)).
+Red Hat's setup page suggests `Red Hat Documentation MCP Server`, but
+`claude mcp add` rejects names with spaces — use `rh-docs`.
+
 ### casket-mcp — versioned OpenShift / RHEL / CNV source code
 Used by source-trace to search and read the exact source behind a
 specific OCP release — component git trees, operator bundles, SRPMs, and
@@ -431,8 +450,8 @@ A subagent's tool list is a **fixed enumeration**, so a server registered
 under a different name than the one JANUS enumerates is invisible to the
 stage — silently, with no error. doc-search therefore grants each optional
 layer under two names: JANUS's short one and the one the upstream project's
-own install snippet produces. A dot in the registered name becomes an
-underscore in the tool name.
+own install snippet produces. A dot in the registered name
+becomes an underscore in the tool name.
 
 | Layer | Short name | Upstream default |
 |---|---|---|
@@ -441,6 +460,7 @@ underscore in the tool name.
 | AWS Knowledge | `aws-knowledge` | `aws-knowledge-mcp-server` |
 | AWS Support | `aws-support` | `awslabs.aws-support-mcp-server` |
 | Agent Toolkit for AWS | `aws-mcp` | `plugin:aws-core:aws-mcp` |
+| Red Hat Documentation | `rh-docs` | `Red-Hat-documentation` |
 
 Registering under any **third** name will not work: rename it to one of
 the two (`claude mcp remove <name>` then re-add), except for the plugin-
