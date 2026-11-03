@@ -45,6 +45,11 @@ CONFIDENCE = {"HIGH", "MEDIUM", "LOW"}
 BASIS = {"VERIFIED", "REASONED", "ASSUMED"}
 
 FINDING_RE = re.compile(r"^###\s+(F\d+[a-z]?)\s*:\s*(.*)$")
+# Any heading that opens with a finding number. A line this matches and
+# FINDING_RE does not (`#### F1:`, `### F19 (supplementary):`, `## F3 —`)
+# is a finding nobody downstream can see: digest and reportlint parse
+# with FINDING_RE alone.
+FINDING_LIKE_RE = re.compile(r"^#{1,6}\s+[*_`]*F\d+[a-z]?\b")
 FIELD_RE = re.compile(r"^\s*-\s+\*\*(Confidence|Basis|Type|Detail|Ref)\*\*\s*:\s*(.*)$")
 SECTION_RE = re.compile(r"^##\s+(.*?)\s*$")
 
@@ -98,6 +103,21 @@ def parse(path):
     return meta, findings, sections
 
 
+def malformed_headings(path):
+    """[(line number, line)] for headings that look like a finding but
+    that FINDING_RE does not parse. Fenced code is skipped, as in parse()."""
+    lines = Path(path).read_text(encoding="utf-8").splitlines()
+    _, start = parse_frontmatter(lines)
+    bad, in_fence = [], False
+    for n, line in enumerate(lines[start:], start=start + 1):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence and FINDING_LIKE_RE.match(line) and not FINDING_RE.match(line):
+            bad.append((n, line.strip()))
+    return bad
+
+
 def first_word(value):
     m = re.match(r"[`*_]*([A-Za-z]+)", value or "")
     return m.group(1).upper() if m else ""
@@ -123,6 +143,18 @@ def lint_file(path, case_findings=None):
         for key in ADVISED_KEYS:
             if key not in meta:
                 warnings.append(f"{name}: frontmatter has no `{key}`")
+
+    for n, line in malformed_headings(path):
+        problems.append(
+            f"{name}:{n}: `{line[:60]}` is not parsed as a finding — "
+            "write it as a top-level `### F<n>: <title>` heading"
+        )
+    if not findings and meta.get("status") in ("complete", "partial"):
+        problems.append(
+            f"{name}: status `{meta['status']}` but no `### F<n>:` finding parses — "
+            "digest and reportlint will see an empty file (a negative result is "
+            "still a finding)"
+        )
 
     seen = set()
     for f in findings:

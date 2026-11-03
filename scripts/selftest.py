@@ -1123,6 +1123,19 @@ def test_reportlint():
     check(not problems and not warnings,
           "reportlint: a complete, consistent report is clean")
 
+    # From JANUS-011: an anchor link to `#f8b-…` upper-cased to `F8B`,
+    # which no file defines, so citing a suffixed finding by link was a
+    # C1/ref FAIL.
+    idx = {("doc-search", "F8b"): {"file": "doc-search.md", "stage": "doc-search"}}
+    keys, unknown, _ = rl.resolve_citations(
+        "see [doc-search F8b](../findings/doc-search.md#f8b-collector-leak) "
+        "and [x](../findings/doc-search.md#f99-gone) "
+        "and [y](../findings/doc-search.md#f99-gone)", idx)
+    check(keys == [("doc-search", "F8b")],
+          "reportlint: a link to a suffixed finding (#f8b-…) resolves to F8b")
+    check(unknown == ["F99 (in doc-search.md)"],
+          "reportlint: an unknown linked finding is reported once, not per link")
+
     problems, _ = problems_for(RL_REPORT.replace("## References", "## Sources"))
     check(any("References" in p and "C2/section" in p for p in problems),
           "reportlint: a renamed required section is a C2/section FAIL")
@@ -1466,6 +1479,25 @@ def test_findings():
         problems, warnings = fnd.lint_file(f)
         check(any("no Ref" in p for p in problems), "findings: a finding with no Ref is a FAIL")
         check(any("Gaps" in w for w in warnings), "findings: a missing Gaps section only warns")
+
+        # From JANUS-010: every finding written as `#### F<n>:` under group
+        # headings. lint said OK; digest showed zero F lines; reportlint
+        # failed every citation.
+        f.write_text(good.replace("### F1: probe timeout", "#### F1: probe timeout"))
+        problems, _ = fnd.lint_file(f)
+        check(any("not parsed as a finding" in p for p in problems),
+              "findings: a level-4 `#### F1:` heading is a FAIL, not silently skipped")
+        check(any("no `### F<n>:` finding parses" in p for p in problems),
+              "findings: status complete with zero parseable findings is a FAIL")
+        f.write_text(good.replace("### F1: probe timeout", "### F1 (supplementary): probe timeout"))
+        problems, _ = fnd.lint_file(f)
+        check(any("not parsed as a finding" in p for p in problems),
+              "findings: `### F1 (supplementary):` — a heading reportlint cannot parse — is a FAIL")
+        f.write_text(good.replace("status: complete", "status: failed")
+                     .replace("### F1: probe timeout", "## Notes"))
+        problems, _ = fnd.lint_file(f)
+        check(not any("parses" in p for p in problems),
+              "findings: a failed stage with no findings is allowed")
 
         f.write_text(good)
         sup = case / "findings" / "doc-search-slack-supplement.md"

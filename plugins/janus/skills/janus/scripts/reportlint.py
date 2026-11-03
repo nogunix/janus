@@ -230,11 +230,16 @@ def resolve_citations(text, index):
             keys.append(key)
 
     for m in LINK_CITE_RE.finditer(text):
-        key = (m.group("stem"), m.group("id").upper())
+        # Anchor slugs are lowercase (`#f8b-…`); finding ids are `F` plus
+        # digits plus an optional lowercase suffix (`F8b`). Upper-casing
+        # the whole slug produced `F8B`, which no file defines.
+        anchor = m.group("id")
+        key = (m.group("stem"), "F" + anchor[1:].lower())
+        label = f"{key[1]} (in {key[0]}.md)"
         if key in index:
             add(key)
-        elif key[1] not in unknown:
-            unknown.append(f"{key[1]} (in {key[0]}.md)")
+        elif label not in unknown:
+            unknown.append(label)
     for m in NAMED_CITE_RE.finditer(text):
         who, fid = m.group("who"), m.group("id")
         candidates = by_id.get(fid, [])

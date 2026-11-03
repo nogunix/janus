@@ -2,6 +2,35 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.45.1 — 2026-11-03
+
+**`findings.py lint` passed findings that nothing downstream could see.**
+`digest` and `reportlint.py` parse a finding only from a top-level
+`### F<n>: <title>` heading. lint checked the fields of the findings it
+parsed, but a heading it did not parse was silently ignored. In
+JANUS-010 every finding was written as `#### F<n>:`. lint said OK,
+digest listed zero findings, and reportlint failed all 55 citations.
+Rerunning the new lint over existing local cases turned up the same
+defect in three more: 33 headings in JANUS-008, an empty supplement in
+JANUS-004, and `### F19 (supplementary):` / `### F20 (supplementary):`
+in JANUS-011.
+
+- **`findings.py`**: any heading that opens with a finding number but
+  that `FINDING_RE` does not parse (`#### F1:`, `### F19 (supplementary):`)
+  is now a FAIL that names the line. Fenced code is still skipped.
+- **`findings.py`**: a file with `status: complete | partial` and zero
+  parseable findings is a FAIL. A negative result is still a finding.
+  `status: failed` with no findings stays allowed.
+
+**`reportlint.py` could not resolve a link to a suffixed finding.** An
+anchor such as `#f8b-…` was upper-cased whole to `F8B`, but the id is
+`F8b`, so the link became a false C1/ref FAIL (found in JANUS-011). The
+id is now rebuilt as `F` plus the lowercased rest. An unknown linked id
+is now also reported once instead of once per link; the old dedupe
+compared a bare id against labelled entries and never matched.
+
+- **`scripts/selftest.py`**: regression tests for all three cases.
+
 ## 0.45.0 — 2026-11-02
 
 **doc-search could only read documentation through okp-mcp's offline
