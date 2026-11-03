@@ -91,12 +91,24 @@ def _default_targets(case_dir):
     return targets
 
 
+def _resolve_arg(case_dir, p):
+    """A file argument as the user meant it. SKILL.md documents
+    `chain.py unlock cases/<id> findings/x.md` — case-relative — but the
+    path used to resolve against the CWD only, so from the repo root it
+    named nothing and the command said "nothing to unlock" with exit 0.
+    Absolute and CWD-relative paths that exist still win."""
+    path = Path(p)
+    if path.is_absolute() or path.exists():
+        return path.resolve()
+    return (Path(case_dir).resolve() / path).resolve()
+
+
 def seal(case_dir, paths=None, actor="lead"):
     """Append records for new/changed files; returns the sealed rel-paths."""
     case_dir = Path(case_dir).resolve()
     chain_path = case_dir / CHAIN_NAME
     targets = (
-        [Path(p).resolve() for p in paths] if paths else _default_targets(case_dir)
+        [_resolve_arg(case_dir, p) for p in paths] if paths else _default_targets(case_dir)
     )
     sealed = []
     with open(chain_path, "a+", encoding="utf-8") as f:
@@ -202,7 +214,7 @@ def _case_files(case_dir, paths, globs):
     """Resolve paths (or globs) to (path, rel) pairs inside the case dir."""
     case_dir = Path(case_dir).resolve()
     if paths:
-        targets = [Path(p).resolve() for p in paths]
+        targets = [_resolve_arg(case_dir, p) for p in paths]
     else:
         targets = []
         for pattern in globs:
@@ -325,7 +337,15 @@ def main(argv):
                 print("nothing to retire — paths are unsealed or still on disk")
             return 0
         if cmd in ("lock", "unlock"):
-            changed = (lock if cmd == "lock" else unlock)(case_dir, argv[3:] or None)
+            named = argv[3:]
+            missing = [p for p in named if not _case_files(case_dir, [p], LOCK_GLOBS)]
+            if missing:
+                for p in missing:
+                    print(f"error: {p} -> {_resolve_arg(case_dir, p)} is not a file "
+                          f"inside {case_dir}")
+                print(f"nothing was {cmd}ed")
+                return 2
+            changed = (lock if cmd == "lock" else unlock)(case_dir, named or None)
             for rel in changed:
                 print(f"{cmd}ed: {rel}")
             if not changed:

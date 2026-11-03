@@ -48,6 +48,19 @@ VERSION_RE = re.compile(r"(?<![\d.])\d+\.\d+(?:\.\d+)?(?!\d|\.\d)")
 # of a source citation (drgn/lab/slack/doc Refs never match this shape).
 SOURCE_LOC_RE = re.compile(r"[\w./+-]+\.[A-Za-z]+:\d+")
 
+# A location inside a JANUS case's own files — `findings/x.md:12`,
+# `cases/<id>/findings/source-trace.md:387`, `audit/lab-9.log:3`. It has
+# the source-location shape but names evidence a stage wrote, not code
+# that shipped in some version, so there is no version to pin.
+CASE_FILE_RE = re.compile(
+    r"(?:^|/)(?:findings|audit|results|artifacts)/[^/\s:]+\.(?:md|log|json|ya?ml|txt):\d+$"
+)
+
+
+def source_locations(ref):
+    """Source-location matches in a Ref, minus citations of case files."""
+    return [m for m in SOURCE_LOC_RE.findall(ref or "") if not CASE_FILE_RE.search(m)]
+
 # A commit-sha pin — a precise version anchor without a dotted number.
 SHA_RE = re.compile(r"\b[0-9a-f]{7,40}\b")
 
@@ -164,7 +177,7 @@ def run(case_dir):
             # 1. HARD FAIL: a source location with no version anywhere in
             #    the Ref (NVR, casket path, or commit sha) — which version
             #    was read is unrecoverable.
-            if SOURCE_LOC_RE.search(ref):
+            if source_locations(ref):
                 if _pinned(ref):
                     ok += 1
                 else:

@@ -263,6 +263,25 @@ def test_lock():
         problems, _ = chain.verify(case)
         check(not problems, "verify still passes on a locked case")
 
+        # From JANUS-012: SKILL.md documents a case-relative file
+        # argument, but it resolved against the CWD, so the command named
+        # nothing and printed "nothing to unlock" with exit 0.
+        import contextlib, io, os
+        cwd = os.getcwd()
+        try:
+            os.chdir(td)
+            check(chain.unlock(case, ["findings/doc-search.md"]) == ["findings/doc-search.md"],
+                  "unlock resolves a case-relative file argument against the case dir")
+            check(chain.lock(case, ["findings/doc-search.md"]) == ["findings/doc-search.md"],
+                  "lock resolves a case-relative file argument against the case dir")
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = chain.main(["chain.py", "unlock", str(case), "findings/nope.md"])
+            check(rc == 2 and "not a file" in buf.getvalue(),
+                  "unlock naming a file that does not exist is an error, not 'nothing to unlock'")
+        finally:
+            os.chdir(cwd)
+
         unlocked = chain.unlock(case)
         check(
             sorted(unlocked) == ["case.yaml", "findings/doc-search.md"]
@@ -536,6 +555,20 @@ def test_versioncheck():
         and version._pinned("comp@deadbeef1 x.go:1")
         and not version._pinned("pkg/kubelet/eviction/eviction.go:414"),
         "_pinned accepts an NVR/path/sha, rejects a bare file:line",
+    )
+    # From JANUS-012: a lab-verify Ref citing a prior case's findings file
+    # by line hard-FAILed as an "unpinned source read".
+    check(
+        version.source_locations(
+            "cases/JANUS-011/findings/source-trace.md:387-391; audit/lab-9.log:3") == []
+        and version.source_locations("findings/doc-search.md:12") == [],
+        "source_locations() skips citations of a case's own findings/audit files",
+    )
+    check(
+        version.source_locations("pkg/kubelet/eviction/eviction.go:414")
+        == ["pkg/kubelet/eviction/eviction.go:414"]
+        and version.source_locations("pkg/findings/render.go:9") == ["pkg/findings/render.go:9"],
+        "source_locations() still sees real source files, even under a dir named findings",
     )
 
     with tempfile.TemporaryDirectory() as td:

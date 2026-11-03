@@ -2,6 +2,35 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.45.2 — 2026-11-03
+
+Two gate defects surfaced while closing JANUS-012.
+
+**`versioncheck.py` hard-FAILed citations of a case's own files.** A
+lab-verify Ref quoting a prior case's findings by line
+(`cases/JANUS-011/findings/source-trace.md:387-391`) has the
+`file.ext:line` shape of a source citation, so it failed as an
+"unpinned source read". The file is evidence a stage wrote, not code
+that shipped in a version, so there is nothing to pin. A location
+under `findings/`, `audit/`, `results/` or `artifacts/` with a
+`.md/.log/.json/.yaml/.txt` extension is no longer treated as a source
+location. Real source paths, including ones under a directory named
+`findings`, are still checked.
+
+**`chain.py lock|unlock|seal <case> <file>` resolved `<file>` against
+the CWD.** SKILL.md documents a case-relative argument
+(`chain.py unlock cases/<id> findings/x.md`). From the repo root that
+argument named nothing, and the command printed `nothing to unlock`
+with exit 0. A lead could then believe the file was writable.
+
+- A relative argument that does not exist from the CWD now resolves
+  against the case directory. Absolute and existing CWD-relative paths
+  are unchanged.
+- `lock` / `unlock` with a file argument that matches no file in the
+  case is an error (exit 2) that names the path it tried.
+
+- **`scripts/selftest.py`**: regression tests for both.
+
 ## 0.45.1 — 2026-11-03
 
 **`findings.py lint` passed findings that nothing downstream could see.**
