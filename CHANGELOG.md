@@ -2,6 +2,32 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.46.0 — 2026-11-04
+
+**source-trace turned a function's return value into a claim about system
+behavior.** In JANUS-011 it read `Factory.CollectorResourceRequirements()` in
+cluster-logging-operator (Logging 6.3.4 / 6.4.6). The function returns empty
+when `spec.collector.resources` is unset, so the stage concluded at
+HIGH / VERIFIED that the Vector collector has no default resources. The quoted
+code was accurate, but the function has no production callers; only its unit
+test calls it. An initializer that runs first in the reconcile sets the
+defaults (500m/64Mi, limits 6 CPU/2Gi). A live lab contradicted the claim
+(JANUS-013), and a three-stage follow-up found the cause (JANUS-014).
+
+The existing failure pattern ("open the file, a grep hit can be a dead
+branch") did not cover this. The stage had read the definition; what it
+skipped was whether the definition runs at all, and what runs before it.
+
+- **`agents/source-trace.md`**: new step 3c for behavior questions. Before a
+  function-level read becomes a behavior claim, confirm a non-test caller,
+  trace the path from the entry point for earlier defaulting / initializer /
+  mutating steps, and name that call path in the finding. Without it, the
+  behavior claim is capped at MEDIUM / REASONED. A matching failure pattern
+  records the JANUS-011 case.
+- **`skills/janus/SKILL.md`**: the `C1/basis` gate now names this shape: a HIGH
+  behavior claim whose only support is one function's source with no call
+  path is a function-level fact retold as system behavior.
+
 ## 0.45.2 — 2026-11-03
 
 Two gate defects surfaced while closing JANUS-012.

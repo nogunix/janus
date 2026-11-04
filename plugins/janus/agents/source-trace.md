@@ -126,6 +126,21 @@ below and say so in Gaps.
     - Never record a timeout as a final Negative Result without first
       attempting scoped search. (Applies to steps 3, 4, and 5 alike.)
 
+3c. For behavior questions ("what does X default to", "is Z set", "does
+    the operator add W"), a function's code is not the system's behavior.
+    Before a function-level read becomes a behavior claim:
+    - Find its callers (`search_refs` / scoped `grep`) and confirm at least
+      one non-test caller on the path you are describing. A function whose
+      only callers are tests is dead for behavior questions: say so in the
+      finding, then keep looking for the code that does run.
+    - Trace the path from the entry point (controller `Reconcile`, `main`,
+      the request handler) to the value's final use, and look for
+      defaulting, initializer or mutating steps that run earlier and
+      decide the value before your function sees it.
+    - Name the call path you read (entry point → … → value) in the
+      finding's Detail. If you cannot, cap the behavior claim at
+      MEDIUM / REASONED, even when the quoted code itself is VERIFIED.
+
 4. For version comparison:
    a. Resolve both versions via `list_versions`.
    b. If the relevant files are already known → `diff_file` directly.
@@ -297,6 +312,15 @@ the table's value as a guess.
   layer X's tree → enumerate every plausible layer first (step 0) and
   explore phase `a-rpm` / rhel9 too; the root cause often lives one layer
   below the symptom.
+- A function's return value answers a behavior question ("returns
+  empty → no default") → concluding what the system does from that one
+  function → confirm a non-test caller and trace the path from the entry
+  point for earlier defaulting / initializer steps (step 3c). A real case:
+  `Factory.CollectorResourceRequirements()` returns empty when unset, but
+  only its unit test calls it; an initializer that runs first in the
+  reconcile sets the collector defaults (500m/64Mi, 6 CPU/2Gi). Reading
+  the function alone produced a HIGH "no defaults" claim that a live lab
+  later contradicted.
 - A symbol hit looks like the answer → citing the hit without opening
   the file → `read_file` the definition; a grep hit can be a declaration,
   a dead branch, or another symbol with the same prefix.
