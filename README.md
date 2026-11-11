@@ -118,7 +118,7 @@ flowchart TD
     fanout["2&nbsp;· Fan-out — launch stages in parallel"]
 
     subgraph stages["Static stages — each writes cases/&lt;id&gt;/findings/&lt;stage&gt;.md"]
-        ds["doc-search<br/>okp · rh-docs · mslearn · aws"]
+        ds["doc-search<br/>okp · rh-docs · rh-security · mslearn · aws"]
         st["source-trace<br/>casket (optional)"]
         ca["crash-analyze<br/>drgn · gdb"]
         ia["iac-author<br/>terraform · ansible<br/>writes IaC, runs nothing"]
@@ -197,6 +197,7 @@ dependencies** below for setup commands).
 |--------|---------|-----------|
 | [okp-mcp](https://github.com/rhel-lightspeed/okp-mcp) | doc-search (CVE / errata / KB) | Recommended |
 | [MCP server for Red Hat Documentation](https://docs.redhat.com/en/documentation/mcp_server_for_red_hat_documentation/current) (`rh-docs`) | doc-search (live docs.redhat.com) | Recommended |
+| [MCP server for Red Hat security content](https://docs.redhat.com/en/documentation/mcp_server_for_red_hat_security_content/1.0) (`rh-security-mcp`) | doc-search (live CVE / errata) | Recommended |
 | [casket-mcp](https://github.com/nogunix/ocp-source-collector/blob/main/mcp/README.md) | source-trace (versioned source) | Optional |
 | [drgn-mcp](https://github.com/walac/drgn-mcp) | crash-analyze (vmcore) | For crash cases |
 | [GitHub MCP](https://github.com/github/github-mcp-server) | github-trace, upstream-adviser | Optional |
@@ -375,6 +376,24 @@ The Docs team's `mcp.json` snippets name it `Red-Hat-documentation`;
 doc-search grants both spellings (see [Server names](#server-names-matter)).
 Red Hat's setup page suggests `Red Hat Documentation MCP Server`, but
 `claude mcp add` rejects names with spaces — use `rh-docs`.
+
+### rh-security-mcp — MCP server for Red Hat security content (live CVE / errata)
+Red Hat's hosted MCP server for CVE and advisory data. doc-search uses it
+first for every CVE / errata question: search with product, severity and
+date filters, per-product affected state (Fixed / Not affected / Will not
+fix …), CVE → advisory mapping, and the fixed RPMs of an advisory. It is
+live (CVEs appear the day they are published) where okp-mcp is a snapshot,
+and it supersedes rh-api-mcp's `rh_get_errata`. It has no KCS solutions,
+so okp-mcp stays in the pipeline for workarounds. Same Red Hat SSO as
+rh-docs.
+
+```bash
+claude mcp add --scope user --transport http rh-security-mcp https://security-mcp.api.redhat.com/mcp
+# then in Claude Code: /mcp → rh-security-mcp → Authenticate (Red Hat SSO, once)
+```
+
+`rh-security-mcp` is the name Red Hat's setup page suggests, so no alias is
+needed.
 
 ### casket-mcp — versioned OpenShift / RHEL / CNV source code
 Used by source-trace to search and read the exact source behind a

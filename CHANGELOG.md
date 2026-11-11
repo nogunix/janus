@@ -2,6 +2,37 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.47.0 — 2026-11-11
+
+**doc-search gains a live CVE / errata source: the MCP server for Red Hat
+security content (`rh-security-mcp`).** Until now CVE and advisory discovery
+ran on okp-mcp's offline snapshot, with rh-api-mcp's `rh_get_errata` as the
+only live check, and only by exact advisory ID. Measured on 2026-11-11, a CVE
+published that day was searchable through rh-security-mcp. Two RHEL 9 openssh
+RHSAs from 2026-09 and 2026-10 returned "Document not found" from okp-mcp. A
+"no fix released" finding drawn from the snapshot could therefore be wrong by
+months.
+
+- **`agents/doc-search.md`**: grants the server's seven tools. They cover CVE
+  and advisory search with product, severity and date filters, per-product
+  affected state, CVE → advisory mapping and per-RPM package lists. The CVE
+  sweep and the ID confirmation (step 5) now go through it first. There is a
+  new usage-knowledge section. Two new failure patterns: a missing CVE or
+  advisory in okp-mcp is checked live before it becomes a negative, and an
+  affected-products row is read by its `state` (Fixed, Not affected, Will not
+  fix, Fix deferred) rather than by its presence. rh-api-mcp stays as the
+  advisory fallback and for account inventory. okp-mcp keeps KCS solutions,
+  which neither live server covers.
+- **`agents/upstream-adviser.md`**: grants `search_cves`, `get_cve_by_id`,
+  `list_advisories_by_cve` and `get_errata_by_id`. The existing-coverage
+  check can then find a CVE filed after the snapshot.
+- **`skills/janus/SKILL.md`**, **`references/mcp-dependencies.md`**,
+  **`README.md`**: register and describe the server. It is optional on the
+  same terms as rh-docs. `rh-security-mcp` is also Red Hat's suggested name,
+  so no alias is needed.
+- **`agents/synthesize.md`**, **`references/findings-format.md`**: an
+  `rh-security` reference row.
+
 ## 0.46.1 — 2026-11-11
 
 **okp-mcp passages carry HTML entities that break copied commands.**

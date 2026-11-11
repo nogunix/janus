@@ -63,6 +63,7 @@ contradiction — synthesize and the lead's gates reject it.
 | Source | Format | Example |
 |---|---|---|
 | docs | CVE / RHSA / KB ID | `CVE-2024-1086` |
+| rh-security | CVE or advisory ID (live) | `CVE-2024-6387 (via rh-security-mcp)` |
 | rh-api | errata advisory ID (live) | `RHSA-2024:0001 (via rh-api-mcp)` |
 | source | `component@NVR file:line` | `hyperkube@4.20.0 pkg/…/eviction.go:414` |
 | drgn | script + output path | `audit/drgn-1.py → audit/drgn-1.log` |

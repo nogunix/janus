@@ -9,7 +9,8 @@ register one.
 this server is registered, and its absence is normal), `okp-mcp` (Red Hat docs/CVE/errata/KB),
 `rh-api-mcp` (live Red Hat Customer Portal API — authoritative errata
 lookup by advisory ID via `rh_get_errata`, complementing okp-mcp's offline
-corpus. The two are complementary, not competing: okp-mcp is the
+corpus; when `rh-security-mcp` is connected it takes over advisory lookup
+and rh-api-mcp is the fallback plus the account inventory below. The two are complementary, not competing: okp-mcp is the
 exploration/discovery engine (CVE search, solution articles, natural-language
 queries); rh-api-mcp is the precise lookup engine (exact errata ID →
 structured JSON with CVE list, affected products, Bugzilla links). okp-mcp
@@ -33,6 +34,18 @@ section anchors rh-docs does not return. Authenticates with Red Hat SSO
 `claude mcp add --scope user --transport http rh-docs
 https://docs-mcp.api.redhat.com/mcp`. Optional: doc-search runs on
 okp-mcp alone),
+`rh-security-mcp` (the [MCP server for Red Hat security
+content](https://docs.redhat.com/en/documentation/mcp_server_for_red_hat_security_content/1.0)
+— Red Hat-hosted, live CVE and advisory search with product / severity /
+date filters, per-product affected state, CVE → advisory mapping and
+per-RPM package lists. It supersedes rh-api-mcp's `rh_get_errata` for
+advisory lookup and replaces okp-mcp for CVE / errata discovery when
+connected; okp-mcp keeps the KCS solutions that discuss those CVEs.
+Same Red Hat SSO as rh-docs: `claude mcp add --scope user --transport
+http rh-security-mcp https://security-mcp.api.redhat.com/mcp`, then
+`/mcp` → Authenticate. `rh-security-mcp` is also the name Red Hat's own
+setup page suggests, so it needs no alias. Optional: doc-search runs
+without it),
 `mslearn`
 (Microsoft Learn docs — ARO/Azure layer for doc-search; public remote server,
 no auth: `claude mcp add --transport http mslearn

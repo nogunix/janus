@@ -38,7 +38,7 @@ connects, it does not process.
 
 | Stage | Role | Output | Tools | Safety | Model |
 |---|---|---|---|---|---|
-| **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure, AWS docs for ROSA/AWS) | findings/doc-search.md | okp-mcp + rh-docs + rh-api-mcp + slack + mslearn + aws | Static | sonnet |
+| **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure, AWS docs for ROSA/AWS) | findings/doc-search.md | okp-mcp + rh-docs + rh-security-mcp + rh-api-mcp + slack + mslearn + aws | Static | sonnet |
 | **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp (optional) | Static | sonnet |
 | **github-trace** | Upstream GitHub PR/issue/commit deep-dive | findings/github-trace.md | github MCP (read-only) | Static | sonnet |
 | **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | atlassian (Rovo MCP, read-only) | Static | sonnet |
@@ -219,7 +219,8 @@ Fix every FAIL before composing; warnings are advisory.
 Then check each composed stage's required MCP server with
 `claude mcp list` (`✔ Connected` — a tool being advertised is not the
 server being reachable): doc-search → okp-mcp (+ rh-docs for live
-docs.redhat.com content, + rh-api-mcp for live errata), source-trace → casket, github-trace → github, jira-trace →
+docs.redhat.com content, + rh-security-mcp for live CVE / errata,
++ rh-api-mcp as the errata fallback), source-trace → casket, github-trace → github, jira-trace →
 atlassian, crash-analyze → drgn, iac-author → terraform and/or
 ansible, lab-verify → linux.
 Match the name exactly: a stage's tool grants are a fixed enumeration, so
@@ -243,6 +244,10 @@ would have strengthened a finding. rh-docs is optional on the same terms:
 without it doc-search reads documentation through okp-mcp's snapshot and
 records a gap only where a document newer than the snapshot would have
 mattered (release notes, deprecations for a recent version).
+rh-security-mcp is optional on the same terms: without it doc-search
+finds CVEs and advisories through okp-mcp's snapshot (and confirms
+advisories with rh-api-mcp), and records a gap where a CVE or advisory
+newer than the snapshot, or a fixed-package NVR, would have mattered.
 
 ### 2. Present the pipeline to the human
 

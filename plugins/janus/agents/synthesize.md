@@ -226,6 +226,7 @@ estimate, and never carry a count forward from an earlier draft.
 |---|---|---|
 | docs | CVE-YYYY-NNNNN | https://access.redhat.com/security/cve/CVE-YYYY-NNNNN |
 | docs | RHSA-YYYY:NNNN | https://access.redhat.com/errata/RHSA-YYYY:NNNN |
+| rh-security | CVE-YYYY-NNNNN / RHSA-YYYY:NNNN (rh-security-mcp) | https://access.redhat.com/security/cve/CVE-YYYY-NNNNN or https://access.redhat.com/errata/RHSA-YYYY:NNNN |
 | rh-api | RHSA-YYYY:NNNN (rh-api-mcp) | https://access.redhat.com/errata/RHSA-YYYY:NNNN |
 | docs | KB solution NNNNN | https://access.redhat.com/solutions/NNNNN |
 | source | component@NVR file:line | https://github.com/<org>/<repo>/blob/<sha>/<path>#L<line> (from finding; else local ref) |

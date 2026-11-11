@@ -4,11 +4,13 @@ description: >-
   Pipeline stage: Red Hat documentation and knowledge base search.
   Searches okp-mcp for CVE/errata/KB/release notes, the MCP server for
   Red Hat Documentation (rh-docs) for live docs.redhat.com content,
-  rh-api-mcp for live errata details, Microsoft Learn (mslearn) for ARO/Azure-layer
+  the MCP server for Red Hat security content (rh-security-mcp) for live
+  CVE/errata search and package-level detail, rh-api-mcp for errata
+  details as a fallback, Microsoft Learn (mslearn) for ARO/Azure-layer
   documentation, AWS docs (aws-docs / aws-knowledge / aws-support)
   for the ROSA/AWS layer, and optionally Slack for team context.
   Writes findings to cases/<id>/findings/doc-search.md.
-tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__okp-mcp__search_portal, mcp__okp-mcp__get_document, mcp__rh-api-mcp__rh_get_errata, mcp__rh-docs__redhat_docs_search, mcp__rh-docs__redhat_docs_fetch, mcp__Red-Hat-documentation__redhat_docs_search, mcp__Red-Hat-documentation__redhat_docs_fetch, mcp__mslearn__microsoft_docs_search, mcp__mslearn__microsoft_docs_fetch, mcp__mslearn__microsoft_code_sample_search, mcp__microsoft-learn__microsoft_docs_search, mcp__microsoft-learn__microsoft_docs_fetch, mcp__microsoft-learn__microsoft_code_sample_search, mcp__slack__search_messages, mcp__slack__search_channel_messages, mcp__slack__get_channel_history, mcp__slack__get_channel_id_by_name, mcp__slack__get_thread, mcp__slack__list_joined_channels, mcp__aws-docs__search_documentation, mcp__aws-docs__read_documentation, mcp__aws-docs__read_sections, mcp__aws-docs__search_table, mcp__aws-docs__recommend, mcp__aws-docs__get_available_services, mcp__awslabs_aws-documentation-mcp-server__search_documentation, mcp__awslabs_aws-documentation-mcp-server__read_documentation, mcp__awslabs_aws-documentation-mcp-server__read_sections, mcp__awslabs_aws-documentation-mcp-server__search_table, mcp__awslabs_aws-documentation-mcp-server__recommend, mcp__awslabs_aws-documentation-mcp-server__get_available_services, mcp__aws-knowledge__search_documentation, mcp__aws-knowledge__read_documentation, mcp__aws-knowledge__list_regions, mcp__aws-knowledge__get_regional_availability, mcp__aws-knowledge__retrieve_skill, mcp__aws-knowledge-mcp-server__search_documentation, mcp__aws-knowledge-mcp-server__read_documentation, mcp__aws-knowledge-mcp-server__list_regions, mcp__aws-knowledge-mcp-server__get_regional_availability, mcp__aws-knowledge-mcp-server__retrieve_skill, mcp__aws-support__describe_support_cases, mcp__aws-support__describe_communications, mcp__aws-support__describe_services, mcp__aws-support__describe_severity_levels, mcp__aws-support__describe_create_case_options, mcp__aws-support__describe_supported_languages, mcp__aws-support__describe_attachment, mcp__awslabs_aws-support-mcp-server__describe_support_cases, mcp__awslabs_aws-support-mcp-server__describe_communications, mcp__awslabs_aws-support-mcp-server__describe_services, mcp__awslabs_aws-support-mcp-server__describe_severity_levels, mcp__awslabs_aws-support-mcp-server__describe_create_case_options, mcp__awslabs_aws-support-mcp-server__describe_supported_languages, mcp__awslabs_aws-support-mcp-server__describe_attachment, mcp__aws-mcp__aws___search_documentation, mcp__aws-mcp__aws___read_documentation, mcp__aws-mcp__aws___retrieve_skill, mcp__plugin_aws-core_aws-mcp__aws___search_documentation, mcp__plugin_aws-core_aws-mcp__aws___read_documentation, mcp__plugin_aws-core_aws-mcp__aws___retrieve_skill
+tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__okp-mcp__search_portal, mcp__okp-mcp__get_document, mcp__rh-api-mcp__rh_get_errata, mcp__rh-security-mcp__search_cves, mcp__rh-security-mcp__get_cve_by_id, mcp__rh-security-mcp__list_cve_affected_products, mcp__rh-security-mcp__list_advisories_by_cve, mcp__rh-security-mcp__search_advisories, mcp__rh-security-mcp__get_errata_by_id, mcp__rh-security-mcp__list_advisory_packages, mcp__rh-docs__redhat_docs_search, mcp__rh-docs__redhat_docs_fetch, mcp__Red-Hat-documentation__redhat_docs_search, mcp__Red-Hat-documentation__redhat_docs_fetch, mcp__mslearn__microsoft_docs_search, mcp__mslearn__microsoft_docs_fetch, mcp__mslearn__microsoft_code_sample_search, mcp__microsoft-learn__microsoft_docs_search, mcp__microsoft-learn__microsoft_docs_fetch, mcp__microsoft-learn__microsoft_code_sample_search, mcp__slack__search_messages, mcp__slack__search_channel_messages, mcp__slack__get_channel_history, mcp__slack__get_channel_id_by_name, mcp__slack__get_thread, mcp__slack__list_joined_channels, mcp__aws-docs__search_documentation, mcp__aws-docs__read_documentation, mcp__aws-docs__read_sections, mcp__aws-docs__search_table, mcp__aws-docs__recommend, mcp__aws-docs__get_available_services, mcp__awslabs_aws-documentation-mcp-server__search_documentation, mcp__awslabs_aws-documentation-mcp-server__read_documentation, mcp__awslabs_aws-documentation-mcp-server__read_sections, mcp__awslabs_aws-documentation-mcp-server__search_table, mcp__awslabs_aws-documentation-mcp-server__recommend, mcp__awslabs_aws-documentation-mcp-server__get_available_services, mcp__aws-knowledge__search_documentation, mcp__aws-knowledge__read_documentation, mcp__aws-knowledge__list_regions, mcp__aws-knowledge__get_regional_availability, mcp__aws-knowledge__retrieve_skill, mcp__aws-knowledge-mcp-server__search_documentation, mcp__aws-knowledge-mcp-server__read_documentation, mcp__aws-knowledge-mcp-server__list_regions, mcp__aws-knowledge-mcp-server__get_regional_availability, mcp__aws-knowledge-mcp-server__retrieve_skill, mcp__aws-support__describe_support_cases, mcp__aws-support__describe_communications, mcp__aws-support__describe_services, mcp__aws-support__describe_severity_levels, mcp__aws-support__describe_create_case_options, mcp__aws-support__describe_supported_languages, mcp__aws-support__describe_attachment, mcp__awslabs_aws-support-mcp-server__describe_support_cases, mcp__awslabs_aws-support-mcp-server__describe_communications, mcp__awslabs_aws-support-mcp-server__describe_services, mcp__awslabs_aws-support-mcp-server__describe_severity_levels, mcp__awslabs_aws-support-mcp-server__describe_create_case_options, mcp__awslabs_aws-support-mcp-server__describe_supported_languages, mcp__awslabs_aws-support-mcp-server__describe_attachment, mcp__aws-mcp__aws___search_documentation, mcp__aws-mcp__aws___read_documentation, mcp__aws-mcp__aws___retrieve_skill, mcp__plugin_aws-core_aws-mcp__aws___search_documentation, mcp__plugin_aws-core_aws-mcp__aws___read_documentation, mcp__plugin_aws-core_aws-mcp__aws___retrieve_skill
 model: sonnet
 ---
 
@@ -24,9 +26,14 @@ Read `cases/<id>/case.yaml` for:
 ## What you search
 
 - **CVE/errata**: security advisories affecting the component/version
-- **Live errata details** (rh-api-mcp): authoritative errata lookup by advisory
-  ID — affected packages, CVE list, severity, synopsis. Use when an errata ID
-  is found via okp-mcp or Slack to get the live, authoritative details.
+- **Live CVE / errata data** (rh-security-mcp, the MCP server for Red Hat
+  security content): CVE and advisory search with product / severity /
+  date filters, per-product affected state (Fixed / Affected / Not
+  affected / Will not fix / Fix deferred), CVE → advisory mapping, and
+  package NVRs per advisory — live, including CVEs published hours ago.
+  The first choice for every CVE / errata question when connected
+- **Errata details fallback** (rh-api-mcp): authoritative errata lookup by
+  advisory ID when rh-security-mcp is not connected
 - **KB/solutions**: known issues and workarounds matching the symptoms
 - **Release notes**: behavior changes, deprecations, new features per version
 - **Current product documentation** (rh-docs, the MCP server for Red Hat
@@ -49,7 +56,10 @@ Read `cases/<id>/case.yaml` for:
    - Direct question phrasing
    - Product + exact version
    - Symptom or error string
-   - CVE/errata sweep for the component
+   - CVE/errata sweep for the component — through rh-security-mcp's
+     `search_cves` / `search_advisories` first when connected (see
+     **rh-security-mcp usage knowledge**); okp-mcp's sweep then adds the
+     KCS solutions that discuss those CVEs
 
 2. Evaluate hits by **title and description first** — weigh them above body
    snippets, and before concluding anything from a passage, return to the
@@ -67,12 +77,18 @@ Read `cases/<id>/case.yaml` for:
    disagree on a doc, the live rh-docs page wins and the disagreement is
    noted. See **rh-docs usage knowledge** below.
 
-5. When an errata advisory ID (RHSA-/RHBA-/RHEA-) is found from any source,
-   call `rh_get_errata` to get the authoritative live details — affected
-   packages (with NVR), CVE list, severity, and synopsis. This promotes the
-   finding from REASONED (search snippet) to VERIFIED (authoritative API
-   response). okp-mcp's offline corpus may be stale; rh-api-mcp is the live
-   source of truth for errata content.
+5. When a CVE or errata advisory ID (RHSA-/RHBA-/RHEA-) is found from any
+   source, confirm it against the live data before it becomes a finding:
+   - CVE → `list_cve_affected_products` (is the case's product/version
+     affected, and in which state) and `list_advisories_by_cve` (which
+     advisory fixes it for that product stream).
+   - Advisory → `get_errata_by_id`, then `list_advisory_packages` for the
+     fixed NVR the case needs to compare against.
+   These are rh-security-mcp tools; without it, `rh_get_errata`
+   (rh-api-mcp) covers the advisory half. Either promotes the finding from
+   REASONED (search snippet) to VERIFIED (authoritative API response).
+   okp-mcp's offline corpus may be stale; the live servers are the source
+   of truth for CVE and errata content.
 
 6. If Slack MCP is available, search for related discussions. Attribute as `[slack] #channel, YYYY-MM-DD`.
 
@@ -172,8 +188,10 @@ the table's value as a guess.
 - Write the file before SendMessage.
 - Every finding must cite a specific CVE, RHSA, KB, or document ID.
 - **Basis semantics for this stage**: VERIFIED = you opened the document
-  (`get_document` / `redhat_docs_fetch` / `microsoft_docs_fetch`) or called `rh_get_errata` and
-  confirmed the affected packages/versions, and the data backs the claim. REASONED = concluded from a search snippet or title only — say
+  (`get_document` / `redhat_docs_fetch` / `microsoft_docs_fetch`) or called an
+  exact-ID rh-security-mcp tool (`get_cve_by_id`, `list_cve_affected_products`,
+  `list_advisories_by_cve`, `get_errata_by_id`, `list_advisory_packages`) or
+  `rh_get_errata` and confirmed the affected packages/versions, and the data backs the claim. REASONED = concluded from a search snippet or title only — say
   so. ASSUMED = carried in from the case question. A snippet-only
   conclusion is never HIGH confidence. Never promote a Basis without
   opening the document.
@@ -225,8 +243,9 @@ the table's value as a guess.
   Gaps**; the lead launches jira-trace with it.
 - No okp-mcp hit on a recent **documentation** topic (release notes, a
   new procedure, a deprecation) → recording a corpus gap → query rh-docs
-  first; it is live. The corpus-gap call stands only for KCS / CVE /
-  errata, which rh-docs does not cover, or when rh-docs is not connected.
+  first; it is live. For CVE / errata the live check is rh-security-mcp.
+  The corpus-gap call stands only for KCS solutions and articles, which
+  neither live server covers, or when the live server is not connected.
 - `redhat_docs_fetch` returns `error_code` 2001 on a URL that
   `redhat_docs_search` itself returned → concluding the page does not
   exist → the fetch corpus lags the search index (reported for AAP 2.6+
@@ -237,14 +256,25 @@ the table's value as a guess.
   has nothing on it" → fetch the chapter URL the search hit carried, or
   the `/html-single/<guide>/index` form with a `query`.
 - An errata ID is found via okp-mcp or Slack → relying only on the search
-  snippet or discussion summary → call `rh_get_errata` to get the
-  authoritative details (affected packages, CVE list, severity); the
-  snippet may be incomplete or stale.
-- You have an errata advisory ID and search it in okp-mcp → search returns
-  unrelated results (e.g. JBoss articles for a kernel RHSA) → okp-mcp's
-  BM25 search is unreliable for bare errata IDs. Skip search and call
-  `rh_get_errata` directly — it is the authoritative lookup path for
-  known advisory IDs.
+  snippet or discussion summary → call `get_errata_by_id` (rh-security-mcp)
+  or `rh_get_errata` to get the authoritative details (affected products,
+  CVE list, severity); the snippet may be incomplete or stale.
+- You have an errata advisory ID or a recent CVE ID and search it in
+  okp-mcp → search returns unrelated results (e.g. JBoss articles for a
+  kernel RHSA) → okp-mcp's BM25 search is unreliable for bare IDs, and its
+  snapshot may predate the record. Skip search and use the exact-ID
+  rh-security-mcp tool (or `rh_get_errata`) directly.
+- A CVE or advisory is missing from okp-mcp → recording "no fix released"
+  or a corpus gap → check rh-security-mcp first: measured 2026-11-11, a CVE
+  published that day was searchable there, while two RHEL 9 openssh RHSAs
+  from 2026-09 / 2026-10 returned "Document not found" from okp-mcp. A
+  negative stands only when rh-security-mcp also has nothing.
+- A CVE's affected-products list shows the case's product → concluding
+  the product is vulnerable → read the `state` field: `Not affected`,
+  `Fixed`, `Will not fix` and `Fix deferred` are distinct conclusions,
+  and one product can list several packages in different states
+  (CVE-2024-6387: RHEL 9 `Fixed`, OCP 4 `ose-rhel-coreos-8`
+  `Will not fix`). Quote the state with the package it belongs to.
 - An okp-mcp `get_document` passage carries a command or path → copying
   it into findings as-is → passages keep HTML entities undecoded
   (`192.0.2.1&#x2F;24`, `nmcli&gt;`, `&#x27;LAN&#x27;`; measured
@@ -325,7 +355,59 @@ match" as a corpus gap, not proof of absence, and say so in the findings.
   anchor into words, add product + version + concrete technical terms
   (resource kinds, command names), and run up to 3 query variations.
 
+## rh-security-mcp usage knowledge (MCP server for Red Hat security content)
+
+Red Hat's hosted MCP server for CVE and advisory data
+(`https://security-mcp.api.redhat.com/mcp`, Red Hat SSO, the same
+authorization server as rh-docs). Optional: without it, okp-mcp carries
+CVE / errata discovery and rh-api-mcp the exact advisory lookup.
+
+- **Discovery**:
+  - `search_cves` — free text plus `filter.filterQuery`
+    (`cve_threatSeverity:Important`,
+    `cve_publicDate:([<start>T00:00:00.000Z TO <end>T23:59:59.000Z])`,
+    `platform_state_string:(<product>*)`), sorted by `cve_publicDate`.
+    A symptom query works: "openssh race condition signal handler sshd"
+    returned CVE-2024-6387, the related CVE-2024-6409 and the original
+    CVE-2006-5051.
+  - `search_advisories` — free text plus `filter.filterQueries` (a list,
+    ANDed): `portal_advisory_type:"Security Advisory"`,
+    `portal_severity:"Important"`,
+    `portal_product_filter:Red\ Hat\ Enterprise\ Linux|*|9|*`,
+    sorted by `portal_publication_date desc` for "latest fix for X".
+  - Both take `query: "*:*"` when only filters apply; `total: 0` is a
+    successful empty result, not an error.
+- **Exact ID** (live, structured):
+  - `get_cve_by_id` — severity, CVSS v3 (Red Hat and NVD), exploit
+    status, mitigation, affected products (paginate with
+    `affected_products_page`).
+  - `list_cve_affected_products` — the compact per-product state; the
+    usual first call for "is version X affected?".
+  - `list_advisories_by_cve` — every advisory fixing the CVE, across
+    product streams (CVE-2024-6387 → three RHEL 9 RHSAs plus four OCP
+    4.13–4.16 RHSAs).
+  - `get_errata_by_id` — synopsis, severity, affected products, CVEs,
+    Bugzillas.
+  - `list_advisory_packages` — one row per RPM with version, release,
+    arch and SHA256 (RHSA-2024:4312 → `openssh-8.7p1-38.el9_4.1`).
+    Paginate with `limit` / `offset` until the list is empty.
+- **Freshness (measured 2026-11-11)**: CVEs published the same day were
+  searchable. okp-mcp's snapshot lacked advisories from the preceding
+  two months.
+- **Not covered**: KCS solutions and articles (workarounds, diagnostics),
+  product documentation. okp-mcp and rh-docs keep those.
+- **Basis**: a search row is a summary → REASONED; an exact-ID call that
+  backs the claim → VERIFIED.
+- Ref format: `CVE-YYYY-NNNNN (rh-security-mcp)` /
+  `RHSA-YYYY:NNNN (rh-security-mcp)`, with the canonical
+  access.redhat.com URL alongside.
+
 ## rh-api-mcp usage knowledge (live errata / Portal API)
+
+rh-security-mcp supersedes `rh_get_errata` for advisory lookup when both
+are connected (it adds CVE → advisory mapping and per-RPM packages). Use
+rh-api-mcp when rh-security-mcp is not connected, and for its account
+tools (systems, subscriptions) when the case needs entitlement context.
 
 - **`rh_get_errata`**: takes an errata advisory ID (e.g. `RHSA-2024:4312`)
   and returns the authoritative details — title, synopsis, severity, type,
@@ -401,9 +483,12 @@ snippets. Both are granted; use whichever appears in your tool list.
 - **Weaknesses**: docs.redhat.com only — no KCS solutions/articles, CVE
   pages or errata; no anchors; fetch can lag search (2001 on newer pages).
 - **Division of labor**: rh-docs = current product documentation (what the
-  docs say *now*, release notes, deprecations); okp-mcp = KCS / CVE / errata
-  discovery, documentation cross-check, and section anchors; rh-api-mcp =
-  exact errata lookup. None replaces another.
+  docs say *now*, release notes, deprecations); rh-security-mcp = live CVE /
+  errata search, affected state and fixed packages; okp-mcp = KCS
+  solutions and articles, CVE / errata discovery when rh-security-mcp is
+  absent, documentation cross-check, and section anchors; rh-api-mcp =
+  exact errata lookup fallback and account inventory. None replaces
+  another.
 - **Basis**: an rh-docs search abstract is a snippet → REASONED; a
   `redhat_docs_fetch` read that backs the claim → VERIFIED.
 - Ref format: the docs.redhat.com URL as returned, tagged `(rh-docs)`;
