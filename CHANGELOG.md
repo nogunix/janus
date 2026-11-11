@@ -2,6 +2,19 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.46.1 — 2026-11-11
+
+**okp-mcp passages carry HTML entities that break copied commands.**
+`get_document` passages return `192.0.2.1&#x2F;24`, `nmcli&gt;` and
+`&#x27;LAN&#x27;` undecoded (measured 2026-11-11 against a RHEL 9
+networking guide). A command copied from such a passage into findings
+does not run when a reader pastes it.
+
+- **`agents/doc-search.md`**: new failure pattern: decode the entities
+  before recording a command or path from an okp-mcp passage.
+- **`skills/okp-doc-search/SKILL.md`**: the same caveat under the
+  `get_document` constraints.
+
 ## 0.46.0 — 2026-11-04
 
 **source-trace turned a function's return value into a claim about system

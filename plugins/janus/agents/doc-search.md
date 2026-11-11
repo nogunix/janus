@@ -245,6 +245,13 @@ the table's value as a guess.
   BM25 search is unreliable for bare errata IDs. Skip search and call
   `rh_get_errata` directly — it is the authoritative lookup path for
   known advisory IDs.
+- An okp-mcp `get_document` passage carries a command or path → copying
+  it into findings as-is → passages keep HTML entities undecoded
+  (`192.0.2.1&#x2F;24`, `nmcli&gt;`, `&#x27;LAN&#x27;`; measured
+  2026-11-11). Decode `&#x2F;` `/`, `&gt;` `>`, `&lt;` `<`, `&#x27;` `'`,
+  `&quot;` `"`, `&amp;` `&` before recording a command; a reader who
+  pastes the raw form gets a broken command. Leave a verbatim quote
+  undecoded only when it is quoted as okp-mcp output, not as a command.
 
 ## okp-mcp usage knowledge
 

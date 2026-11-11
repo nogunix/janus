@@ -131,6 +131,10 @@ Constraints:
   an anchor without consulting the `Sections` block first.
 - Not every solution is indexed — get_document can fail on a valid,
   existing article.
+- **Passages keep HTML entities undecoded** — `192.0.2.1&#x2F;24`,
+  `nmcli&gt;`, `&#x27;LAN&#x27;`. Decode them (`&#x2F;` → `/`, `&gt;` → `>`,
+  `&lt;` → `<`, `&#x27;` → `'`, `&quot;` → `"`, `&amp;` → `&`) before
+  presenting a command to a reader.
 
 ### "Document not found" is ambiguous — work the causes in order
 
