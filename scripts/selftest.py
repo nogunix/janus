@@ -7,7 +7,8 @@ logic, quotecheck.py's quote extraction and verbatim matching, and
 urlcheck.py's URL extraction and classification constants, and gates.py's
 status classification and end-to-end run (urlcheck skipped), and
 build_gslides.py's page-size math, in-place rebuild plan, inline markup
-and line normalization. No network,
+and line normalization, and deck's jpfont.py East-Asian font rewrite.
+No network,
 no MCP servers; stdlib-only, like validate.py. Exit 1 on any failure.
 """
 
@@ -1635,6 +1636,31 @@ def test_gslides():
           "gslides: an up-right diagonal is skipped rather than drawn flipped")
 
 
+def test_jpfont():
+    jf = load("jpfont", PLUGIN / "skills/deck/scripts")
+    font = "Noto Sans CJK JP"
+    tag = f'<a:ea typeface="{font}"/>'
+    xml, n = jf.set_ea('<a:r><a:rPr lang="ja-JP"/><a:t>日本</a:t></a:r>', font)
+    check(n == 1 and f'<a:rPr lang="ja-JP">{tag}</a:rPr>' in xml,
+          "jpfont: a self-closing rPr gains the East-Asian font")
+    xml, _ = jf.set_ea('<a:rPr><a:latin typeface="Arial"/><a:cs typeface="X"/>'
+                       '<a:hlinkClick r:id="rId2"/></a:rPr>', font)
+    check(f'<a:latin typeface="Arial"/>{tag}<a:cs typeface="X"/>' in xml,
+          "jpfont: ea is inserted after latin and before cs (schema order)")
+    xml, _ = jf.set_ea('<a:endParaRPr><a:ea typeface="Noto Sans CJK SC"/></a:endParaRPr>', font)
+    check(xml == f'<a:endParaRPr>{tag}</a:endParaRPr>',
+          "jpfont: an existing ea typeface is replaced, not duplicated")
+    xml, n = jf.set_ea('<a:r><a:t>x</a:t></a:r>', font)
+    check(n == 1 and f'<a:r><a:rPr>{tag}</a:rPr><a:t>' in xml,
+          "jpfont: a bare run without rPr gets one")
+    once, _ = jf.set_ea('<a:rPr b="1"><a:solidFill/></a:rPr><a:r><a:t>y</a:t></a:r>', font)
+    twice, _ = jf.set_ea(once, font)
+    check(once == twice and jf.missing(once, font) == 0,
+          "jpfont: idempotent, and --check finds nothing left after a run")
+    check(jf.missing('<a:r><a:rPr lang="ja-JP"/><a:t>z</a:t></a:r><a:r><a:t>w</a:t></a:r>', font) == 2,
+          "jpfont: --check counts both a font-less rPr and a bare run")
+
+
 def main():
     test_chain()
     test_lock()
@@ -1653,6 +1679,7 @@ def main():
     test_gates()
     test_findings()
     test_gslides()
+    test_jpfont()
     if failures:
         print(f"{len(failures)} self-test(s) failed")
         return 1

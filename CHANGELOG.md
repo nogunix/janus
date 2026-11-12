@@ -2,6 +2,42 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.48.0 — 2026-11-12
+
+**Two PPTX builders did the same job.** The deck skill carried its own
+python-pptx builder (`decklib.py`, the `build_deck.py` YAML driver,
+`inspect_template.py`). gslides' PPTX-first workflow used Anthropic's
+official `pptx` skill when it was installed and fell back to `decklib.py`
+when it was not. The official skill is stronger at the hard parts:
+duplicating template slides, loading SVG/EMF template art, and validating
+what PowerPoint and Drive conversion would reject. Keeping a second builder
+meant maintaining a weaker path that ran whenever the skill was missing.
+
+- **`document-skills:pptx` is now required** for building any PPTX. Both
+  skills check for it first. If it is missing they stop and give the
+  install commands (`/plugin marketplace add anthropics/skills` →
+  `/plugin install document-skills@anthropic-agent-skills`) instead of
+  building another way. It is still not vendored; its license does not
+  allow redistribution.
+- **`skills/deck/`** is now a layer over that skill. It keeps only what
+  the skill lacks: the Japanese-font fix, diagram recoloring
+  (`svgtools.py`, `recolor_image.py`), screenshot callouts
+  (`annotate_shots.py`), JP-locale PDF conversion (`topdf.sh`) and visual QA
+  (`render.sh`, `qa_thumbs.py`). JANUS content rules move into the build
+  step as prose: cover date at build time, bullet caps, footnote placement,
+  code as text. **Removed**: `decklib.py`, `build_deck.py`,
+  `inspect_template.py`. Existing `deck.yaml` specs no longer build.
+- **`skills/deck/scripts/jpfont.py`** (new, stdlib-only): sets the
+  East-Asian typeface (`Noto Sans CJK JP`) on every run of a finished deck,
+  including bare `<a:r>` runs without `<a:rPr>`, in schema order. decklib
+  used to apply this while building; now it runs as a post-process
+  whatever produced the deck. The XML is edited as text, so the pptx
+  skill's `validate.py --original` still passes. Checked on a 12,192-run
+  template. `--check` exits 1 when a slide run lacks the font. Covered by
+  `test_jpfont` in `selftest.py`.
+- **`skills/gslides/references/pptx-first.md`**: the decklib fallback is
+  gone and local validation always runs. `procedure_deck.py` stays as a
+  fixed-format generator for procedure decks, validated by the pptx skill.
 ## 0.47.0 — 2026-11-11
 
 **doc-search gains a live CVE / errata source: the MCP server for Red Hat

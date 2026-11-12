@@ -6,7 +6,7 @@ description: >-
   SVG/raster diagram insertion with optional light-recolor. No pptx, no
   LibreOffice — the result is a live Google Slides document in Drive, ready for
   collaborative editing. For brand-template fidelity it can also build the deck
-  as PPTX (on Anthropic's pptx skill when installed) and convert it on upload.
+  as PPTX (on Anthropic's pptx skill, required for that path) and convert it on upload.
   Use when asked to create / generate slides, a deck, or a presentation.
 ---
 

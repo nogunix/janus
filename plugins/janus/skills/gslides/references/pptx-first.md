@@ -10,21 +10,20 @@ build a PPTX and upload it to Drive with conversion. That is more reliable.
 The workflow has two halves: **building the PPTX** and **turning it into
 Google Slides**.
 
-- **Building**: if Anthropic's official `pptx` skill (document-skills from
-  `anthropics/skills`) is installed, use it. It is stronger at duplicating,
-  editing and validating template slides. Otherwise build with this skill's
-  `procedure_deck.py` or the deck skill's `decklib.py`.
-- **Steps 4–5 are the same either way.**
-- **The official `pptx` skill is not vendored**, because its license does
-  not allow redistribution.
-  - It is available if `pptx` (`document-skills:pptx`) appears in the skill
-    list. Its absence is the normal state, not an error.
-  - To install it, the user runs
+- **Building requires Anthropic's official `pptx` skill**
+  (`document-skills:pptx` from `anthropics/skills`). It duplicates, edits
+  and validates template slides; python-pptx cannot duplicate prototype
+  slides or load the SVG/EMF art templates use.
+  - Check that `pptx` appears in the skill list before step 1. **If it is
+    missing, stop** and tell the user to install it:
     `/plugin marketplace add anthropics/skills` →
     `/plugin install document-skills@anthropic-agent-skills`.
+    Do not build the PPTX another way.
+  - It is not vendored, because its license does not allow redistribution.
 - **The Google-specific parts stay in this skill**: conversion on upload,
-  QA from the Drive PDF, the Playwright capture notes below, and the deck
-  skill's red-box `annotate_shots.py`.
+  QA from the Drive PDF, and the Playwright capture notes below. Japanese
+  font handling, screenshot red boxes and macOS visual QA come from the
+  deck skill (`jpfont.py`, `annotate_shots.py`, `qa_thumbs.py`).
 
 ## Steps
 
@@ -37,7 +36,9 @@ Google Slides**.
 2. **Build.** Choose by content:
    - **Procedure deck** (screenshots + numbered steps + copy-paste code) →
      `ProcedureDeck` in `scripts/procedure_deck.py` (usage in its
-     docstring).
+     docstring). It is a fixed-format generator for this one deck type,
+     not a substitute for the pptx skill; step 3 validates its output with
+     that skill.
      - Slide types: `two_shots` (two screenshots + explanation),
        `one_shot` (one screenshot + steps + code box), `divider` (divider +
        time estimate), `table`, `code`.
@@ -48,18 +49,15 @@ Google Slides**.
      template's icons or SVG/EMF art) → the official `pptx` skill's
      template-editing procedure: unpack → duplicate a prototype slide with
      `add_slide.py` → edit `slideN.xml` → `clean.py` → zip.
-     - python-pptx can neither duplicate prototype slides nor load SVG/EMF,
-       so leave this path to that skill.
-     - Without it, build with the deck skill (`decklib.py`).
 3. **Validate locally.**
-   - If the official `pptx` skill is present, run
+   - Run the pptx skill's
      `python scripts/office/validate.py deck.pptx --original template-base.pptx`
      on the PPTX, whichever path built it. The path is relative to the pptx
      skill's directory. It reports, with fixes, the breakage that
      PowerPoint or Drive conversion would reject.
    - For a visual check on macOS, use the deck skill's `qa_thumbs.py`. The
      official skill's `thumbnail.py` renders through LibreOffice, where
-     Japanese can come out blank on macOS (deck gotcha #12). On Linux
+     Japanese can come out blank on macOS (deck gotcha 3). On Linux
      either works.
 4. **Upload with conversion:**
    ```bash

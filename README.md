@@ -288,7 +288,7 @@ plugins/janus/
   skills/janus/scripts/prosecheck.py # ja report prose via claude CLI / textlint (backs gate C2/prose)
   skills/janus/scripts/textlintrc.json # ja-technical-writing config for the above
   skills/janus/scripts/anchors.py    # findings heading → GitHub slug map (evidence links)
-  skills/deck/                       # report → branded .pptx/PDF
+  skills/deck/                       # layer over Anthropic's pptx skill (required): JP fonts, diagrams, PDF/QA
   skills/gslides/                    # report → Google Slides via the gws CLI
   skills/md2pdf/                     # Markdown → PDF (pandoc + weasyprint, CJK)
   skills/okp-doc-search/             # okp-mcp research know-how (queries, doc_id rules)

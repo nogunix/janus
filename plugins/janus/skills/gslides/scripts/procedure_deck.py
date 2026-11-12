@@ -283,7 +283,7 @@ class ProcedureDeck:
         for proto in (ids[1], ids[2]):
             self.prs.part.drop_rel(proto.get(qn("r:id")))
             lst.remove(proto)
-        # same partname-collision guard as deck/decklib.py save()
+        # renumber slide parts in deck order: a kept template slide and a new one can collide on slideN.xml
         self.prs.part.rename_slide_parts([sldId.rId for sldId in lst])
         self.prs.save(out)
         return out
