@@ -330,3 +330,8 @@ All agents declare `model: inherit` in frontmatter so they load natively in both
 - **Learning loop (`janus-lessons`)**: project-local lessons live in `.claude/skills/janus-lessons/SKILL.md` (or `.agents/skills/janus-lessons/SKILL.md` in Antigravity). Create on first case if absent; copy relevant entries into stage briefs at fan-out; append new `- <symptom> → <wrong move> → <correct move> [case: <id>]` entries at case close only with human approval. `self-improver` runs every 10 `verdict.md` files (or weekly) and proposes promoting recurring lessons (`≥2` cases) via `review-queue/IMPROVE_*`.
 - **Reference assets (`ocp-triage-heuristics`)**: read-only OpenShift SRE reference at `skills/ocp-triage-heuristics/SKILL.md`. Copy relevant sections into stage briefs for OpenShift cases (🔍 DIAGNOSTIC items are read-only; ⚠️ REMEDIATION items are report-only recommendations).
 - **MCP dependencies**: see step 1 and `references/mcp-dependencies.md`.
+
+## Antigravity host notes (`agy`)
+
+- **Subagent tools**: `plugins/janus/agents/*.md` declare Claude Code tool names. Before launching stages on Antigravity, run `python3 scripts/sync-agy-agents.py` to generate `.agents/agents/` overrides, or invoke `TypeName: "self"` and instruct the subagent to use Antigravity tools (`read_file`, `write_file`, `edit_file`, `run_command`, `send_message`, `call_mcp_tool`).
+- **Quota / mid-stage recovery**: If a subagent stops mid-stage (e.g., `429 RESOURCE_EXHAUSTED` after completing MCP queries), launch a replacement subagent and pass the stopped subagent's `transcript.jsonl` path so it can write and lint `findings/*.md` / `results/*.md` without repeating MCP calls.

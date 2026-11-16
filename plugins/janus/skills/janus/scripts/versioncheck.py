@@ -37,12 +37,12 @@ import sys
 from pathlib import Path
 
 # A product version token: dotted numbers with 2-3 components. The
-# lookbehind/lookahead reject a token bounded by a dot or digit, which
-# excludes 4-octet IPs (10.0.0.1) and longer sequences without a special
-# case — no interior 2-3 component slice of an IP is ever isolated. The
-# lookahead rejects a following digit or `.digit`, not a bare `.`, so a
-# version that ends a sentence ("fixed in 4.16.55.") is still a token.
-VERSION_RE = re.compile(r"(?<![\d.])\d+\.\d+(?:\.\d+)?(?!\d|\.\d)")
+# lookbehind/lookahead reject a token bounded by a dot, digit, or underscore,
+# which excludes 4-octet IPs (10.0.0.1), RPM release fragments (el9_4.5), and
+# longer sequences without a special case. The lookahead rejects a following
+# digit or `.digit`, not a bare `.`, so a version that ends a sentence
+# ("fixed in 4.16.55.") is still a token.
+VERSION_RE = re.compile(r"(?<![\d._])\d+\.\d+(?:\.\d+)?(?!\d|\.\d)")
 
 # A source location inside a Ref: path/to/file.ext:line — the signature
 # of a source citation (drgn/lab/slack/doc Refs never match this shape).

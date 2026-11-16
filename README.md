@@ -281,6 +281,33 @@ agy agent                           # verify the 11 agents are listed
 Or enable workspace-level discovery when working directly inside a clone by
 adding `.agents/plugins.json` (`{"entries": [{"path": "plugins"}]}`).
 
+#### Antigravity setup notes
+
+1. **Sync subagent tool definitions** — `plugins/janus/agents/*.md` use Claude
+   Code tool names (`Read`, `Write`, `Edit`, `Bash`, `SendMessage`), which
+   Antigravity's component registry rejects on direct subagent launch. Generate
+   workspace-local overrides under `.agents/agents/` (gitignored) before
+   running a case:
+
+   ```bash
+   python3 scripts/sync-agy-agents.py
+   ```
+
+2. **Reduce MCP approval prompts** — JANUS stages call `call_mcp_tool` dozens
+   of times per case. Run `/permissions` in the Antigravity CLI, open **Allow**
+   → **+ Add new matcher...**, and add read-only server matchers (e.g.
+   `mcp(okp-mcp/*)`, `mcp(rh-security-mcp/*)`, `mcp(rh-docs/*)`,
+   `mcp(rh-api-mcp/*)`, `mcp(casket/*)`, `mcp(github/*)`, `mcp(kernel-lore/*)`,
+   `mcp(mslearn/*)`) or `mcp(*)`. For unattended runs within the workspace, you
+   can also start with `agy --mode auto` (JANUS `PreToolUse` hooks remain active).
+
+3. **Red Hat SSO OAuth (`redirect_uri not allowed`)** — `rh-docs` and
+   `rh-security-mcp` only allow `http://localhost:<port>/callback`, whereas
+   Antigravity's interactive OAuth flow uses `127.0.0.1` / `antigravity.google`.
+   If interactive login fails, copy/refresh tokens from Claude Code's
+   `~/.claude/.credentials.json` into `~/.gemini/antigravity-cli/mcp_oauth_tokens.json`
+   or rely on `okp-mcp` + `rh-api-mcp`.
+
 ## What's in the plugin
 
 ```
