@@ -7,7 +7,7 @@ description: >-
   dynamic tracing (bpftrace/strace) to confirm a hypothesis, and tears
   down. DYNAMIC TRACK — requires human approval before any execution.
   Writes findings to cases/<id>/findings/lab-verify.md.
-tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__linux__*
+tools: [Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__linux__*]
 model: inherit
 ---
 

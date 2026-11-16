@@ -158,9 +158,11 @@ def report_language(case_dir):
 
 
 def sonnet_command():
-    """Return the claude CLI command prefix for Sonnet, or None if absent."""
+    """Return the CLI command prefix for LLM prose check (claude or agy), or None if absent."""
     if shutil.which("claude"):
         return ["claude", "--model", SONNET_MODEL, "-p"]
+    if shutil.which("agy"):
+        return ["agy", "-p"]
     return None
 
 
@@ -284,7 +286,7 @@ def run(case_dir):
     cmd = textlint_command()
     if cmd is None:
         return [], [], [
-            "claude CLI and textlint both unavailable — prose check skipped "
+            "claude/agy CLI and textlint both unavailable — prose check skipped "
             f"(install either: {INSTALL_HINT})"
         ]
 

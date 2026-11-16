@@ -183,7 +183,7 @@ The pipeline has nine composable stages connected by a universal
 
 | Requirement | Purpose | Required? |
 |-------------|---------|-----------|
-| [Claude Code](https://claude.ai/code) | Plugin host (CLI, desktop, or web) | **Yes** |
+| [Claude Code](https://claude.ai/code) or [Antigravity](https://antigravity.google) (`agy`) | Plugin host (CLI, desktop, IDE, or web) | **Yes** |
 | Python 3.9+ | `validate.py`, `selftest.py`, integrity scripts (`chain.py`, `urlcheck.py`, etc.) | **Yes** |
 | Bash 4+ | Shell-based tests and hook scripts | **Yes** |
 
@@ -266,6 +266,19 @@ Day-to-day maintenance:
 /plugin uninstall janus@janus       # remove the plugin
 /plugin marketplace remove janus    # remove the marketplace entry
 ```
+
+### Antigravity (`agy`)
+
+`plugins/janus` also ships a native Antigravity manifest (`plugin.json`) and
+root `hooks.json`. Install from a local clone:
+
+```bash
+agy plugin install ~/janus/plugins/janus
+agy agent                           # verify the 11 agents are listed
+```
+
+Or enable workspace-level discovery when working directly inside a clone by
+adding `.agents/plugins.json` (`{"entries": [{"path": "plugins"}]}`).
 
 ## What's in the plugin
 

@@ -75,17 +75,41 @@ RULES = [
 ]
 
 
-def deny(reason):
-    json.dump(
-        {
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": reason,
-            }
-        },
-        sys.stdout,
-    )
+BASH_TOOLS = {"Bash", "run_command"}
+
+
+def parse_event(data):
+    """Extract (is_antigravity, tool_name, tool_input) from a hook payload."""
+    if "toolCall" in data:
+        tc = data.get("toolCall") or {}
+        return True, tc.get("name", ""), tc.get("args") or {}
+    return False, data.get("tool_name", ""), data.get("tool_input") or {}
+
+
+def denied_reason(tool_name, command):
+    """The deny reason if this command violates secret/support safety, else None."""
+    if tool_name not in BASH_TOOLS or not command:
+        return None
+    for pattern, reason in RULES:
+        if pattern.search(command):
+            return reason
+    return None
+
+
+def deny_payload(reason, is_antigravity=False):
+    if is_antigravity:
+        return {"decision": "deny", "reason": reason}
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
+
+
+def deny(reason, is_antigravity=False):
+    json.dump(deny_payload(reason, is_antigravity=is_antigravity), sys.stdout)
     sys.exit(0)
 
 
@@ -95,13 +119,11 @@ def main():
     except json.JSONDecodeError:
         sys.exit(0)
 
-    if data.get("tool_name") != "Bash":
-        sys.exit(0)
-
-    command = data.get("tool_input", {}).get("command", "")
-    for pattern, reason in RULES:
-        if pattern.search(command):
-            deny(reason)
+    is_agy, tool_name, tool_input = parse_event(data)
+    command = tool_input.get("command") or tool_input.get("CommandLine") or ""
+    reason = denied_reason(tool_name, command)
+    if reason:
+        deny(reason, is_antigravity=is_agy)
 
     sys.exit(0)
 

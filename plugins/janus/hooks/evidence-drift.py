@@ -37,11 +37,42 @@ import re
 import sys
 from pathlib import Path
 
-WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+WRITE_TOOLS = {
+    "Write",
+    "Edit",
+    "MultiEdit",
+    "NotebookEdit",
+    "write_file",
+    "write_to_file",
+    "edit_file",
+    "replace_file_content",
+    "multi_replace_file_content",
+    "notebook_edit",
+}
 CASE_FILE = re.compile(
     r"^(?P<case>.*/cases/[^/]+)/"
     r"(?:case\.yaml|verdict\.md|(?:findings|results)/[^/]+\.md|audit/[^/]+)$"
 )
+
+
+def parse_event(data):
+    """Extract (is_antigravity, tool_name, tool_input) from a hook payload."""
+    if "toolCall" in data:
+        tc = data.get("toolCall") or {}
+        return True, tc.get("name", ""), tc.get("args") or {}
+    return False, data.get("tool_name", ""), data.get("tool_input") or {}
+
+
+def deny_payload(reason, is_antigravity=False):
+    if is_antigravity:
+        return {"decision": "deny", "reason": reason}
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
 
 
 def _file_sha(path):
@@ -105,20 +136,16 @@ def drift_reason(tool_name, file_path):
 def main():
     try:
         data = json.load(sys.stdin)
-        tool_input = data.get("tool_input", {})
-        file_path = tool_input.get("file_path") or tool_input.get("notebook_path")
-        reason = drift_reason(data.get("tool_name"), file_path)
+        is_agy, tool_name, tool_input = parse_event(data)
+        file_path = (
+            tool_input.get("file_path")
+            or tool_input.get("notebook_path")
+            or tool_input.get("Path")
+            or tool_input.get("TargetFile")
+        )
+        reason = drift_reason(tool_name, file_path)
         if reason:
-            json.dump(
-                {
-                    "hookSpecificOutput": {
-                        "hookEventName": "PreToolUse",
-                        "permissionDecision": "deny",
-                        "permissionDecisionReason": reason,
-                    }
-                },
-                sys.stdout,
-            )
+            json.dump(deny_payload(reason, is_antigravity=is_agy), sys.stdout)
     except Exception:
         pass
     finally:

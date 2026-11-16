@@ -104,12 +104,11 @@ each other — they are connected only by files on disk.
   human-gated proposals into `review-queue/`. Both are advisory —
   upstream-adviser never opens an issue or PR itself.
 
-Model assignment is per stage and deliberate (`inherit` for crash-analyze and
-lab-verify, which need heavy reasoning — they run on the session's model, so
-Opus from an Opus session and Sonnet where only Sonnet is available, e.g.
-Vertex AI; sonnet for everything else, synthesize included — mechanical
-pre-checks carry its quality); see the Model strategy
-table in `SKILL.md` before changing it. Assignments name a **family alias**
+Model assignment is `inherit` across all stages so every agent loads natively
+in both Claude Code and Antigravity — stages run on the session's model (Opus,
+Sonnet, or Gemini), while each findings file records the resolved model that
+actually ran (`model:`); see the Model strategy table in `SKILL.md` before
+changing it. Assignments name a **family alias**
 (`opus` / `sonnet` / `haiku` / `inherit`), never a versioned ID, so a model
 release needs no edit here — `validate.py`'s `validate_model_aliases()`
 fails on an agent `model:` that is not an alias and on any
@@ -199,7 +198,8 @@ stay usable. Preserve that property when touching them.
   written in, so cite another skill's file as `gslides/references/…`.
   The roster and Model strategy tables must stay in the janus SKILL.md —
   `validate.py` parses them there.
-- **Versioning**: bump `plugins/janus/.claude-plugin/plugin.json` and add a
+- **Versioning**: bump `plugins/janus/.claude-plugin/plugin.json` and
+  `plugins/janus/plugin.json` together, and add a
   `CHANGELOG.md` entry in the same commit — these have drifted before.
   `validate.py` fails when the current version has no CHANGELOG section.
   Do not tag by hand: `.github/workflows/release.yml` tags `v<version>`

@@ -36,8 +36,29 @@ import re
 import sys
 from pathlib import Path
 
+WRITE_ONLY_TOOLS = {"Write", "write_file", "write_to_file"}
 FINDINGS_FILE = re.compile(r"^.*/cases/[^/]+/findings/[^/]+\.md$")
 FINDING_ID = re.compile(r"^###\s+(F\d+)\s*:", re.M)
+
+
+def parse_event(data):
+    """Extract (is_antigravity, tool_name, tool_input) from a hook payload."""
+    if "toolCall" in data:
+        tc = data.get("toolCall") or {}
+        return True, tc.get("name", ""), tc.get("args") or {}
+    return False, data.get("tool_name", ""), data.get("tool_input") or {}
+
+
+def deny_payload(reason, is_antigravity=False):
+    if is_antigravity:
+        return {"decision": "deny", "reason": reason}
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
 
 
 def lost_findings(file_path, content):
@@ -74,22 +95,26 @@ def deny_reason(lost, file_path):
 def main():
     try:
         data = json.load(sys.stdin)
-        if data.get("tool_name") != "Write":
+        is_agy, tool_name, tool_input = parse_event(data)
+        if tool_name not in WRITE_ONLY_TOOLS:
             return
-        tool_input = data.get("tool_input", {})
-        file_path = tool_input.get("file_path")
+        file_path = (
+            tool_input.get("file_path")
+            or tool_input.get("Path")
+            or tool_input.get("TargetFile")
+        )
         if not file_path:
             return
-        lost = lost_findings(file_path, tool_input.get("content", ""))
+        content = (
+            tool_input.get("content")
+            or tool_input.get("Content")
+            or tool_input.get("CodeContent")
+            or ""
+        )
+        lost = lost_findings(file_path, content)
         if lost:
             json.dump(
-                {
-                    "hookSpecificOutput": {
-                        "hookEventName": "PreToolUse",
-                        "permissionDecision": "deny",
-                        "permissionDecisionReason": deny_reason(lost, file_path),
-                    }
-                },
+                deny_payload(deny_reason(lost, file_path), is_antigravity=is_agy),
                 sys.stdout,
             )
     except Exception:

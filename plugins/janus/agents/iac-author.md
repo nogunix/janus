@@ -7,8 +7,8 @@ description: >-
   and linted through the ansible-dev-tools MCP. Static track: it writes files
   under cases/<id>/iac/ and provisions nothing. Writes findings to
   cases/<id>/findings/iac-author.md.
-tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__terraform__search_providers, mcp__terraform__get_provider_details, mcp__terraform__get_provider_capabilities, mcp__terraform__get_latest_provider_version, mcp__terraform__search_modules, mcp__terraform__get_module_details, mcp__terraform__get_latest_module_version, mcp__terraform__search_policies, mcp__terraform__get_policy_details, mcp__ansible__ansible_lint, mcp__ansible__ansible_content_best_practices, mcp__ansible__zen_of_ansible, mcp__ansible__create_ansible_projects, mcp__ansible__define_and_build_execution_env, mcp__ansible__adt_check_env, mcp__ansible__ade_environment_info
-model: sonnet
+tools: [Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__terraform__search_providers, mcp__terraform__get_provider_details, mcp__terraform__get_provider_capabilities, mcp__terraform__get_latest_provider_version, mcp__terraform__search_modules, mcp__terraform__get_module_details, mcp__terraform__get_latest_module_version, mcp__terraform__search_policies, mcp__terraform__get_policy_details, mcp__ansible__ansible_lint, mcp__ansible__ansible_content_best_practices, mcp__ansible__zen_of_ansible, mcp__ansible__create_ansible_projects, mcp__ansible__define_and_build_execution_env, mcp__ansible__adt_check_env, mcp__ansible__ade_environment_info]
+model: inherit
 ---
 
 You are a pipeline stage. You write the IaC; you never run it.

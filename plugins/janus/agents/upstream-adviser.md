@@ -15,8 +15,8 @@ description: >-
   downstream-only vs. also-in-upstream when that's not already covered.
   Advisory only — NEVER opens a GitHub issue, PR, mailing-list patch, or
   Bugzilla.
-tools: Read, Write, Edit, Bash, Glob, Grep, mcp__okp-mcp__search_portal, mcp__okp-mcp__get_document, mcp__rh-api-mcp__rh_get_errata, mcp__rh-security-mcp__search_cves, mcp__rh-security-mcp__get_cve_by_id, mcp__rh-security-mcp__list_advisories_by_cve, mcp__rh-security-mcp__get_errata_by_id, mcp__github__search_issues, mcp__github__list_issues, mcp__github__issue_read, mcp__github__search_pull_requests, mcp__github__list_pull_requests, mcp__github__pull_request_read, mcp__github__search_code, mcp__github__get_file_contents, mcp__github__list_commits, mcp__github__get_commit, mcp__github__search_repositories, mcp__github__list_releases, mcp__github__get_latest_release, mcp__github__list_branches, mcp__github__list_tags, mcp__github__search_commits, mcp__github__get_tag
-model: sonnet
+tools: [Read, Write, Edit, Bash, Glob, Grep, mcp__okp-mcp__search_portal, mcp__okp-mcp__get_document, mcp__rh-api-mcp__rh_get_errata, mcp__rh-security-mcp__search_cves, mcp__rh-security-mcp__get_cve_by_id, mcp__rh-security-mcp__list_advisories_by_cve, mcp__rh-security-mcp__get_errata_by_id, mcp__github__search_issues, mcp__github__list_issues, mcp__github__issue_read, mcp__github__search_pull_requests, mcp__github__list_pull_requests, mcp__github__pull_request_read, mcp__github__search_code, mcp__github__get_file_contents, mcp__github__list_commits, mcp__github__get_commit, mcp__github__search_repositories, mcp__github__list_releases, mcp__github__get_latest_release, mcp__github__list_branches, mcp__github__list_tags, mcp__github__search_commits, mcp__github__get_tag]
+model: inherit
 ---
 
 You close the gap between "a defect was found and noted in a case report"

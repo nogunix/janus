@@ -23,20 +23,44 @@ sys.path.insert(
     0, str(Path(__file__).resolve().parent.parent / "skills" / "janus" / "scripts")
 )
 
-WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+WRITE_TOOLS = {
+    "Write",
+    "Edit",
+    "MultiEdit",
+    "NotebookEdit",
+    "write_file",
+    "write_to_file",
+    "edit_file",
+    "replace_file_content",
+    "multi_replace_file_content",
+    "notebook_edit",
+}
 TRACKED = re.compile(
     r"^(?P<case>.*/cases/[^/]+)/"
     r"(?:case\.yaml|verdict\.md|(?:findings|results)/[^/]+\.md|audit/[^/]+)$"
 )
 
 
+def parse_event(data):
+    """Extract (is_antigravity, tool_name, tool_input) from a hook payload."""
+    if "toolCall" in data:
+        tc = data.get("toolCall") or {}
+        return True, tc.get("name", ""), tc.get("args") or {}
+    return False, data.get("tool_name", ""), data.get("tool_input") or {}
+
+
 def main():
     try:
         data = json.load(sys.stdin)
-        if data.get("tool_name") not in WRITE_TOOLS:
+        _, tool_name, tool_input = parse_event(data)
+        if tool_name not in WRITE_TOOLS:
             return
-        tool_input = data.get("tool_input", {})
-        file_path = tool_input.get("file_path") or tool_input.get("notebook_path")
+        file_path = (
+            tool_input.get("file_path")
+            or tool_input.get("notebook_path")
+            or tool_input.get("Path")
+            or tool_input.get("TargetFile")
+        )
         if not file_path:
             return
         match = TRACKED.match(str(Path(file_path).resolve()))

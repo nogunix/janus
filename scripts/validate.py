@@ -71,6 +71,17 @@ def parse_frontmatter(md: Path) -> dict | None:
     return fm
 
 
+SKILL_BODY_MAX_BYTES = 24_000
+
+
+def parse_tools(fm: dict) -> set[str]:
+    """Parse an agent's `tools:` frontmatter value (`[a, b]` or `a, b`)."""
+    raw = fm.get("tools", "").strip()
+    if raw.startswith("[") and raw.endswith("]"):
+        raw = raw[1:-1]
+    return {t.strip() for t in raw.split(",") if t.strip()}
+
+
 def validate_named_md(md: Path, kind: str) -> None:
     """Shared checks for SKILL.md (name==dir) and agents/*.md (name==stem)."""
     fm = parse_frontmatter(md)
@@ -89,25 +100,68 @@ def validate_named_md(md: Path, kind: str) -> None:
         error(f"Missing 'description' in frontmatter: {rel(md)}")
     elif len(desc) < 20:
         error(f"Description too short (<20 chars) in {rel(md)}")
-    if kind == "agent" and not fm.get("tools"):
-        error(f"Missing 'tools' in frontmatter: {rel(md)}")
+    if kind == "agent":
+        tools_raw = fm.get("tools", "").strip()
+        if not tools_raw:
+            error(f"Missing 'tools' in frontmatter: {rel(md)}")
+        elif not (tools_raw.startswith("[") and tools_raw.endswith("]")):
+            error(
+                f"'tools' in {rel(md)} must be a YAML flow list '[Read, ...]' "
+                "so Antigravity's []string unmarshaler and Claude Code both accept it"
+            )
+    if kind == "skill":
+        text = md.read_text()
+        end = text.find("\n---\n", 4)
+        if end != -1:
+            body_bytes = len(text[end + 5 :].encode("utf-8"))
+            if body_bytes > SKILL_BODY_MAX_BYTES:
+                error(
+                    f"{rel(md)} body is {body_bytes} bytes (>{SKILL_BODY_MAX_BYTES}); "
+                    "Antigravity truncates SKILL.md bodies past 24,000 bytes — "
+                    "move detail to references/"
+                )
 
 
 def validate_hooks(plugin_dir: Path) -> None:
+    claude_scripts: set[str] = set()
     hooks_json = plugin_dir / "hooks" / "hooks.json"
-    if not hooks_json.exists():
+    if hooks_json.exists():
+        data = load_json(hooks_json, ["hooks"])
+        if data is not None:
+            for event, matchers in data.get("hooks", {}).items():
+                for matcher in matchers:
+                    for hook in matcher.get("hooks", []):
+                        cmd = hook.get("command", "")
+                        for m in re.finditer(r"\$\{CLAUDE_PLUGIN_ROOT\}/(\S+?)(?=[\s\"])", cmd):
+                            claude_scripts.add(m.group(1))
+                            script = plugin_dir / m.group(1)
+                            if not script.exists():
+                                error(f"Hook script missing: {rel(hooks_json)} → {m.group(1)}")
+
+    agy_hooks_json = plugin_dir / "hooks.json"
+    if not agy_hooks_json.exists():
+        error(f"Missing Antigravity root hooks file: {rel(agy_hooks_json)}")
         return
-    data = load_json(hooks_json, ["hooks"])
-    if data is None:
+    agy_data = load_json(agy_hooks_json, ["janus"])
+    if agy_data is None:
         return
-    for event, matchers in data.get("hooks", {}).items():
+    agy_scripts: set[str] = set()
+    for event, matchers in agy_data.get("janus", {}).items():
+        if not isinstance(matchers, list):
+            continue
         for matcher in matchers:
             for hook in matcher.get("hooks", []):
                 cmd = hook.get("command", "")
-                for m in re.finditer(r"\$\{CLAUDE_PLUGIN_ROOT\}/(\S+?)(?=[\s\"])", cmd):
+                for m in re.finditer(r"\./(hooks/\S+?)(?=[\s\"])", cmd):
+                    agy_scripts.add(m.group(1))
                     script = plugin_dir / m.group(1)
                     if not script.exists():
-                        error(f"Hook script missing: {rel(hooks_json)} → {m.group(1)}")
+                        error(f"Hook script missing: {rel(agy_hooks_json)} → {m.group(1)}")
+    if claude_scripts and agy_scripts != claude_scripts:
+        error(
+            f"Hook script mismatch between {rel(hooks_json)} ({sorted(claude_scripts)}) "
+            f"and {rel(agy_hooks_json)} ({sorted(agy_scripts)})"
+        )
 
 
 def validate_pipeline_stage_sync(plugin_dir: Path) -> None:
@@ -344,7 +398,7 @@ def validate_mcp_server_aliases(plugin_dir: Path) -> None:
         fm = parse_frontmatter(agent_md)
         if fm is None:
             continue
-        granted = {t.strip() for t in fm.get("tools", "").split(",")}
+        granted = parse_tools(fm)
         by_server: dict[str, set[str]] = {}
         for tool in granted:
             m = re.fullmatch(r"mcp__([\w-]+)__(.+)", tool)
@@ -500,7 +554,7 @@ def validate_tool_grants(plugin_dir: Path) -> None:
         fm = parse_frontmatter(agent_md)
         if fm is None:
             continue
-        granted = {t.strip() for t in fm.get("tools", "").split(",")}
+        granted = parse_tools(fm)
         for tool, why in FORBIDDEN_TOOL_GRANTS.items():
             if tool in granted:
                 error(f"{rel(agent_md)} grants '{tool}' — {why}")
@@ -581,10 +635,24 @@ def main() -> int:
 
     for plugin_dir in plugin_dirs:
         print(f"Validating plugin: {rel(plugin_dir)}")
-        load_json(
+        claude_manifest = load_json(
             plugin_dir / ".claude-plugin" / "plugin.json",
             ["name", "description", "version"],
         )
+        agy_manifest = load_json(
+            plugin_dir / "plugin.json",
+            ["name", "description", "version"],
+        )
+        if claude_manifest and agy_manifest:
+            for key in ("name", "description", "version"):
+                if claude_manifest.get(key) != agy_manifest.get(key):
+                    error(
+                        f"Manifest mismatch on '{key}': .claude-plugin/plugin.json "
+                        f"!= plugin.json in {rel(plugin_dir)}"
+                    )
+            logo = agy_manifest.get("logo")
+            if logo and not (plugin_dir / logo).is_file():
+                error(f"Missing plugin logo: {rel(plugin_dir / logo)}")
         if (plugin_dir / ".mcp.json").exists():
             load_json(plugin_dir / ".mcp.json", ["mcpServers"])
 

@@ -86,9 +86,9 @@ guidance for iac-author. **Only the authoring subset is granted**:
 `ansible_navigator` executes playbooks and `ade_setup_environment` runs
 the host package manager, so neither is in any agent's tool list). Not bundled with
 the plugin — paths are environment-specific, so register them yourself
-(`claude mcp add …`); confirm `claude mcp list` shows them `✔ Connected`
-before relying on them (a tool being advertised ≠ the server being
-connected).
+(`claude mcp add …` or `agy mcp add …`); confirm `claude mcp list` or
+`agy mcp list` shows them `✔ Connected` before relying on them (a tool
+being advertised ≠ the server being connected).
 
 ## The registered name is part of the contract
 

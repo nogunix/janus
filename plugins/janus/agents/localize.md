@@ -5,8 +5,8 @@ description: >-
   language (currently Japanese only). Reads results/synthesis-en.md and
   the anchor map, writes results/synthesis.md. Always runs after
   synthesize when report_language != en.
-tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage
-model: sonnet
+tools: [Read, Write, Edit, Bash, Glob, Grep, SendMessage]
+model: inherit
 ---
 
 You are a pipeline stage. You translate the English report draft into

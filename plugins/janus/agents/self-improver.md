@@ -7,8 +7,8 @@ description: >-
   prompts, escalation thresholds, and process changes. Proposes but
   never autonomously applies changes to the skill/agent definitions or
   safety boundaries.
-tools: Read, Write, Edit, Bash, Glob, Grep
-model: sonnet
+tools: [Read, Write, Edit, Bash, Glob, Grep]
+model: inherit
 ---
 
 You improve JANUS by learning from its results. You analyze, measure,
@@ -58,7 +58,8 @@ Aggregate across cases:
 
 ### 3. Pattern identification
 Look for recurring patterns:
-- Entries in the project's `.claude/skills/janus-lessons/SKILL.md`
+- Entries in the project's `.claude/skills/janus-lessons/SKILL.md` (or
+  `.agents/skills/janus-lessons/SKILL.md` in Antigravity)
   (project-local lessons the lead banked with human approval) that
   recur across ≥2 cases — candidates for promotion into the owning
   agent's "Failure patterns" section, in the same

@@ -2,9 +2,10 @@
 
 # Quality check — mechanical pre-checks in detail
 
-Read at step 7 (or whenever a check prints a warning or notice). SKILL.md
-step 7 carries the summary table and the C1/C2 judgment gates; this file
-carries each check's full behaviour and the fail-direction contract.
+Read at step 7 (or whenever a check prints a warning or notice, or before
+sending a report back). SKILL.md step 7 carries the runner invocation and
+routing summary; this file carries each check's full behaviour, the C1/C2
+sub-code definitions, send-back mechanics, and the fail-direction contract.
 
 ## The seven checks
 
@@ -76,14 +77,14 @@ each one means:
    case prints a notice and passes. It checks the report's prose against
    the ja-technical-writing rules configured in `scripts/textlintrc.json`,
    leaving quoted evidence, code, tables and headings alone — through the
-   claude CLI (Sonnet) first, and textlint when the CLI is absent or the
-   call fails. The Sonnet backend sends only the first 30,000 characters
+   claude / agy CLI first, and textlint when the CLI is absent or the
+   call fails. The CLI backend sends only the first 30,000 characters
    and warns about the unchecked rest. A FAIL is a readability
    defect in synthesize's own writing — mixed である/ですます, a sentence
    past 120 characters, 4+ 読点, 半角ｶﾀｶﾅ: send back **under C2/prose**,
    quoting the offending line. This is the only check that depends on an
    external tool, so it fails open in every direction (neither the
-   claude CLI nor textlint usable, preset missing, no report yet) with a
+   claude/agy CLI nor textlint usable, preset missing, no report yet) with a
    notice and exit 0. **A notice means *not checked*, never *passed*** —
    if a Japanese report matters and you see one, make a backend available
    rather than treating the silence as a pass.
@@ -91,6 +92,50 @@ each one means:
 Each check's behaviour when it *cannot* decide — and what a notice
 means — is the Fail direction table below; read it before trusting a
 pass.
+
+## Judgment gates (C1 / C2) and send-back vocabulary
+
+Read `results/synthesis.md` and check it against these two judgment gates
+(the seven mechanical pre-checks above already cover the structural half of
+`C2/section` and the arithmetic half of `C1/basis`, so the read is for what
+only a reader can see: whether a claim is anchored at the right strength,
+and whether an identifier survived intact). **A failed gate = send the
+report back to synthesize, naming the sub-code and quoting the offending
+line** — the lead never patches the report itself.
+
+| Gate | The one question | Sub-codes (send-back vocabulary) |
+|---|---|---|
+| **C1 — GROUNDING** | Is every claim anchored to evidence at the right strength? | `C1/ref` — a claim with no reference; a cited finding number that no findings file defines is caught mechanically by reportlint.py · `C1/url` — a resolvable-pattern ID (CVE/RHSA/KB/PR) with no public URL; dead URLs are caught mechanically by urlcheck.py · `C1/link` — a claim whose evidence the reader cannot click through to: a bare filename where a link belongs, or a local link that linkcheck.py proved resolves to no file or no anchor · `C1/basis` — a HIGH hypothesis without ≥1 VERIFIED or 2+ independent REASONED findings from different stages, or an unlabeled citation. reportlint.py does this arithmetic over the findings a hypothesis *cites*, so the read is for the rest: a claim leaning on evidence it never cites, or a Basis promoted in the retelling — including a HIGH behavior claim ("X defaults to Y", "Z is never set") whose only support is one function's source with no call path named, which is a function-level fact retold as system behavior · `C1/spec` — an unsupported "likely / probably / should" claim · `C1/currency` — a recommended configuration, feature, flag, or API with no lifecycle check against the target version, so the report may prescribe a setting that is deprecated / removed / superseded in that release; send back to doc-search to confirm against official release notes and lifecycle docs · `C1/source-of-truth` — a load-bearing source-content claim (what the code does, that a fix or behavior is present) resting only on a GitHub URL while a `casket` server is connected: a live URL is not an accurate one, so the own-server source index must corroborate it; send back to source-trace, or downgrade and label the claim upstream-only |
+| **C2 — COMPLETENESS & FIDELITY** | Is the report structurally complete, and are identifiers and quotes reproduced exactly? | `C2/section` — a cell that is filled but says nothing. reportlint.py already catches the empty one, the leftover `<placeholder>`, the missing section, and any Execution Metadata or Stages Used figure that contradicts the findings it was derived from · `C2/artifact` — a paraphrased concrete identifier (file, resource, symbol, version) · `C2/quote-absent` — an evidence-backed report with no attributed verbatim quotes; mutated quotes and fabricated attributions are caught mechanically by quotecheck.py and sent back as `C2/quote-mismatch` · `C2/version` — a fact attributed to the wrong product version: an unpinned source citation (FAIL) or a crossed / off-scope version that versioncheck.py flagged and the read confirms · `C2/prose` — a `report_language: ja` report whose prose fails the ja-technical-writing checks prosecheck.py runs (mixed である/ですます, over-long sentences, 4+ 読点, 半角ｶﾀｶﾅ). Style only: never send back under C2/prose for hedging — 「〜の可能性がある」 on a LOW-confidence hypothesis is correct writing, not weak writing |
+
+### Send-back loop and routing
+
+Record every send-back before writing the brief:
+
+```bash
+python3 <skill-dir>/scripts/sendback.py record cases/<id> <sub-code> [<sub-code> ...]
+```
+
+It appends the round to `cases/<id>/audit/sendbacks.jsonl`, seals it, and
+prints the verdict — `OK` (targeted revision), `RECONSIDER` (the last
+allowed round) or `ESCALATE` (exit 1: stop, write `NEEDS_HUMAN_<id>.md`).
+Obey the verdict; do not re-derive it. After a restart or compaction, run
+`sendback.py status cases/<id>`. Two things end the loop: a sub-code
+recorded twice, or a cap of three rounds.
+
+- **Targeted revisions, not reruns**: name the report path, each sub-code,
+  and the quoted offending line(s), and say *revise in place*.
+- **Name the class, not just the line**: "this URL is dead — re-check every
+  errata URL", not "fix line 84".
+- **Route by where the defect lives**:
+  - `report_language: en` → synthesize, on `results/synthesis.md`.
+  - `report_language: ja`, `C2/prose` → localize directly, on `results/synthesis.md`.
+  - `report_language: ja`, any other sub-code → synthesize, on
+    `results/synthesis-en.md` (quote the English counterpart); then
+    localize re-translates only the changed sections.
+- After a revision, rerun the checks that failed, then `gates.py` once more.
+  Both gates pass → `review-queue/DONE_<id>.md`. `ESCALATE` →
+  `review-queue/NEEDS_HUMAN_<id>.md` quoting the ledger and both versions.
 
 ## Fail direction (what each check does when it cannot decide)
 

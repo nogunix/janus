@@ -2,6 +2,42 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.49.0 — 2026-11-16
+
+**Native Antigravity (`agy`) support alongside Claude Code.** JANUS now installs
+and runs directly in both Claude Code and Google Antigravity without a build or
+conversion step:
+
+- **`plugins/janus/plugin.json`**, **`plugins/janus/hooks.json`**,
+  **`plugins/janus/assets/logo.svg`**: native Antigravity plugin manifest, root
+  `hooks.json`, and icon alongside `.claude-plugin/plugin.json` and
+  `hooks/hooks.json`. `agy plugin install plugins/janus` and workspace
+  discovery (`.agents/plugins.json`) both load all 6 skills, 11 agents, and 5
+  hook scripts directly.
+- **`plugins/janus/agents/*.md`**: `tools:` frontmatter uses YAML flow-sequence
+  syntax (`[Read, Write, ...]`) so Antigravity's `[]string` YAML unmarshaler
+  and Claude Code both accept it; `model:` is unified to `inherit` across all
+  11 agents (the intersection of Claude Code's family aliases and Antigravity's
+  model tiers).
+- **`plugins/janus/hooks/*.py`**: all five hooks (`secret-safety.py`,
+  `evidence-lock.py`, `evidence-drift.py`, `findings-truncation.py`,
+  `evidence-chain.py`) accept both Claude Code (`tool_name` / `tool_input`,
+  `hookSpecificOutput`) and Antigravity (`toolCall.name` / `toolCall.args`,
+  `{"decision": "deny", "reason": ...}`) payloads and tool names (`run_command`,
+  `write_file`, `write_to_file`, `edit_file`, `replace_file_content`,
+  `multi_replace_file_content`, `notebook_edit`).
+- **`plugins/janus/skills/janus/SKILL.md`**,
+  **`references/quality-gates.md`**: moved detailed C1/C2 sub-code reference
+  definitions and send-back mechanics into `references/quality-gates.md` so
+  `SKILL.md` stays under Antigravity's 24,000-byte skill body limit.
+- **`plugins/janus/skills/janus/scripts/prosecheck.py`**: `sonnet_command()`
+  falls back to `agy -p` when `claude` is absent before falling back to
+  `textlint`.
+- **`scripts/validate.py`**, **`scripts/selftest.py`**: enforces `plugin.json` ↔
+  `.claude-plugin/plugin.json` sync, `hooks.json` ↔ `hooks/hooks.json` script
+  parity, YAML flow-list `tools:` syntax, and the 24,000-byte `SKILL.md` body
+  cap; self-tests cover Antigravity hook payloads and tool names.
+
 ## 0.48.0 — 2026-11-12
 
 **Two PPTX builders did the same job.** The deck skill carried its own

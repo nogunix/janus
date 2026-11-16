@@ -248,8 +248,25 @@ def test_lock():
         )
         check(
             lock_hook.locked_reason("Write", str(finding)) is not None
-            and lock_hook.locked_reason("Edit", str(finding)) is not None,
-            "hook denies Write/Edit to locked evidence",
+            and lock_hook.locked_reason("Edit", str(finding)) is not None
+            and lock_hook.locked_reason("write_file", str(finding)) is not None
+            and lock_hook.locked_reason("edit_file", str(finding)) is not None,
+            "hook denies Write/Edit and Antigravity write_file/edit_file to locked evidence",
+        )
+        secret_hook = load("secret-safety", HOOKS)
+        check(
+            secret_hook.denied_reason("Bash", "oc get secret foo -o yaml") is not None
+            and secret_hook.denied_reason("run_command", "oc get secret foo -o yaml") is not None
+            and secret_hook.denied_reason("run_command", "oc get secret foo -o jsonpath='{.data.x}'") is None,
+            "secret-safety hook guards both Claude Code (Bash) and Antigravity (run_command)",
+        )
+        is_agy, tname, targs = secret_hook.parse_event(
+            {"toolCall": {"name": "run_command", "args": {"CommandLine": "ls"}}}
+        )
+        check(
+            is_agy and tname == "run_command" and targs.get("CommandLine") == "ls"
+            and secret_hook.deny_payload("no", is_antigravity=True) == {"decision": "deny", "reason": "no"},
+            "Antigravity toolCall payload and deny contract are handled",
         )
         check(
             lock_hook.locked_reason("Write", str(case / "results" / "synthesis.md"))

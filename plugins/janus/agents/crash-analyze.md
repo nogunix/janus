@@ -5,7 +5,7 @@ description: >-
   Uses drgn-mcp for vmcore (kernel) and GDB for coredump (userspace).
   Runs iterative observe-hypothesize-probe loops (up to 5 rounds).
   Writes findings to cases/<id>/findings/crash-analyze.md.
-tools: Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__drgn__load_core_dump, mcp__drgn__get_crashed_thread, mcp__drgn__list_tasks, mcp__drgn__get_dmesg, mcp__drgn__get_oom_info, mcp__drgn__eval_expression, mcp__drgn__get_running_tasks
+tools: [Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__drgn__load_core_dump, mcp__drgn__get_crashed_thread, mcp__drgn__list_tasks, mcp__drgn__get_dmesg, mcp__drgn__get_oom_info, mcp__drgn__eval_expression, mcp__drgn__get_running_tasks]
 model: inherit
 ---
 
@@ -24,7 +24,7 @@ Read `cases/<id>/case.yaml` for:
 - **vmcore + vmlinux** → drgn-mcp (kernel space analysis)
 - **coredump + binary** → GDB via Bash (userspace analysis)
 
-Confirm drgn-mcp connectivity before use (`claude mcp list`).
+Confirm drgn-mcp connectivity before use (`claude mcp list` or `agy mcp list`).
 If drgn is unavailable, record the gap and attempt GDB-based analysis if applicable.
 
 ## How you work (drgn path)
@@ -161,7 +161,7 @@ drgn vmcore triage:
   + syscall regs (ORIG_RAX/RDI/RSI) instead.
 - SysRq signature = stop early (2 rounds): dmesg "sysrq: Trigger a crash" →
   `sysrq_handle_crash → panic`, Not tainted, other CPUs idle ⇒ "manual SysRq c".
-- Verify drgn is live with `claude mcp list` (`drgn ✔ Connected`), not by the
+- Verify drgn is live with `claude mcp list` / `agy mcp list` (`drgn ✔ Connected`), not by the
   tools merely being advertised.
 
 Refute an a-priori hypothesis (anti-confirmation-bias):
