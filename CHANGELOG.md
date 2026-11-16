@@ -2,6 +2,17 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.49.1 — 2026-11-16
+
+**Fan-in: restore the silent-stage rule lost in the 0.49.0 SKILL.md trim.**
+Step 5 again tells the lead to proceed on the findings files even when a
+completion notification never arrives, and to treat a stage with no file
+that has been silent well past its expected duration (no running task, no
+partial output) as failed — recorded in `cases/<id>/audit/`, pipeline
+continues without it. Without this, a background stage that died before
+writing its file left the lead waiting indefinitely, in Claude Code and
+Antigravity alike.
+
 ## 0.49.0 — 2026-11-16
 
 **Native Antigravity (`agy`) support alongside Claude Code.** JANUS now installs

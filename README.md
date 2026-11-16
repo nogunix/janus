@@ -1,8 +1,9 @@
-# JANUS — Claude Code plugin
+# JANUS — Claude Code & Antigravity plugin
 
 [![CI](https://github.com/nogunix/janus/actions/workflows/ci.yml/badge.svg)](https://github.com/nogunix/janus/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Plugin-blueviolet)](https://claude.ai/code)
+[![Antigravity](https://img.shields.io/badge/Antigravity-Plugin-4285F4)](https://antigravity.google)
 [![GitHub last commit](https://img.shields.io/github/last-commit/nogunix/janus)](https://github.com/nogunix/janus/commits/main)
 
 > **Janus**, the Roman god of gates, has two faces looking in opposite
@@ -14,10 +15,10 @@
 > meet at the same root cause.
 
 An OpenShift / RHEL / CNV **research & investigation pipeline** for
-Claude Code — case types range from kernel crash forensics to
-upgrade/compatibility analysis, CVE impact assessment, and
-operator/component behavior investigation. JANUS uses Claude Code itself as
-the orchestrator: the lead session composes a pipeline of small agent stages
+Claude Code and Antigravity (`agy`) — case types range from kernel crash
+forensics to upgrade/compatibility analysis, CVE impact assessment, and
+operator/component behavior investigation. JANUS uses the host agent
+itself as the orchestrator: the lead session composes a pipeline of small agent stages
 per case type, gates the dynamic ones, and
 hands a ranked-hypothesis report to a human. It lays evidence and hypotheses on
 the table — the human makes the final call.

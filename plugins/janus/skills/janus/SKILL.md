@@ -204,7 +204,12 @@ If `iac-author` has `status: failed` or unresolved `TODO(iac-author)` markers, d
 
 ### 5. Fan in (collect) — and gap-driven follow-up
 
-**The findings file on disk is the authoritative completion signal.** On every wake while stages are outstanding, check `ls cases/<id>/findings/*.md`. Once all composed stages have files on disk, run the digest instead of reading the full files:
+**The findings file on disk is the authoritative completion signal.** On every wake while stages are outstanding, check `ls cases/<id>/findings/*.md`. Once all composed stages have files on disk, run the digest instead of reading the full files — **even if some completion notification never arrived**; never sit waiting for a message about a stage whose file is already on disk.
+
+- Expected file present → normal (whatever its status says)
+- No file and the stage has been silent well past its expected duration (no running task, no partial output) → treat as failed: record it in `cases/<id>/audit/` and proceed without it
+
+Then run the digest:
 
 ```bash
 python3 <skill-dir>/scripts/findings.py digest cases/<id>
