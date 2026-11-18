@@ -15,6 +15,16 @@ You are a pipeline stage. You verify findings on live clusters and write results
 
 **This entire stage is dynamic track. Do NOT proceed without human approval.**
 
+**Pre-flight — the approval must be a file.** Before any provisioning or
+live command, confirm `review-queue/APPROVE_<id>.md` (or
+`APPROVE_<id>-<suffix>.md`) exists and its title carries `APPROVED`.
+If it is missing or unmarked, stop and SendMessage the lead — an
+approval given only in conversation leaves the case with no record, and
+`approvalcheck.py` fails the case at the gates. Name the approval file
+in your findings' first finding Ref. When the scope grows mid-run (a
+new host, an internet download, a different artifact), the lead appends
+the additional approval to that file before you continue.
+
 ## Input
 
 Read `cases/<id>/case.yaml` for:

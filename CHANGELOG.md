@@ -2,6 +2,30 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.51.0 — 2026-11-18
+
+**Lab work needs an approval file, checked at the gates.** Every prompt
+says lab-verify runs only after the human approves
+`review-queue/APPROVE_<id>.md`, but nothing checked that the file exists
+once the lab work is done. A case reached handoff with a full
+lab-verify findings file and no approval file; the approval had likely
+been given only in conversation, so the case could not show it.
+
+- **`scripts/approvalcheck.py`** (new): FAIL when
+  `findings/lab-verify.md` exists and no `APPROVE_<id>.md` /
+  `APPROVE_<id>-<suffix>.md` does in the `review-queue/` next to
+  `cases/`; warn when approval files carry no `APPROVED` / `承認済`
+  marker. No fail-open path.
+- **`gates.py`**: runs it second, after `chain` — now eight checks.
+  A FAIL routes like a chain FAIL (audit record + `NEEDS_HUMAN`), since
+  synthesize cannot fix it. SKILL.md step 4 tells the lead to mark the
+  approval file's title `APPROVED <date>`; step 7 table,
+  `quality-gates.md` and README updated.
+- **`agents/lab-verify.md`**: pre-flight — confirm the approval file
+  exists and is marked before any live command, cite it in the first
+  finding's Ref, and have the lead append scope growth to it.
+- **`scripts/selftest.py`**: `test_approvalcheck`.
+
 ## 0.50.0 — 2026-11-18
 
 **Shell writes to sealed evidence are denied, and `chain.py seal` no

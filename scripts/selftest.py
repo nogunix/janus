@@ -386,6 +386,36 @@ def test_evidence_shell_hook():
               "library seal() stays permissive for the tracked-write hook")
 
 
+def test_approvalcheck():
+    """From JANUS-028: lab-verify findings reached handoff with no
+    APPROVE file; the approval had been given only in conversation."""
+    ac = load("approvalcheck")
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        case = root / "cases" / "JANUS-901"
+        (case / "findings").mkdir(parents=True)
+        problems, warnings, _ = ac.run(case)
+        check(not problems and not warnings,
+              "approvalcheck: no lab-verify findings needs no approval")
+        (case / "findings" / "lab-verify.md").write_text("F1\n")
+        problems, _, _ = ac.run(case)
+        check(problems and "APPROVE_JANUS-901.md" in problems[0],
+              "approvalcheck: lab-verify findings with no approval file is a FAIL")
+        queue = root / "review-queue"
+        queue.mkdir()
+        (queue / "APPROVE_JANUS-9012.md").write_text("# APPROVED\n")
+        problems, _, _ = ac.run(case)
+        check(bool(problems), "approvalcheck: another case's file (JANUS-9012) does not count")
+        (queue / "APPROVE_JANUS-901-lab.md").write_text("# APPROVE — request\n")
+        problems, warnings, _ = ac.run(case)
+        check(not problems and warnings,
+              "approvalcheck: an unmarked request file warns, not passes")
+        (queue / "APPROVE_JANUS-901-lab.md").write_text("# APPROVE — lab — **APPROVED 2026-11-18**\n")
+        problems, warnings, oks = ac.run(case)
+        check(not problems and not warnings and oks,
+              "approvalcheck: a marked approval file passes")
+
+
 def test_quotecheck():
     quotecheck = load("quotecheck")
     with tempfile.TemporaryDirectory() as td:
@@ -1759,6 +1789,7 @@ def main():
     test_chain()
     test_lock()
     test_evidence_shell_hook()
+    test_approvalcheck()
     test_findings_truncation_hook()
     test_evidence_drift_hook()
     test_retire()

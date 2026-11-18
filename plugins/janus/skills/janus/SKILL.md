@@ -193,7 +193,7 @@ Stage contract:
 ### 4. Gate dynamic stages
 
 If the pipeline has a dynamic stage:
-1. Generate `review-queue/APPROVE_<id>.md` (quoting `iac-author`'s "What this builds" table when `iac-author` is composed) and present it to the human.
+1. Generate `review-queue/APPROVE_<id>.md` (on approval, mark its title `APPROVED <date>`; quoting `iac-author`'s "What this builds" table when `iac-author` is composed) and present it to the human.
 2. Approved → launch `lab-verify` (only after `cases/<id>/findings/iac-author.md` exists when `iac-author` is composed).
 3. Rejected → skip and pass to `synthesize` as a gap.
 
@@ -261,7 +261,7 @@ After `results/synthesis-en.md` exists, launch `localize` with:
 
 ### 7. Quality check (the lead's own job) — named gates
 
-Run the seven mechanical pre-checks in one call:
+Run the eight mechanical pre-checks in one call:
 
 ```bash
 python3 <skill-dir>/scripts/gates.py cases/<id>
@@ -270,12 +270,13 @@ python3 <skill-dir>/scripts/gates.py cases/<id>
 | # | Command | FAIL → |
 |---|---|---|
 | 1 | `chain.py verify cases/<id>` | evidence tampered after seal → record in `audit/`, write `review-queue/NEEDS_HUMAN_<id>.md` |
-| 2 | `reportlint.py cases/<id>` | missing section/cell or mismatched count/`model:` → **C2/section**; unsupported hypothesis rank → **C1/basis**; nonexistent finding ref → **C1/ref** |
-| 3 | `urlcheck.py cases/<id>/results/synthesis.md` | dead citation (404/410, unresolvable host) → **C1/url** |
-| 4 | `quotecheck.py cases/<id>/results/synthesis.md` | mutated/fabricated quote → **C2/quote-mismatch**; no attributed quotes → **C2/quote-absent** |
-| 5 | `versioncheck.py cases/<id>` | unpinned source citation → **C2/version** |
-| 6 | `linkcheck.py cases/<id>/results/synthesis.md` | local link resolves to no file/anchor → **C1/link** |
-| 7 | `prosecheck.py cases/<id>` | `report_language: ja` only — prose defect → **C2/prose** |
+| 2 | `approvalcheck.py cases/<id>` | lab-verify ran with no `review-queue/APPROVE_<id>*.md` → record in `audit/`, `NEEDS_HUMAN_<id>.md` |
+| 3 | `reportlint.py cases/<id>` | missing section/cell or mismatched count/`model:` → **C2/section**; unsupported hypothesis rank → **C1/basis**; nonexistent finding ref → **C1/ref** |
+| 4 | `urlcheck.py cases/<id>/results/synthesis.md` | dead citation (404/410, unresolvable host) → **C1/url** |
+| 5 | `quotecheck.py cases/<id>/results/synthesis.md` | mutated/fabricated quote → **C2/quote-mismatch**; no attributed quotes → **C2/quote-absent** |
+| 6 | `versioncheck.py cases/<id>` | unpinned source citation → **C2/version** |
+| 7 | `linkcheck.py cases/<id>/results/synthesis.md` | local link resolves to no file/anchor → **C1/link** |
+| 8 | `prosecheck.py cases/<id>` | `report_language: ja` only — prose defect → **C2/prose** |
 
 **A notice means *not checked*, never *passed*.** On any FAIL, WARN, or NOTICE, or before writing a send-back brief, read `references/quality-gates.md` for full check behavior, fail directions, and the **C1 (GROUNDING)** / **C2 (COMPLETENESS & FIDELITY)** judgment-gate definitions:
 - **C1 sub-codes**: `C1/ref`, `C1/url`, `C1/link`, `C1/basis`, `C1/spec`, `C1/currency`, `C1/source-of-truth`

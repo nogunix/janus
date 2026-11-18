@@ -316,7 +316,7 @@ plugins/janus/
   .claude-plugin/plugin.json         # plugin manifest
   skills/janus/SKILL.md              # /janus — pipeline driver
   skills/janus/references/           # SKILL.md / doc-search detail, read on demand
-  skills/janus/scripts/gates.py      # runs the seven step-7 checks, prints only non-passes
+  skills/janus/scripts/gates.py      # runs the eight step-7 checks, prints only non-passes
   skills/janus/scripts/caselint.py   # case.yaml vocabulary check, run at intake
   skills/janus/scripts/reportlint.py # report structure + recomputed counts (C2/section, C1/basis)
   skills/janus/scripts/sendback.py   # send-back ledger + the stopping rule (round cap, repeats)
@@ -964,7 +964,7 @@ that the preset's own rules already skip those node types — the filter is
 a backstop for rules added later, such as `prh` for terminology, which do
 match inside blockquotes.
 
-**One call at handoff — `scripts/gates.py`.** The lead runs all seven
+**One call at handoff — `scripts/gates.py`.** The lead runs all eight
 through a runner that prints one status per check (PASS / WARN / NOTICE
 / FAIL / ERROR / SKIP) and, for anything but a clean pass, only that
 check's non-`OK:` lines — so a report with forty live URLs costs the

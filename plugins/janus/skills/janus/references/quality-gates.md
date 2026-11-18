@@ -7,9 +7,9 @@ sending a report back). SKILL.md step 7 carries the runner invocation and
 routing summary; this file carries each check's full behaviour, the C1/C2
 sub-code definitions, send-back mechanics, and the fail-direction contract.
 
-## The seven checks
+## The eight checks
 
-Mechanical pre-checks before any content gate (all seven scripts live
+Mechanical pre-checks before any content gate (all eight scripts live
 in `scripts/` next to SKILL.md). `scripts/gates.py cases/<id>` runs them
 in this order and prints a status per check; the detail below is what
 each one means:
@@ -18,7 +18,16 @@ each one means:
    means evidence changed after it was sealed; do not hand off. Record
    the mismatch in `cases/<id>/audit/` and write
    `review-queue/NEEDS_HUMAN_<id>.md` quoting the failing entries.
-2. `python3 <skill-dir>/scripts/reportlint.py cases/<id>` — the report
+2. `python3 <skill-dir>/scripts/approvalcheck.py cases/<id>` — a FAIL
+   means `findings/lab-verify.md` exists and no
+   `review-queue/APPROVE_<id>.md` (or `APPROVE_<id>-<suffix>.md`) does:
+   lab work ran with no approval on record. synthesize cannot fix that,
+   so it routes like a chain FAIL — record in `audit/` what was approved,
+   by whom and when (if the conversation shows it), and write
+   `NEEDS_HUMAN_<id>.md`. A warning means the approval files carry no
+   `APPROVED` / `承認済` marker — the request may never have been
+   answered; confirm with the human and mark the title.
+3. `python3 <skill-dir>/scripts/reportlint.py cases/<id>` — the report
    against its own template and against the findings it was built from.
    Three kinds of FAIL, each routed by the sub-code the script prints:
    **C2/section** for a missing section (by the mode `case.yaml`
@@ -35,14 +44,14 @@ each one means:
    evidence that does not exist. Warnings: a hypothesis citing nothing,
    a finding the report never cites, a supplement the metadata omits.
    Like linkcheck.py it never fails open; every input is local.
-3. `python3 <skill-dir>/scripts/urlcheck.py cases/<id>/results/synthesis.md`
+4. `python3 <skill-dir>/scripts/urlcheck.py cases/<id>/results/synthesis.md`
    — curl-level liveness for every reference URL. A FAIL (404/410 or
    unresolvable host) is a provably dead citation: send the report back
    to synthesize **under C1/url**, quoting the dead URL. 401/403/429
    count as reachable (login-walled is normal for access.redhat.com);
    warnings (5xx/timeout) don't block. If the network itself is down
    the script says so and passes — offline installs are normal.
-4. `python3 <skill-dir>/scripts/quotecheck.py cases/<id>/results/synthesis.md`
+5. `python3 <skill-dir>/scripts/quotecheck.py cases/<id>/results/synthesis.md`
    — every attributed blockquote in the report (`> …` ending in
    `> — findings/<stage>.md`) must appear verbatim
    (whitespace-normalized) in the file it cites. A FAIL is a fact that
@@ -51,7 +60,7 @@ each one means:
    quoting the mismatch. A "no attributed quotes" warning means
    synthesize skipped the quote convention — also a **C2/quote-absent**
    send-back for any report that makes evidence-backed claims.
-5. `python3 <skill-dir>/scripts/versioncheck.py cases/<id>` — version
+6. `python3 <skill-dir>/scripts/versioncheck.py cases/<id>` — version
    provenance across findings and the report. A FAIL is a source
    location cited with no version pin anywhere in its Ref (no NVR,
    casket path, or commit) — which version was read is unrecoverable:
@@ -61,7 +70,7 @@ each one means:
    4.20), or — when `version_scope` is declared — a finding or report
    version in that family but off-scope (a neighbouring version drifted
    in). Warnings never block; they feed the judgment call below.
-6. `python3 <skill-dir>/scripts/linkcheck.py cases/<id>/results/synthesis.md`
+7. `python3 <skill-dir>/scripts/linkcheck.py cases/<id>/results/synthesis.md`
    — every local evidence link in the report resolves: the target file
    exists, sits inside the case directory, and any `#fragment` matches a
    heading in it. urlcheck only sees `http(s)://`, so a relative link to
@@ -72,7 +81,7 @@ each one means:
    air-gapped case where the answer is unknowable. A report with no
    local links at all is a warning, not a FAIL — the lead judges it
    against C1/link.
-7. `python3 <skill-dir>/scripts/prosecheck.py cases/<id>` — Japanese
+8. `python3 <skill-dir>/scripts/prosecheck.py cases/<id>` — Japanese
    prose quality, and **only when `report_language: ja`**; an English
    case prints a notice and passes. It checks the report's prose against
    the ja-technical-writing rules configured in `scripts/textlintrc.json`,
@@ -96,7 +105,7 @@ pass.
 ## Judgment gates (C1 / C2) and send-back vocabulary
 
 Read `results/synthesis.md` and check it against these two judgment gates
-(the seven mechanical pre-checks above already cover the structural half of
+(the eight mechanical pre-checks above already cover the structural half of
 `C2/section` and the arithmetic half of `C1/basis`, so the read is for what
 only a reader can see: whether a claim is anchored at the right strength,
 and whether an identifier survived intact). **A failed gate = send the
@@ -167,6 +176,7 @@ it again.
 | `reportlint.py` | **closed** — a missing section, an empty or placeholder cell, a stated figure the findings contradict (`C2/section`), a confidence its cited bases do not carry (`C1/basis`), a cited finding number that does not exist (`C1/ref`) | **warn** — a hypothesis citing no finding, a finding the report never cites, a supplement the metadata omits | Absence of a citation is mechanically indistinguishable from a section that legitimately needs none, so it warns. Everything it fails on is derived from files in the case directory. |
 | `sendback.py` (step 7, each send-back) | **closed** — a sub-code recorded twice, or a fourth round: exit 1, stop the loop at NEEDS_HUMAN | **never arises** — the verdict is computed from the ledger on disk | Not a check on the report but on the review of it. The ledger outlives the session: after a compaction, `sendback.py status` is how the lead learns which round it is on instead of guessing low. |
 | `caselint.py` (intake, step 1) | **closed** — a required key missing, or a `mode` / `status` / `tracks` / `report_language` / `version_scope` value outside its vocabulary | **never arises** — the case.yaml is the whole input | The only check that runs *before* the work. Its subject is the fields whose wrong value is accepted rather than rejected downstream — `report_language: jp` composes localize and skips prosecheck. |
+| `approvalcheck.py` | **closed** — lab-verify findings with no approval file in `review-queue/` | **warn** — approval files with no `APPROVED` / `承認済` marker | No fail-open path: the answer is computable from the tree. It checks that a record exists, not what it approved. |
 | `urlcheck.py` | **closed** — 404/410 or an unresolvable host: a provably dead citation (`C1/url`) | **open** — no network at all: says so and passes; 5xx/timeout warn | 401/403/429 count as reachable. Login-walled is normal for access.redhat.com, so a gated URL is classified, never failed. |
 | `quotecheck.py` | **closed** — an attributed quote not verbatim in the file it cites (`C2/quote-mismatch`) | **warn** — no attributed quotes at all (`C2/quote-absent` for any evidence-backed report) | Absence of quotes is mechanically indistinguishable from a report that legitimately has none. |
 | `versioncheck.py` | **closed** — a source citation with no version pin anywhere in its Ref: which version was read is unrecoverable | **warn** — crossed or off-scope versions (`C2/version`), and every scope check when no `version_scope` is declared | |
