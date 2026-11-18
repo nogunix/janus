@@ -334,7 +334,7 @@ plugins/janus/
   skills/md2pdf/                     # Markdown → PDF (pandoc + weasyprint, CJK)
   skills/okp-doc-search/             # okp-mcp research know-how (queries, doc_id rules)
   skills/ocp-triage-heuristics/      # experiential OCP live-cluster triage reference
-  hooks/                             # secret-safety + evidence-lock (PreToolUse denies) + evidence-chain (PostToolUse auto-seal)
+  hooks/                             # secret-safety + evidence-lock/-shell/-drift + findings-truncation (PreToolUse denies) + evidence-chain (PostToolUse auto-seal)
   agents/                            # 11 agents (patterns inlined into each)
     doc-search  source-trace  github-trace  jira-trace  crash-analyze
     iac-author  lab-verify  synthesize  localize  self-improver
@@ -764,6 +764,15 @@ locked files with an explanation instead of a bare permission error —
 so a stage can no longer clobber another stage's findings mid-flight.
 `chain.py unlock` is the lead's explicit escape hatch for a legitimate
 revision (unlock → edit → re-seal → lock).
+
+Both of those key on the Write/Edit tools, so a shell write went around
+them. A third PreToolUse hook (`hooks/evidence-shell.py`) denies
+redirects, `tee`, `sed -i`, `cp`/`mv`/`rm` and interpreter one-offs
+that name an evidence file already sealed in the case's ledger, while
+new audit logs written with a redirect still pass. And `chain.py seal`
+no longer re-seals a sealed file that changed behind the chain's back
+(the thing `verify` reports as TAMPER) unless the lead names the reason
+with `--accept-change "<why>"`, which is kept in the ledger record.
 
 **Report structure and arithmetic — `scripts/reportlint.py`.** The
 report states things about itself that can be derived from the findings

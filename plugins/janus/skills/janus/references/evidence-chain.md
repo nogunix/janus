@@ -21,9 +21,12 @@ set (`case.yaml`, `findings/*.md`, `results/*.md`, `audit/*`,
 
 - **Step 6 (before synthesize)**: `verify` then `seal` — verify first;
   a FAIL means a sealed file changed outside tracked tools (e.g. a
-  shell redirect), so record the mismatch in `cases/<id>/audit/` before
-  re-sealing. The plain `seal` picks up shell-written audit logs the
-  hook cannot see. Then `lock` — the chain detects rewrites after the
+  shell redirect). **Stop there**: never chain `seal` after a failing
+  `verify` in one command line. Record the mismatch in
+  `cases/<id>/audit/`, tell the human, and re-seal only with
+  `seal --accept-change "<reason>"` — plain `seal` refuses a file that
+  changed after its seal (exit 1, `REFUSED:`) and seals only files new
+  to the ledger, such as shell-written audit logs the hook cannot see. Then `lock` — the chain detects rewrites after the
   fact; the lock prevents the accident in the first place by dropping
   the write bits on the fact base (`case.yaml`, `findings/*.md`,
   `audit/*`), with `hooks/evidence-lock.py` (PreToolUse) denying
@@ -43,3 +46,12 @@ never sealed — run `seal`; FAILs mean the ledger or a sealed file was
 altered — that is a human matter, never something to quietly repair.
 `artifacts/` (vmcore binaries) stays outside the chain, as it stays
 outside git.
+
+`hooks/evidence-shell.py` (PreToolUse on Bash) is the prevention side
+of the same rule: it denies a shell command that would change a file
+already sealed — `>`/`>>`, `tee`, `sed -i`, `cp`/`mv`/`rm`, or an
+interpreter one-off that writes files and names the path. To add
+output, write a new audit file; to revise a note or a finding, use
+Edit; to remove a sealed file, record why and use `chain.py retire`.
+It reads the command text only, so a script that builds the path at
+runtime is still caught later by `verify`, not here.

@@ -298,7 +298,7 @@ Never read source, search docs, chase PRs/Jira, analyze crashes, write IaC, buil
 ## Inter-stage data format & Evidence chain
 
 - **Findings format**: YAML frontmatter (`stage`, `case`, `date`, `status`, `model`, `tool_calls`, `duration_s`) + `### F<N>:` blocks with `Confidence`, `Basis` (`VERIFIED | REASONED | ASSUMED`), `Type`, `Detail`, `Ref`. Full schema in `references/findings-format.md`.
-- **Evidence chain**: `cases/<id>/chain.jsonl` is an append-only sha256 ledger; `hooks/evidence-chain.py` auto-seals tracked writes, `hooks/evidence-lock.py` denies writes to locked files, `hooks/evidence-drift.py` denies writes over out-of-band drift, and `hooks/findings-truncation.py` denies overwrites that drop findings. Full semantics in `references/evidence-chain.md`.
+- **Evidence chain**: `cases/<id>/chain.jsonl` is an append-only sha256 ledger; `hooks/evidence-chain.py` auto-seals tracked writes, `hooks/evidence-lock.py` denies writes to locked files, `hooks/evidence-shell.py` denies shell writes to sealed files, `hooks/evidence-drift.py` denies writes over out-of-band drift, and `hooks/findings-truncation.py` denies overwrites that drop findings. Full semantics in `references/evidence-chain.md`.
 
 ## Safety (invariant)
 

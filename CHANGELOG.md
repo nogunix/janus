@@ -2,6 +2,41 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.50.0 — 2026-11-18
+
+**Shell writes to sealed evidence are denied, and `chain.py seal` no
+longer silently re-seals a TAMPER.** All the write hooks keyed on the
+Write/Edit tools, so a shell write went around every one of them. The
+prompts already said "never Bash for findings/results", and it still
+happened twice: a synthesize stage rewrote anchors in a sealed report
+with a python one-off, and a lead appended to a sealed audit note with
+`cat >>` and then ran `seal` in the same command line as the failing
+`verify`, which erased the TAMPER signal.
+
+- **`hooks/evidence-shell.py`** (new, PreToolUse on `Bash` /
+  `run_command`): denies a command that would change a file already
+  sealed in the case's `chain.jsonl` via `>`/`>>`, `tee`, `sed -i` /
+  `perl -i`, `cp`/`mv`/`rm`/`truncate`, `dd of=`, `git checkout/restore`,
+  or an interpreter one-off (python/perl/ruby/node) that writes files and
+  names the path. The deny says what to do instead: Edit for
+  findings/results/notes, a new `NN-*.log` for more audit output,
+  `chain.py retire` for a removal. Creating new evidence files with a
+  redirect (`… | tee audit/12-x.log`) stays allowed. Lexical and
+  fail-open; `verify` remains the backstop.
+- **`chain.py seal`** (CLI): a file whose content changed after its
+  last seal is `REFUSED` (exit 1) while files new to the ledger are
+  still sealed. `--accept-change "<reason>"` re-seals it and stores the
+  reason in the ledger record (`accepted`). The library `seal()` stays
+  permissive for the tracked writers (the PostToolUse hook,
+  `sendback.py`).
+- **`references/evidence-chain.md`**: step 6 now says to stop on a
+  failing `verify` and never chain `seal` after it; documents the new
+  hook. `quality-gates.md` fail-direction table, SKILL.md, and README
+  updated.
+- **`scripts/selftest.py`**: `test_evidence_shell_hook` replays both
+  incidents' commands plus the allowed patterns, and covers the seal
+  refusal and `--accept-change`.
+
 ## 0.49.1 — 2026-11-16
 
 **Fan-in: restore the silent-stage rule lost in the 0.49.0 SKILL.md trim.**

@@ -3,7 +3,8 @@
 
 Covers chain.py (seal → verify → revision → tamper detection →
 ledger-edit detection, plus lock/unlock), the evidence-lock hook's deny
-logic, quotecheck.py's quote extraction and verbatim matching, and
+logic, the evidence-shell hook's shell-write detection and chain.py's
+change refusal, quotecheck.py's quote extraction and verbatim matching, and
 urlcheck.py's URL extraction and classification constants, and gates.py's
 status classification and end-to-end run (urlcheck skipped), and
 build_gslides.py's page-size math, in-place rebuild plan, inline markup
@@ -307,6 +308,82 @@ def test_lock():
             and lock_hook.locked_reason("Write", str(finding)) is None,
             "unlock restores owner write and the hook allows again",
         )
+
+
+def test_evidence_shell_hook():
+    """From JANUS-024 / JANUS-027: a python one-off and a `cat >>` changed
+    sealed evidence behind the chain; both surfaced only as verify TAMPER,
+    and the lead re-sealed the second in the same command line."""
+    import contextlib, io
+    chain = load("chain")
+    hook = load("evidence-shell", HOOKS)
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td).resolve()
+        case = root / "cases" / "2026-01-01-selftest"
+        for d in ("findings", "results", "audit"):
+            (case / d).mkdir(parents=True)
+        (case / "case.yaml").write_text("id: selftest\n")
+        (case / "results" / "synthesis-en.md").write_text("r\n")
+        (case / "audit" / "10-note.md").write_text("n\n")
+        (case / "findings" / "doc-search.md").write_text("F1\n")
+        chain.seal(case)
+        rel = "cases/2026-01-01-selftest"
+
+        def denied(cmd, cwd=root, tool="Bash"):
+            return hook.shell_write_reason(tool, cmd, str(cwd)) is not None
+
+        check(denied(f"cat >> {rel}/audit/10-note.md <<'EOF'\nmore\nEOF"),
+              "shell hook denies a heredoc append to a sealed audit note")
+        check(denied("python3 - <<'EOF'\nfrom pathlib import Path\n"
+                     f"p = Path('{rel}/results/synthesis-en.md')\n"
+                     "p.write_text(p.read_text().replace('#a', '#b'))\nEOF"),
+              "shell hook denies a python one-off rewriting a sealed report")
+        check(denied("sed -i 's/a/b/' results/synthesis-en.md", case)
+              and denied("oc get pods | tee -a audit/10-note.md", case)
+              and denied("rm findings/doc-search.md", case)
+              and denied(f"echo x >{rel}/case.yaml"),
+              "shell hook denies sed -i, tee -a, rm and a redirect onto sealed files")
+        check(denied("sed -i 's/a/b/' results/synthesis-en.md", case, "run_command"),
+              "shell hook also guards Antigravity run_command")
+        check(not denied("oc get pods 2>&1 | tee audit/11-new.log", case)
+              and not denied(f"echo x > {rel}/findings/new.md"),
+              "shell hook allows creating new evidence files with a redirect")
+        check(not denied("cp findings/doc-search.md /tmp/x.md", case)
+              and not denied("grep -i foo findings/doc-search.md > /dev/null", case)
+              and not denied(f"python3 findings.py lint {rel}/findings/doc-search.md")
+              and not denied(f"python3 chain.py seal {rel}"),
+              "shell hook allows reading sealed files and running the case tools")
+        check(not denied("sed -i 's/a/b/' results/synthesis-en.md", case, "Read"),
+              "shell hook ignores non-shell tools")
+
+        # seal CLI: a changed sealed file is refused without a reason.
+        (case / "audit" / "10-note.md").write_text("n\nappended by shell\n")
+        (case / "audit" / "12-new.log").write_text("log\n")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = chain.main(["chain.py", "seal", str(case)])
+        out = buf.getvalue()
+        check(rc == 1 and "REFUSED: audit/10-note.md" in out
+              and "sealed: audit/12-new.log" in out,
+              "seal CLI refuses a changed sealed file but still seals new ones")
+        problems, _ = chain.verify(case)
+        check(any("TAMPER: audit/10-note.md" in p for p in problems),
+              "a refused change stays visible to verify")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = chain.main(["chain.py", "seal", str(case), "--accept-change"])
+        check(rc == 2, "--accept-change without a reason is an error")
+        with contextlib.redirect_stdout(io.StringIO()):
+            rc = chain.main(["chain.py", "seal", str(case),
+                             "--accept-change", "human-approved append"])
+        last = json.loads((case / "chain.jsonl").read_text().splitlines()[-1])
+        problems, _ = chain.verify(case)
+        check(rc == 0 and not problems and last.get("accepted") == "human-approved append",
+              "--accept-change re-seals and records the reason in the ledger")
+        finding = case / "findings" / "doc-search.md"
+        finding.write_text("F2\n")  # what an Edit leaves before the PostToolUse hook runs
+        check(chain.seal(case, [finding], actor="hook") == ["findings/doc-search.md"],
+              "library seal() stays permissive for the tracked-write hook")
 
 
 def test_quotecheck():
@@ -1681,6 +1758,7 @@ def test_jpfont():
 def main():
     test_chain()
     test_lock()
+    test_evidence_shell_hook()
     test_findings_truncation_hook()
     test_evidence_drift_hook()
     test_retire()
