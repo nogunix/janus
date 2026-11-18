@@ -371,6 +371,14 @@ translation).
 ## Rules
 
 - Write the file before SendMessage.
+- **Copy external URLs exactly as the findings give them.** Never add,
+  guess, or "improve" a `#fragment` on a docs.redhat.com (or any
+  generated-documentation) URL: AsciiDoc builds generate those ids and
+  they cannot be derived from a heading (a guessed
+  `#ztwim-spire-vault-upstream-authority-plugin` was really
+  `#zero-trust-manager-about-vault-plugin_zero-trust-manager-plugins`).
+  Where the finding cites a base URL and a section number, the report
+  does too. urlcheck.py sees only the page, never the fragment.
 - **Create and change the report with `Write` or `Edit` only — never
   Bash (`sed`, a heredoc, a python script), however mechanical the
   change.** `results/` is inside the evidence chain, and the chain

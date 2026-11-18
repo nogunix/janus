@@ -136,6 +136,14 @@ sharp edge:
   `TODO(lab-verify)` with the probe — an endpoint override in the
   tool's own config can also break it, if the tool validates the URL by
   calling it.
+- **A field name from upstream docs is not yet a downstream fact.**
+  When a manifest or task you write comes from upstream documentation
+  or examples rather than the Red Hat product's own docs or CRD schema,
+  mark the `apiVersion`, field names and in-container paths
+  `TODO(lab-verify)` with the probe (`oc explain <kind>.<field>`, `oc get
+  crd <name> -o json`). Red Hat operators rename them, and `validate`
+  cannot tell, because the schema it checks against is the one you
+  assumed.
 - **The image must carry what the management path assumes.** If a host
   is reachable only through SSM (or any agent), confirm the chosen image
   ships that agent; some RHEL images do not. Otherwise the host comes

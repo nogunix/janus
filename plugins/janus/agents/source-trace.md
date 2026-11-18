@@ -291,6 +291,20 @@ the table's value as a guess.
   on a comment is REASONED at most — a VERIFIED behavioral claim needs
   the executable code path itself (or an execution result), never a
   comment asserting it.
+- **A comment speaks only for the field it annotates.** In example
+  configs and templates (`config.example.toml`, sample CRs), check which
+  key or section a comment is attached to before citing it. A note on
+  an adjacent section (say, extra root certificates) is not evidence
+  about the field in question (say, the server certificate), and
+  misattributing it is how a REASONED reading gets promoted to VERIFIED.
+- **Stop where the code you read stops.** When an API's name and
+  signature already answer the question (`add_root_certificate()` adds a
+  root certificate), do not extend the claim with how a dependency
+  behaves inside. If the conclusion really turns on a library's
+  internals (what a TLS verifier checks on a trust anchor), read that
+  library's code at the version shipped, or label the step REASONED and
+  hand it to Gaps. An unread dependency internal is an assumption, and
+  one once produced a confident, wrong requirement.
 - If a version is not in casket, record which versions ARE available —
   and bracket the target with the nearest available versions instead of
   stopping.

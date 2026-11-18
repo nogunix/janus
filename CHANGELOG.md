@@ -2,6 +2,36 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.53.0 — 2026-11-18
+
+**Lessons from confidential-containers and SPIRE investigations.**
+Project-local `janus-lessons` and post-case feedback from another
+workspace, promoted into the stage prompts so they apply everywhere:
+
+- **`agents/github-trace.md`**: a PR description or commit message
+  verifies what the author says, not what the code does. "PR #N states
+  X" can be VERIFIED; a behavior claim resting on that text is REASONED
+  until the diff or code shows it. (A PR asserting a library requirement
+  the library did not enforce once led a report to a wrong root cause.)
+- **`agents/source-trace.md`**: a comment speaks only for the field it
+  annotates (an adjacent section's note in an example config was cited
+  for the wrong field), and stop where the code you read stops. Do not
+  extend an API-level reading into unread dependency internals. Read the
+  dependency at the shipped version, or label the step REASONED.
+- **`agents/synthesize.md`, `agents/localize.md`**: external URLs are
+  copied exactly. Never add or guess a `#fragment` on generated
+  documentation (a guessed docs.redhat.com anchor did not exist).
+  urlcheck sees the page, not the fragment.
+- **`agents/lab-verify.md`**: shared physical lab hardware. Never change
+  BMC default credentials (create a separate user), stop on a machine
+  already powered on, and power off at hand-back. The downstream product
+  is the schema: confirm upstream-sourced fields, `apiVersion` and
+  in-image paths with `oc explain` / the CRD and the container before
+  running or recording them.
+- **`agents/iac-author.md`**: field names taken from upstream docs are
+  `TODO(lab-verify)` with an `oc explain` probe until confirmed against
+  the downstream CRD.
+
 ## 0.52.1 — 2026-11-18
 
 **`approvalcheck.py` also reads a case-local `review-queue/`.** Some

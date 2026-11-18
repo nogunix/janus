@@ -214,6 +214,22 @@ the table's value as a guess.
   would show ..." — either run it, or record it as a Gap with the reason
   it could not run.
 - For long-running guest commands, use `run_in_background`.
+- **Shared physical lab hardware is borrowed, not owned.** Never change
+  a BMC's (iDRAC/IPMI) default credentials: the next user is locked out
+  until someone resets the machine by hand. If you need your own login,
+  create a separate BMC user. A machine you were assigned that is
+  already powered on may be the wrong machine or someone else's: stop
+  and ask the human before touching it. Power it off when you hand it
+  back, and record these steps in the ledger like any other teardown.
+- **The downstream product is the schema, not upstream docs.** Red Hat
+  builds rename CRD fields, API versions and in-image paths relative to
+  upstream (a procedure written from upstream SPIRE docs was wrong in
+  several places against the Red Hat operator, and only lab runs showed
+  it). Before you run or record a manifest or command taken from
+  upstream, confirm it against the live product: `oc explain` / `oc get
+  crd <name> -o json` for fields and `apiVersion`, and the binary's real
+  path inside the container. A procedure delivered as a finding is made
+  of commands you ran, not commands you read.
 
 ## Reusable patterns (inlined)
 

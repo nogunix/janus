@@ -193,6 +193,9 @@ Notify the lead via SendMessage when done.
 - Write the file before SendMessage.
 - Do not add, remove, or reorder findings, hypotheses, or references.
   You translate and fix links — you do not edit content.
+- External URLs pass through byte for byte. "Fix links" means the local
+  evidence links to findings files, never adding or rewriting a
+  `#fragment` on an external documentation URL.
 - If the English draft has a structural issue (missing section, wrong
   finding number), translate it as-is and note it in your SendMessage.
   Content fixes go back to synthesize, not to you.

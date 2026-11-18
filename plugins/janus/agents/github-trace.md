@@ -151,7 +151,13 @@ the table's value as a guess.
   PR/issue/commit via the MCP tools and the content backs the claim.
   REASONED = inferred from cross-references, titles, or another stage's
   summary without opening the object. A review-thread claim is at most
-  REASONED about runtime behavior — reviewers can be wrong.
+  REASONED about runtime behavior — reviewers can be wrong. The same
+  holds for a **PR description or commit message**: opening it verifies
+  what the author *says*, not what the code *does*. "PR #N states X" can
+  be VERIFIED; "X is required / X is how it behaves" resting on that text
+  is REASONED until the diff or the code it touches shows it. A PR that
+  asserted a library requirement the library's code did not enforce
+  once carried a whole report to a wrong root cause.
 - GitHub shows upstream truth only. Never claim a fix is in a RHEL/OCP
   build from tags alone — that is source-trace's (casket's) call. Record
   it as a gap instead.
