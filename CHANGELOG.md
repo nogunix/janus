@@ -2,6 +2,43 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.54.0 — 2026-11-18
+
+**Lessons from three more workspaces (ARO, a disconnected-install
+project, an OpenShift AI project).**
+
+- **`hooks/evidence-chain.py`**: a failed auto-seal is now appended to
+  `cases/<id>/chain-hook-errors.log` (outside the evidence set) instead of
+  vanishing, and **`chain.py verify`** warns while that log exists. A
+  stage's own findings file once showed TAMPER with only its own content
+  in it, and whether the hook had missed a seal could not be shown from
+  the chain. (A hook killed by its timeout still leaves no record.)
+- **`agents/synthesize.md`**: leave a contradiction between findings
+  standing, and never invent the story that would reconcile them. Cite
+  earlier cases as backticked paths (`cases/<id>/findings/x.md` F<n>),
+  not links (linkcheck forbids out-of-case links). Never write another
+  case's bare F-number in Hypotheses.
+- **`references/quality-gates.md`**: read the cited finding's Detail in
+  full before a C1/ref or C1/basis send-back (a truncated grep produced
+  a wrong one). docs.redhat.com anchors flagged `unverified-anchor` are
+  checked through `redhat_docs_fetch` or a browser session, with the
+  results recorded in `audit/`. The `evidence-chain.py` fail-direction
+  row is updated.
+- **`agents/localize.md`**: no space between Japanese and half-width
+  alphanumerics.
+- **`agents/lab-verify.md`**: ARO teardown order when the managed
+  resource group keeps a PLS / LB / PE connection. Demo/RHDP environments:
+  ask before extending (it bills a cost center), read the setup script's
+  log tail because a phased script exits on the first failure, record the
+  live environment rather than the guide, and the `pgrep -f`
+  self-match.
+- **SKILL.md**: case ids continue this project's own `cases/`, never a
+  lessons tag. Lessons are tagged `[case: <project>/<id>]`. A same-stage
+  follow-up is briefed with supplement naming and `supplement_of:`.
+- **README**: macOS Local Network Privacy behind `EHOSTUNREACH` from
+  LAN-hosted MCP servers.
+- **`scripts/selftest.py`**: `test_hook_error_log`.
+
 ## 0.53.0 — 2026-11-18
 
 **Lessons from confidential-containers and SPIRE investigations.**

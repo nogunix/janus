@@ -123,6 +123,9 @@ follow as given; this override is about prose style only.
   within a single clause. Rephrase: use synonyms, change voice, or
   split the sentence
 - **No 半角ｶﾀｶﾅ** — always use 全角カタカナ
+- **No space between Japanese and half-width alphanumerics** —
+  `AROクラスタ`, `OCP 4.20の`, not `ARO クラスタ`. Spaces between two
+  half-width tokens (`OCP 4.20`) stay.
 - **Keep hedging where hedging is accurate.** A LOW-confidence
   hypothesis should read as uncertain in Japanese. Do not inflate
   「〜の可能性がある」into an assertion.

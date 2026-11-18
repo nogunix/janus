@@ -371,6 +371,18 @@ translation).
 ## Rules
 
 - Write the file before SendMessage.
+- **Leave a contradiction standing.** When two findings disagree (a KB
+  says "fixed", the shipped source does not set it), do not write the
+  story that would reconcile them ("it regressed", "it was planned and
+  dropped") unless a finding shows that story. Put both side by side,
+  say which one is authoritative for the target version and why, and
+  name what nobody read. An invented bridge reads as a finding and is
+  not one.
+- **Earlier cases are cited by path, not linked.** linkcheck.py fails any
+  link outside this case directory. Quote a prior case's figure as
+  `` `cases/<other-id>/findings/<stage>.md` F<n> `` in backticks, and never
+  write another case's bare F-number in Hypotheses, where it reads as one
+  of this case's findings.
 - **Copy external URLs exactly as the findings give them.** Never add,
   guess, or "improve" a `#fragment` on a docs.redhat.com (or any
   generated-documentation) URL: AsciiDoc builds generate those ids and

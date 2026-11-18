@@ -10,8 +10,14 @@ skills/janus/scripts/chain.py) that makes post-hoc edits to evidence
 detectable.
 
 Fail-open by design: a sealing error must never block an
-investigation, so every exception exits 0 silently. The lead's
-`chain.py verify` at fan-in and handoff catches anything missed here.
+investigation, so every exception exits 0. But not silently any more:
+a seal that failed for a tracked case file is appended to
+`cases/<id>/chain-hook-errors.log` (outside the evidence set), and
+`chain.py verify` warns while that file exists. A missed seal on a file
+that was sealed before surfaces later as TAMPER, and without this record
+the content check afterwards could only guess whether the hook or an
+out-of-band write was responsible. (A hook killed by its timeout
+runs no handler and still leaves no record.)
 """
 
 import json
@@ -49,6 +55,17 @@ def parse_event(data):
     return False, data.get("tool_name", ""), data.get("tool_input") or {}
 
 
+def _record_failure(case_dir, file_path, error):
+    try:
+        from datetime import datetime, timezone
+
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with open(Path(case_dir) / "chain-hook-errors.log", "a", encoding="utf-8") as f:
+            f.write(f"{ts} seal failed: {file_path}: {type(error).__name__}: {error}\n")
+    except Exception:
+        pass
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -68,7 +85,10 @@ def main():
             return
         import chain
 
-        chain.seal(match.group("case"), [file_path], actor="hook")
+        try:
+            chain.seal(match.group("case"), [file_path], actor="hook")
+        except Exception as e:
+            _record_failure(match.group("case"), file_path, e)
     except Exception:
         pass
     finally:

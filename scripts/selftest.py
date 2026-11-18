@@ -423,6 +423,33 @@ def test_approvalcheck():
               "approvalcheck: a marked approval file passes")
 
 
+def test_hook_error_log():
+    """A TAMPER on a stage's own file whose cause was a silently missed
+    auto-seal could only be guessed at; the hook now records failures."""
+    import io, contextlib
+    chain = load("chain")
+    hook = load("evidence-chain", HOOKS)
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "2026-01-01-hook"
+        (case / "findings").mkdir(parents=True)
+        f = case / "findings" / "doc-search.md"
+        f.write_text("F1\n")
+        chain.seal(case)
+        problems, warnings = chain.verify(case)
+        check(not any("chain-hook-errors" in w for w in warnings),
+              "verify: no hook-error warning when the hook never failed")
+        hook._record_failure(str(case), str(f), OSError("lock timeout"))
+        log = case / "chain-hook-errors.log"
+        check(log.is_file() and "seal failed" in log.read_text()
+              and "lock timeout" in log.read_text(),
+              "evidence-chain hook records a failed seal with the error")
+        problems, warnings = chain.verify(case)
+        check(not problems and any("chain-hook-errors.log" in w for w in warnings),
+              "verify warns while chain-hook-errors.log exists")
+        check("chain-hook-errors.log" not in [str(p.relative_to(case)) for p in chain._default_targets(case)],
+              "the hook-error log is not part of the evidence set")
+
+
 def test_quotecheck():
     quotecheck = load("quotecheck")
     with tempfile.TemporaryDirectory() as td:
@@ -1808,6 +1835,7 @@ def main():
     test_lock()
     test_evidence_shell_hook()
     test_approvalcheck()
+    test_hook_error_log()
     test_findings_truncation_hook()
     test_evidence_drift_hook()
     test_retire()

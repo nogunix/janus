@@ -86,7 +86,7 @@ cases/<id>/
 ### case.yaml (written by the lead at intake — stages only read it)
 
 The **lead creates `cases/<id>/case.yaml` at intake**; no stage ever writes it.
-Required fields: `id`, `received_at`, `mode` (`artifact` | `theme`), `status` (`intake` / `scheduled` / `in_progress` / `needs_human` / `done` / `failed`). `mode: artifact` requires `artifacts.vmcore`; `mode: theme` requires `theme`. `tracks` drives pipeline composition. Real binaries (`vmcore`/`vmlinux`) are never committed to git.
+`id` is the next number in *this* project's `cases/` (never continued from a lessons tag). Required fields: `id`, `received_at`, `mode` (`artifact` | `theme`), `status` (`intake` / `scheduled` / `in_progress` / `needs_human` / `done` / `failed`). `mode: artifact` requires `artifacts.vmcore`; `mode: theme` requires `theme`. `tracks` drives pipeline composition. Real binaries (`vmcore`/`vmlinux`) are never committed to git.
 
 Optional fields:
 - `version_scope` — product version(s) in scope, grouped by product (e.g. `OCP: ["4.20"]`, `RHEL: ["9.6"]`). A scope entry matches its own z-streams (`4.16` covers `4.16.55`); `versioncheck.py` uses it to flag off-scope drift.
@@ -228,6 +228,7 @@ If a stage has `lint FAIL`, message it to fix the file before step 6. Decide fro
 | `TODO(iac-author)` marked *service-semantics* | doc-search (or lead step-5a supplement) |
 
 - **Cap: at most 2 follow-up stages per case, one follow-up round** (static-track only).
+- A same-stage follow-up is briefed as `<stage>-<source>-supplement.md` with `supplement_of:`.
 
 ### 5a. Lead-side supplemental searches
 
@@ -331,7 +332,7 @@ All agents declare `model: inherit` in frontmatter so they load natively in both
 ## Failure handling, Escalation & Learning loop
 
 - **Failure handling**: if a stage fails, write `status: failed` in its findings file, record details in `cases/<id>/audit/`, do not block other stages, and hand off as `NEEDS_HUMAN_*` if the gap is critical. Once `NEEDS_HUMAN_*` files accumulate in `review-queue/`, batch them into `review-queue/CONSULT_<date>.md`.
-- **Learning loop (`janus-lessons`)**: project-local lessons live in `.claude/skills/janus-lessons/SKILL.md` (or `.agents/skills/janus-lessons/SKILL.md` in Antigravity). Create on first case if absent; copy relevant entries into stage briefs at fan-out; append new `- <symptom> → <wrong move> → <correct move> [case: <id>]` entries at case close only with human approval. `self-improver` runs every 10 `verdict.md` files (or weekly) and proposes promoting recurring lessons (`≥2` cases) via `review-queue/IMPROVE_*`.
+- **Learning loop (`janus-lessons`)**: project-local lessons live in `.claude/skills/janus-lessons/SKILL.md` (or `.agents/skills/janus-lessons/SKILL.md` in Antigravity). Create on first case if absent; copy relevant entries into stage briefs at fan-out; append new `- <symptom> → <wrong move> → <correct move> [case: <project>/<id>]` entries at case close only with human approval. `self-improver` runs every 10 `verdict.md` files (or weekly) and proposes promoting recurring lessons (`≥2` cases) via `review-queue/IMPROVE_*`.
 - **Reference assets (`ocp-triage-heuristics`)**: read-only OpenShift SRE reference at `skills/ocp-triage-heuristics/SKILL.md`. Copy relevant sections into stage briefs for OpenShift cases (🔍 DIAGNOSTIC items are read-only; ⚠️ REMEDIATION items are report-only recommendations).
 - **MCP dependencies**: see step 1 and `references/mcp-dependencies.md`.
 

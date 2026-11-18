@@ -351,6 +351,15 @@ Register each server yourself (`claude mcp add …`) before running an
 investigation, then confirm `claude mcp list` shows `✔ Connected` — a tool
 being advertised isn't the same as the server being reachable.
 
+**macOS: LAN-hosted MCP servers fail with `EHOSTUNREACH`.** If servers
+on another machine in your LAN fail while localhost and internet servers
+connect, macOS Local Network Privacy is denying the binary that runs
+Claude Code (often an ad-hoc-signed Homebrew `node`). Allow it under
+System Settings → Privacy & Security → Local Network, or run Claude Code
+from a signed build, then restart the session. Until then, every stage
+that depends on those servers degrades or cannot be composed. Record it
+as an environment gap, not a negative result.
+
 ### okp-mcp — Red Hat docs / CVE / errata / KB
 Bridges to the official **Offline Knowledge Portal** (OKP) Solr index.
 Requires a Red Hat account (`registry.redhat.io` access + an OKP access key
