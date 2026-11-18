@@ -2,6 +2,17 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.52.1 — 2026-11-18
+
+**`approvalcheck.py` also reads a case-local `review-queue/`.** Some
+workspaces keep review files inside the case
+(`cases/<id>/review-queue/APPROVE_<id>.md`) rather than in the shared
+`review-queue/` next to `cases/`. The check looked only at the shared
+one, so a case with its approval file on record still FAILed. It now
+reads both. Run against such a workspace, the false FAILs became
+warnings for request files that were never marked `APPROVED` (approval
+given only in conversation) — the case the warning exists for.
+
 ## 0.52.0 — 2026-11-18
 
 **New scope gets a new case; scratch stays inside the case.** Two

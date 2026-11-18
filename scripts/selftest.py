@@ -406,6 +406,13 @@ def test_approvalcheck():
         (queue / "APPROVE_JANUS-9012.md").write_text("# APPROVED\n")
         problems, _, _ = ac.run(case)
         check(bool(problems), "approvalcheck: another case's file (JANUS-9012) does not count")
+        local = case / "review-queue"
+        local.mkdir()
+        (local / "APPROVE_JANUS-901.md").write_text("# APPROVE — **APPROVED 2026-09-01**\n")
+        problems, warnings, _ = ac.run(case)
+        check(not problems and not warnings,
+              "approvalcheck: a case-local cases/<id>/review-queue/ approval counts")
+        (local / "APPROVE_JANUS-901.md").unlink()
         (queue / "APPROVE_JANUS-901-lab.md").write_text("# APPROVE — request\n")
         problems, warnings, _ = ac.run(case)
         check(not problems and warnings,

@@ -21,7 +21,9 @@ reviewer or auditor would look for was missing.
         file with a marker.
 
 review-queue/ is looked up next to cases/ (the repo root that holds
-both). No fail-open path: the answer is computable from the tree.
+both) and inside the case (cases/<id>/review-queue/), since workspaces
+exist in both layouts. No fail-open path: the answer is computable from
+the tree.
 
 Usage: python3 approvalcheck.py cases/<id>
 Stdlib-only, offline, like chain.py.
@@ -35,16 +37,20 @@ MARKER = re.compile(r"\bAPPROVED\b|承認済")
 
 
 def approval_files(case_dir):
+    """APPROVE files for this case, from the shared review-queue/ next to
+    cases/ and from a case-local cases/<id>/review-queue/ (the layout some
+    workspaces use). Returns (shared queue path, files)."""
     case_dir = Path(case_dir).resolve()
     queue = case_dir.parent.parent / "review-queue"
     cid = case_dir.name
-    if not queue.is_dir():
-        return queue, []
-    files = sorted(
-        p for p in queue.glob(f"APPROVE_{cid}*.md")
-        if p.name == f"APPROVE_{cid}.md" or p.name.startswith(f"APPROVE_{cid}-")
-    )
-    return queue, files
+    files = []
+    for q in (queue, case_dir / "review-queue"):
+        if q.is_dir():
+            files.extend(
+                p for p in q.glob(f"APPROVE_{cid}*.md")
+                if p.name == f"APPROVE_{cid}.md" or p.name.startswith(f"APPROVE_{cid}-")
+            )
+    return queue, sorted(set(files))
 
 
 def run(case_dir):
