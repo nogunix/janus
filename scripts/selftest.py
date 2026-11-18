@@ -1830,9 +1830,74 @@ def test_jpfont():
           "jpfont: --check counts both a font-less rPr and a bare run")
 
 
+def test_close():
+    chain = load("chain")
+    import contextlib, io, json as _json
+    with tempfile.TemporaryDirectory() as td:
+        case = Path(td) / "cases" / "JANUS-999"
+        (case / "findings").mkdir(parents=True)
+        (case / "case.yaml").write_text(
+            "id: JANUS-999\nmode: theme\nstatus: in_progress  # set at intake\n"
+            "theme: >\n  status: not-top-level\n"
+        )
+        (case / "findings" / "doc-search.md").write_text("F1\n")
+        chain.seal(case)
+        chain.lock(case)  # the fan-in lock that blocked the lead's Edit
+
+        old, new = chain.close(case)
+        text = (case / "case.yaml").read_text()
+        check(old == "in_progress" and new == "done"
+              and "status: done  # set at intake" not in text
+              and "status: done # set at intake" in text
+              and "  status: not-top-level" in text,
+              "close rewrites only the top-level status line, keeping its comment")
+        check(not (case / "case.yaml").stat().st_mode & 0o222,
+              "close leaves case.yaml locked")
+        problems, _ = chain.verify(case)
+        last = _json.loads((case / "chain.jsonl").read_text().splitlines()[-1])
+        check(not problems and last["file"] == "case.yaml"
+              and "in_progress -> done" in last.get("accepted", ""),
+              "close seals case.yaml with the transition as the accepted reason")
+        check(chain.close(case) == ("done", "done"), "close is idempotent")
+
+        # A tampered chain may not be closed as done, only as needs_human.
+        f = case / "findings" / "doc-search.md"
+        chain.unlock(case, ["findings/doc-search.md"])
+        f.write_text("F1 edited out of band\n")
+        (case / "case.yaml").chmod(0o644)
+        (case / "case.yaml").write_text((case / "case.yaml").read_text().replace(
+            "status: done", "status: in_progress"))
+        chain.seal(case, ["case.yaml"], reason="test reset")
+        try:
+            chain.close(case)
+            refused = False
+        except ValueError:
+            refused = True
+        check(refused, "close refuses `done` on a chain that does not verify")
+        check(chain.close(case, "needs_human")[1] == "needs_human",
+              "close allows `needs_human` on a tampered chain")
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = chain.main(["chain.py", "close", str(case), "--status", "bogus"])
+        check(rc == 1 and "must be one of" in buf.getvalue(),
+              "close rejects a status outside done|needs_human|failed")
+
+        two = Path(td) / "cases" / "JANUS-998"
+        two.mkdir(parents=True)
+        (two / "case.yaml").write_text("id: x\nstatus: intake\nstatus: intake\n")
+        try:
+            chain.close(two)
+            dup = False
+        except ValueError:
+            dup = True
+        check(dup, "close refuses a case.yaml with two top-level status lines")
+
+
 def main():
     test_chain()
     test_lock()
+    test_close()
     test_evidence_shell_hook()
     test_approvalcheck()
     test_hook_error_log()

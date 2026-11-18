@@ -295,6 +295,13 @@ python3 <skill-dir>/scripts/sendback.py record cases/<id> <sub-code> [<sub-code>
 
 Obey the verdict (`OK` → targeted in-place revision naming the defect class; `RECONSIDER` → last allowed round; `ESCALATE` → stop, write `review-queue/NEEDS_HUMAN_<id>.md`). Both gates pass → `review-queue/DONE_<id>.md`.
 
+**Close the case in `case.yaml` every time a handoff file is written.** Run the command below together with each `DONE_` / `NEEDS_HUMAN_` file, and again whenever a later round (lab-verify, report revision) re-closes the case. `case.yaml` has been locked since step 6, so do not Edit it. `close` unlocks it, rewrites `status:`, seals the change and locks it again in one step. It refuses `done` on a chain that does not verify: close such a case as `needs_human`.
+
+```bash
+python3 <skill-dir>/scripts/chain.py close cases/<id>                        # DONE_<id>.md
+python3 <skill-dir>/scripts/chain.py close cases/<id> --status needs_human   # NEEDS_HUMAN_<id>.md
+```
+
 ### What the lead does NOT do
 
 Never read source, search docs, chase PRs/Jira, analyze crashes, write IaC, build labs, write stage findings, write/patch the report directly, or intervene in a running stage.

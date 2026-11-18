@@ -2,6 +2,36 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.56.0 — 2026-11-18
+
+**Cases now actually reach `status: done`.** Step 7 wrote
+`review-queue/DONE_<id>.md` and nothing ever updated `case.yaml`. The
+file was also locked at fan-in (step 6), so a lead that did try to
+Edit the status was denied by the lock hook. Every case therefore
+stayed `in_progress` or `intake`: 11 cases in one project by JANUS-029.
+
+- **`chain.py close <case-dir> [--status done|needs_human|failed]`**
+  (new). In one step it:
+  - verifies the chain;
+  - unlocks `case.yaml` and rewrites only the top-level `status:` line,
+    keeping any trailing comment;
+  - seals the file, storing the transition (`in_progress -> done`) as
+    the ledger's accepted reason;
+  - locks the file again.
+
+  It refuses `done` on a chain that does not verify (close as
+  `needs_human` instead) and refuses a `case.yaml` with zero or several
+  top-level `status:` lines. Running it again on a closed case is a
+  no-op.
+- **SKILL.md step 7**: run `chain.py close` with every `DONE_` /
+  `NEEDS_HUMAN_` handoff, including re-closes after a later lab or
+  revision round.
+- **`scripts/selftest.py`**: `test_close` covers the status rewrite,
+  the comment, the lock, the ledger reason, idempotence, the tamper
+  refusal, a bad status and duplicate status lines.
+- **CLAUDE.md / README**: command list and evidence-chain section
+  updated.
+
 ## 0.55.1 — 2026-11-18
 
 **Light stages back on `sonnet`.** 0.49.0 set every agent to

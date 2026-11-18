@@ -37,12 +37,24 @@ with an explanation instead of a bare permission error. `unlock` is the
 lead's explicit escape hatch for a legitimate revision
 (unlock → edit → re-seal → lock).
 
+`close` ends a case. Nothing else ever set `status: done`: SKILL.md
+step 7 wrote review-queue/DONE_<id>.md and stopped, and case.yaml was
+already locked at fan-in, so a lead that tried to edit the status was
+denied by the lock hook. Every case stayed `in_progress` (11 of them by
+JANUS-029). `close` does the whole sequence in one step: verify the
+chain, unlock case.yaml, rewrite the top-level `status:` line, seal it
+with the transition stored as the accepted reason, and lock it again.
+`done` is refused on a chain that does not verify — a tampered case is
+`needs_human`, not finished.
+
 Usage:
   python3 chain.py seal <case-dir> [file ...]    # no files: all default targets
           [--accept-change "<reason>"]           # also re-seal files changed since their seal
   python3 chain.py verify <case-dir>             # exit 1 on tamper / broken link
   python3 chain.py lock <case-dir> [file ...]    # no files: the fact base
   python3 chain.py unlock <case-dir> [file ...]  # restore owner write
+  python3 chain.py close <case-dir> [--status done|needs_human|failed]
+                                                 # set case.yaml status (default done), seal, lock
 
 Stdlib-only, like scripts/validate.py.
 """
@@ -51,6 +63,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -66,6 +79,9 @@ DEFAULT_GLOBS = ("case.yaml", "verdict.md", "findings/*.md", "results/*.md", "au
 # results/ and verdict.md stay out — they are still being written after
 # the fan-in lock (send-back revisions, the human's verdict).
 LOCK_GLOBS = ("case.yaml", "findings/*.md", "audit/*")
+# Terminal statuses `close` may set (a subset of caselint.STATUSES).
+CLOSE_STATUSES = ("done", "needs_human", "failed")
+STATUS_LINE = re.compile(r"^status:[ \t]*(\S*)[ \t]*(#.*)?$", re.MULTILINE)
 
 
 class ChainError(Exception):
@@ -303,6 +319,44 @@ def unlock(case_dir, paths=None):
     return unlocked
 
 
+def close(case_dir, status="done", actor="lead"):
+    """Set case.yaml's top-level status, seal it, and lock it.
+
+    Returns (old_status, new_status). Raises ValueError for a status
+    outside CLOSE_STATUSES, a case.yaml without exactly one top-level
+    `status:` line, or `done` on a chain that does not verify."""
+    if status not in CLOSE_STATUSES:
+        raise ValueError(f"status must be one of {' | '.join(CLOSE_STATUSES)}")
+    case_dir = Path(case_dir).resolve()
+    case_yaml = case_dir / "case.yaml"
+    if not case_yaml.is_file():
+        raise ValueError(f"no case.yaml in {case_dir}")
+    problems, _ = verify(case_dir)
+    if problems and status == "done":
+        raise ValueError(
+            "chain does not verify — refusing `done`; close with "
+            "--status needs_human and record the problem in audit/: "
+            + "; ".join(problems)
+        )
+    text = case_yaml.read_text(encoding="utf-8")
+    matches = list(STATUS_LINE.finditer(text))
+    if len(matches) != 1:
+        raise ValueError(
+            f"case.yaml needs exactly one top-level `status:` line (found {len(matches)})"
+        )
+    m = matches[0]
+    old = m.group(1)
+    if old != status:
+        comment = f" {m.group(2)}" if m.group(2) else ""
+        new_text = text[:m.start()] + f"status: {status}{comment}" + text[m.end():]
+        unlock(case_dir, ["case.yaml"])
+        case_yaml.write_text(new_text, encoding="utf-8")
+        seal(case_dir, ["case.yaml"], actor=actor,
+             reason=f"status {old or '(empty)'} -> {status} (chain.py close)")
+    lock(case_dir, ["case.yaml"])
+    return old, status
+
+
 def verify(case_dir):
     """Returns (problems, warnings). Any problem = tamper / broken ledger."""
     case_dir = Path(case_dir).resolve()
@@ -357,13 +411,16 @@ def verify(case_dir):
 
 
 def main(argv):
-    if len(argv) < 3 or argv[1] not in ("seal", "verify", "lock", "unlock", "retire"):
+    if len(argv) < 3 or argv[1] not in (
+        "seal", "verify", "lock", "unlock", "retire", "close"
+    ):
         print(__doc__.strip().splitlines()[0])
         print(
             "usage: chain.py seal <case-dir> [file ...] [--accept-change '...'] "
             "| chain.py lock|unlock <case-dir> [file ...] "
             "| chain.py verify <case-dir> "
-            "| chain.py retire <case-dir> <file> [--reason '...']"
+            "| chain.py retire <case-dir> <file> [--reason '...'] "
+            "| chain.py close <case-dir> [--status done|needs_human|failed]"
         )
         return 2
     cmd, case_dir = argv[1], Path(argv[2])
@@ -398,6 +455,25 @@ def main(argv):
                 return 1
             if not sealed:
                 print("chain up to date — nothing new to seal")
+            return 0
+        if cmd == "close":
+            args, status = list(argv[3:]), "done"
+            if "--status" in args:
+                i = args.index("--status")
+                status = args[i + 1] if i + 1 < len(args) else ""
+                del args[i:i + 2]
+            if args:
+                print(f"error: unexpected argument(s): {' '.join(args)}")
+                return 2
+            try:
+                old, new = close(case_dir, status)
+            except ValueError as e:
+                print(f"error: {e}")
+                return 1
+            if old == new:
+                print(f"status already {new} — case.yaml locked")
+            else:
+                print(f"closed: status {old or '(empty)'} -> {new}; case.yaml sealed and locked")
             return 0
         if cmd == "retire":
             args, reason = list(argv[3:]), ""

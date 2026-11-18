@@ -46,6 +46,7 @@ python3 plugins/janus/skills/janus/scripts/sendback.py record|status cases/<id> 
 python3 plugins/janus/skills/janus/scripts/findings.py lint|digest cases/<id>
 python3 plugins/janus/skills/janus/scripts/chain.py verify cases/<id>
 python3 plugins/janus/skills/janus/scripts/chain.py seal|lock|unlock cases/<id> [file ...]
+python3 plugins/janus/skills/janus/scripts/chain.py close cases/<id> [--status done|needs_human|failed]
 python3 plugins/janus/skills/janus/scripts/quotecheck.py cases/<id>/results/synthesis.md
 python3 plugins/janus/skills/janus/scripts/urlcheck.py cases/<id>/results/synthesis.md
 python3 plugins/janus/skills/janus/scripts/versioncheck.py cases/<id>

@@ -773,7 +773,12 @@ PreToolUse hook (`hooks/evidence-lock.py`) denies tracked writes to
 locked files with an explanation instead of a bare permission error —
 so a stage can no longer clobber another stage's findings mid-flight.
 `chain.py unlock` is the lead's explicit escape hatch for a legitimate
-revision (unlock → edit → re-seal → lock).
+revision (unlock → edit → re-seal → lock). Because `case.yaml` is part
+of that locked fact base, the case's final `status:` is set with
+`chain.py close cases/<id> [--status done|needs_human|failed]`. It
+verifies the chain (refusing `done` on a tampered one), rewrites the
+status line, seals it with the transition recorded as the reason, and
+locks the file again.
 
 Both of those key on the Write/Edit tools, so a shell write went around
 them. A third PreToolUse hook (`hooks/evidence-shell.py`) denies
