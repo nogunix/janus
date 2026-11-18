@@ -9,7 +9,9 @@ against its internal component registry and rejects Claude Code tool names.
 This script reads plugins/janus/agents/*.md and writes Antigravity overrides
 to .agents/agents/<name>.md and .agents/agents/<name>/agent.md (which are
 gitignored via `/.agents/` in .gitignore), mapping `tools:` to Antigravity's
-native component names and enabling `inheritMcp: true`.
+native component names and enabling `inheritMcp: true`. `model:` is
+rewritten to `inherit`: the plugin pins light stages to the Claude family
+alias `sonnet`, which Antigravity's model tiers do not resolve.
 
 Usage:
     python3 scripts/sync-agy-agents.py
@@ -55,6 +57,7 @@ def convert_agent_markdown(text: str) -> str:
         fm,
         flags=re.M,
     )
+    fm_new = re.sub(r"^model:.*$", "model: inherit", fm_new, flags=re.M)
     return f"---\n{fm_new}---\n\n{AGY_TOOL_NOTE}\n{body.lstrip()}"
 
 

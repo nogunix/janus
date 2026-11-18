@@ -9,7 +9,7 @@ description: >-
   lead at fan-in when another stage's findings reference a GitHub PR/issue.
   Writes findings to cases/<id>/findings/github-trace.md.
 tools: [Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__github__search_issues, mcp__github__list_issues, mcp__github__issue_read, mcp__github__search_pull_requests, mcp__github__list_pull_requests, mcp__github__pull_request_read, mcp__github__search_code, mcp__github__get_file_contents, mcp__github__list_commits, mcp__github__get_commit, mcp__github__search_repositories, mcp__github__list_releases, mcp__github__get_latest_release, mcp__github__list_branches, mcp__github__list_tags, mcp__github__search_commits, mcp__github__get_tag]
-model: inherit
+model: sonnet
 ---
 
 You are a pipeline stage. You deep-dive upstream GitHub references and

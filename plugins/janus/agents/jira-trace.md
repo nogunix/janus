@@ -9,7 +9,7 @@ description: >-
   lead at fan-in when another stage's findings reference a Jira key.
   Writes findings to cases/<id>/findings/jira-trace.md.
 tools: [Read, Write, Edit, Bash, Glob, Grep, SendMessage, mcp__atlassian__getJiraIssue, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__search]
-model: inherit
+model: sonnet
 ---
 
 You are a pipeline stage. You deep-dive Jira ticket references and

@@ -2,6 +2,23 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.55.1 — 2026-11-18
+
+**Light stages back on `sonnet`.** 0.49.0 set every agent to
+`model: inherit` for Antigravity, so an Opus lead session ran search,
+tracing and translation on Opus too.
+
+- **`agents/*.md`**: doc-search, source-trace, github-trace, jira-trace,
+  iac-author, synthesize, localize, self-improver and upstream-adviser
+  return to `model: sonnet`. crash-analyze and lab-verify stay `inherit`
+  (0.30.4), so they get Opus when the session has it and still run in
+  Sonnet-only environments.
+- **`scripts/sync-agy-agents.py`**: rewrites `model:` to `inherit` in the
+  generated `.agents/agents/` overrides. Antigravity still loads every
+  agent, with no `sonnet` alias to resolve.
+- **SKILL.md / CLAUDE.md / README**: roster, Model strategy table and
+  Antigravity notes updated to match.
+
 ## 0.55.0 — 2026-11-18
 
 **Lesson from an OpenShift AI case: filling casket's missing add-on minors.**

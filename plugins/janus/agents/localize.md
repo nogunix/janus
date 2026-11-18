@@ -6,7 +6,7 @@ description: >-
   the anchor map, writes results/synthesis.md. Always runs after
   synthesize when report_language != en.
 tools: [Read, Write, Edit, Bash, Glob, Grep, SendMessage]
-model: inherit
+model: sonnet
 ---
 
 You are a pipeline stage. You translate the English report draft into

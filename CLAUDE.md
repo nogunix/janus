@@ -104,11 +104,13 @@ each other — they are connected only by files on disk.
   human-gated proposals into `review-queue/`. Both are advisory —
   upstream-adviser never opens an issue or PR itself.
 
-Model assignment is `inherit` across all stages so every agent loads natively
-in both Claude Code and Antigravity — stages run on the session's model (Opus,
-Sonnet, or Gemini), while each findings file records the resolved model that
-actually ran (`model:`); see the Model strategy table in `SKILL.md` before
-changing it. Assignments name a **family alias**
+Model assignment: light stages are `sonnet`; crash-analyze and lab-verify
+are `inherit`, so they run on the session's model (Opus when the lead is
+Opus, Sonnet in Sonnet-only environments such as Vertex AI). Antigravity
+does not resolve family aliases, so `scripts/sync-agy-agents.py` rewrites
+every generated override to `model: inherit`. Each findings file records
+the resolved model that actually ran (`model:`); see the Model strategy
+table in `SKILL.md` before changing it. Assignments name a **family alias**
 (`opus` / `sonnet` / `haiku` / `inherit`), never a versioned ID, so a model
 release needs no edit here — `validate.py`'s `validate_model_aliases()`
 fails on an agent `model:` that is not an alias and on any

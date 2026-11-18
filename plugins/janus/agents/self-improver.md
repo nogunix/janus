@@ -8,7 +8,7 @@ description: >-
   never autonomously applies changes to the skill/agent definitions or
   safety boundaries.
 tools: [Read, Write, Edit, Bash, Glob, Grep]
-model: inherit
+model: sonnet
 ---
 
 You improve JANUS by learning from its results. You analyze, measure,

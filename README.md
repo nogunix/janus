@@ -285,9 +285,10 @@ adding `.agents/plugins.json` (`{"entries": [{"path": "plugins"}]}`).
 
 1. **Sync subagent tool definitions** — `plugins/janus/agents/*.md` use Claude
    Code tool names (`Read`, `Write`, `Edit`, `Bash`, `SendMessage`), which
-   Antigravity's component registry rejects on direct subagent launch. Generate
-   workspace-local overrides under `.agents/agents/` (gitignored) before
-   running a case:
+   Antigravity's component registry rejects on direct subagent launch, and
+   light stages pin the Claude alias `model: sonnet`. Generate
+   workspace-local overrides under `.agents/agents/` (gitignored, tools
+   mapped and `model:` set to `inherit`) before running a case:
 
    ```bash
    python3 scripts/sync-agy-agents.py

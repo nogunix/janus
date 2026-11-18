@@ -38,15 +38,15 @@ connects, it does not process.
 
 | Stage | Role | Output | Tools | Safety | Model |
 |---|---|---|---|---|---|
-| **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure, AWS docs for ROSA/AWS) | findings/doc-search.md | okp-mcp + rh-docs + rh-security-mcp + rh-api-mcp + slack + mslearn + aws | Static | inherit |
-| **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp (optional) | Static | inherit |
-| **github-trace** | Upstream GitHub PR/issue/commit deep-dive | findings/github-trace.md | github MCP (read-only) | Static | inherit |
-| **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | atlassian (Rovo MCP, read-only) | Static | inherit |
+| **doc-search** | Red Hat docs/CVE/KB/Slack search (+ Microsoft Learn for ARO/Azure, AWS docs for ROSA/AWS) | findings/doc-search.md | okp-mcp + rh-docs + rh-security-mcp + rh-api-mcp + slack + mslearn + aws | Static | sonnet |
+| **source-trace** | Version-specific source tracing | findings/source-trace.md | casket-mcp (optional) | Static | sonnet |
+| **github-trace** | Upstream GitHub PR/issue/commit deep-dive | findings/github-trace.md | github MCP (read-only) | Static | sonnet |
+| **jira-trace** | Jira ticket deep-dive (RHEL-/OCPBUGS-/CNV-…) | findings/jira-trace.md | atlassian (Rovo MCP, read-only) | Static | sonnet |
 | **crash-analyze** | vmcore/coredump analysis | findings/crash-analyze.md | drgn-mcp + gdb | Static | inherit |
-| **iac-author** | Authors + statically validates the lab's IaC | findings/iac-author.md + `iac/` | terraform-mcp + ansible-mcp (authoring subset) | Static | inherit |
+| **iac-author** | Authors + statically validates the lab's IaC | findings/iac-author.md + `iac/` | terraform-mcp + ansible-mcp (authoring subset) | Static | sonnet |
 | **lab-verify** | Live cluster verification | findings/lab-verify.md | oc, terraform CLI, bpftrace, linux-mcp | Dynamic | inherit |
-| **synthesize** | All findings → English report | results/synthesis.md (en) or results/synthesis-en.md (ja) | Read only | Static | inherit |
-| **localize** | English report → Japanese report | results/synthesis.md | Read only | Static | inherit |
+| **synthesize** | All findings → English report | results/synthesis.md (en) or results/synthesis-en.md (ja) | Read only | Static | sonnet |
+| **localize** | English report → Japanese report | results/synthesis.md | Read only | Static | sonnet |
 
 - **github-trace and jira-trace** are conditional follow-up stages: launch them at fan-in when another stage's findings reference a GitHub PR/issue/commit or a Jira ticket that no other stage can open. Include up front only when the case question itself names one.
 - **source-trace** is opportunistic (`casket` MCP is optional). When preflight finds no `casket` server connected, drop source-trace silently and note it once as a gap in the report.
@@ -56,8 +56,8 @@ connects, it does not process.
 
 | Agent | Trigger | Role | Model |
 |---|---|---|---|
-| **self-improver** | 10 accumulated verdict.md files, or weekly | Metrics computation, improvement proposals | inherit |
-| **upstream-adviser** | After a high-confidence report, or periodic | Drafts upstream contribution proposals | inherit |
+| **self-improver** | 10 accumulated verdict.md files, or weekly | Metrics computation, improvement proposals | sonnet |
+| **upstream-adviser** | After a high-confidence report, or periodic | Drafts upstream contribution proposals | sonnet |
 
 ## What the lead does directly (shell functions)
 
@@ -145,7 +145,7 @@ Server names must match the enumerated tool grants (see `references/mcp-dependen
 Pipeline for <case-id>:
   { doc-search, source-trace } | synthesize
 
-  Static (autonomous): doc-search (inherit), source-trace (inherit)
+  Static (autonomous): doc-search (sonnet), source-trace (sonnet)
   Dynamic (needs approval): none
   → Proceed?
 ```
@@ -318,17 +318,17 @@ Never read source, search docs, chase PRs/Jira, analyze crashes, write IaC, buil
 
 | Stage | Model | Rationale |
 |---|---|---|
-| doc-search | inherit | Adapts to the host session model across Claude Code and Antigravity; search and organization |
-| source-trace | inherit | Adapts to the host session model; symbol tracing and diff extraction |
-| github-trace | inherit | Adapts to the host session model; PR/issue reading and link following |
-| jira-trace | inherit | Adapts to the host session model; ticket reading and link following |
-| crash-analyze | inherit | Heavy reasoning — runs on the session's model (e.g., Opus, Sonnet, or Gemini Pro/Argon) |
-| iac-author | inherit | Adapts to the host session model; registry lookup and templating against a documented schema |
-| lab-verify | inherit | Heavy reasoning — runs on the session's model (e.g., Opus, Sonnet, or Gemini Pro/Argon) |
-| synthesize | inherit | Adapts to the host session model; structured input + mechanical pre-checks enforce quality |
-| localize | inherit | Adapts to the host session model; translation against a fixed anchor map and textlint preset |
+| doc-search | sonnet | Search and organization |
+| source-trace | sonnet | Symbol tracing and diff extraction |
+| github-trace | sonnet | PR/issue reading and link following |
+| jira-trace | sonnet | Ticket reading and link following |
+| crash-analyze | inherit | Heavy reasoning — runs on the session's model: Opus from an Opus session, Sonnet where only Sonnet is available (e.g., Vertex AI) |
+| iac-author | sonnet | Registry lookup and templating against a documented schema |
+| lab-verify | inherit | Heavy reasoning — runs on the session's model: Opus from an Opus session, Sonnet where only Sonnet is available (e.g., Vertex AI) |
+| synthesize | sonnet | Structured input + mechanical pre-checks enforce quality |
+| localize | sonnet | Translation against a fixed anchor map and textlint preset |
 
-All agents declare `model: inherit` in frontmatter so they load natively in both Claude Code and Antigravity (`opus` / `sonnet` / `haiku` / `inherit` are family aliases; versioned IDs are rejected by `validate.py`). **The model that actually ran is recorded in each findings file's `model:` frontmatter key and surfaced in the report's Execution Metadata.** Under budget pressure (lower effort → hold cases → reduce parallelism) or on refusal (record it, step down model tiers, or escalate to `NEEDS_HUMAN_*`), record any model substitution in `cases/<id>/audit/`.
+Light stages are pinned to `sonnet` so an Opus lead session does not run search, tracing and translation on Opus; the two heavy-reasoning stages `inherit` the session's model so they get Opus when it is there and still run where only Sonnet is (`opus` / `sonnet` / `haiku` / `inherit` are family aliases; versioned IDs are rejected by `validate.py`). On Antigravity, `scripts/sync-agy-agents.py` rewrites every override's `model:` to `inherit`, since Antigravity does not resolve Claude family aliases. **The model that actually ran is recorded in each findings file's `model:` frontmatter key and surfaced in the report's Execution Metadata.** Under budget pressure (lower effort → hold cases → reduce parallelism) or on refusal (record it, step down model tiers, or escalate to `NEEDS_HUMAN_*`), record any model substitution in `cases/<id>/audit/`.
 
 ## Failure handling, Escalation & Learning loop
 
@@ -339,5 +339,5 @@ All agents declare `model: inherit` in frontmatter so they load natively in both
 
 ## Antigravity host notes (`agy`)
 
-- **Subagent tools**: `plugins/janus/agents/*.md` declare Claude Code tool names. Before launching stages on Antigravity, run `python3 scripts/sync-agy-agents.py` to generate `.agents/agents/` overrides, or invoke `TypeName: "self"` and instruct the subagent to use Antigravity tools (`read_file`, `write_file`, `edit_file`, `run_command`, `send_message`, `call_mcp_tool`).
+- **Subagent tools and models**: `plugins/janus/agents/*.md` declare Claude Code tool names and Claude family aliases (`sonnet`). Before launching stages on Antigravity, run `python3 scripts/sync-agy-agents.py` to generate `.agents/agents/` overrides (tools mapped, `model:` set to `inherit`), or invoke `TypeName: "self"` and instruct the subagent to use Antigravity tools (`read_file`, `write_file`, `edit_file`, `run_command`, `send_message`, `call_mcp_tool`).
 - **Quota / mid-stage recovery**: If a subagent stops mid-stage (e.g., `429 RESOURCE_EXHAUSTED` after completing MCP queries), launch a replacement subagent and pass the stopped subagent's `transcript.jsonl` path so it can write and lint `findings/*.md` / `results/*.md` without repeating MCP calls.
