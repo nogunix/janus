@@ -56,6 +56,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 CHAIN_NAME = "chain.jsonl"
+# Written by hooks/evidence-chain.py when an auto-seal fails; not evidence.
+HOOK_ERRORS = "chain-hook-errors.log"
 GENESIS = "0" * 64
 # The case evidence set. artifacts/ (vmcore binaries, never committed)
 # is deliberately excluded.
@@ -344,6 +346,13 @@ def verify(case_dir):
         rel = str(p.relative_to(case_dir))
         if rel not in latest:
             warnings.append(f"unsealed: {rel}")
+    hook_log = case_dir / HOOK_ERRORS
+    if hook_log.is_file() and hook_log.stat().st_size:
+        n = len(hook_log.read_text(encoding="utf-8", errors="replace").splitlines())
+        warnings.append(
+            f"{HOOK_ERRORS}: the auto-seal hook failed {n} time(s) — a TAMPER on "
+            "one of those files may be a missed seal; read the log before judging"
+        )
     return problems, warnings
 
 

@@ -123,6 +123,9 @@ follow as given; this override is about prose style only.
   within a single clause. Rephrase: use synonyms, change voice, or
   split the sentence
 - **No 半角ｶﾀｶﾅ** — always use 全角カタカナ
+- **No space between Japanese and half-width alphanumerics** —
+  `AROクラスタ`, `OCP 4.20の`, not `ARO クラスタ`. Spaces between two
+  half-width tokens (`OCP 4.20`) stay.
 - **Keep hedging where hedging is accurate.** A LOW-confidence
   hypothesis should read as uncertain in Japanese. Do not inflate
   「〜の可能性がある」into an assertion.
@@ -193,6 +196,9 @@ Notify the lead via SendMessage when done.
 - Write the file before SendMessage.
 - Do not add, remove, or reorder findings, hypotheses, or references.
   You translate and fix links — you do not edit content.
+- External URLs pass through byte for byte. "Fix links" means the local
+  evidence links to findings files, never adding or rewriting a
+  `#fragment` on an external documentation URL.
 - If the English draft has a structural issue (missing section, wrong
   finding number), translate it as-is and note it in your SendMessage.
   Content fixes go back to synthesize, not to you.

@@ -214,6 +214,22 @@ the table's value as a guess.
   would show ..." — either run it, or record it as a Gap with the reason
   it could not run.
 - For long-running guest commands, use `run_in_background`.
+- **Shared physical lab hardware is borrowed, not owned.** Never change
+  a BMC's (iDRAC/IPMI) default credentials: the next user is locked out
+  until someone resets the machine by hand. If you need your own login,
+  create a separate BMC user. A machine you were assigned that is
+  already powered on may be the wrong machine or someone else's: stop
+  and ask the human before touching it. Power it off when you hand it
+  back, and record these steps in the ledger like any other teardown.
+- **The downstream product is the schema, not upstream docs.** Red Hat
+  builds rename CRD fields, API versions and in-image paths relative to
+  upstream (a procedure written from upstream SPIRE docs was wrong in
+  several places against the Red Hat operator, and only lab runs showed
+  it). Before you run or record a manifest or command taken from
+  upstream, confirm it against the live product: `oc explain` / `oc get
+  crd <name> -o json` for fields and `apiVersion`, and the binary's real
+  path inside the container. A procedure delivered as a finding is made
+  of commands you ran, not commands you read.
 
 ## Reusable patterns (inlined)
 
@@ -245,6 +261,34 @@ Model serving on OpenShift AI (KServe / vLLM):
 - A tool that talks to the model endpoint (e.g. NeMo Guardrails
   `openai_api_base`) must target the vLLM **container port 8080**, not
   the KServe Service port 80.
+
+ARO teardown:
+- `az aro delete` can leave the cluster `Failed` and then answer
+  "Internal server error". Even a successful delete can leave a Private
+  Link Service, load balancer and NICs in the managed resource group,
+  and a private-endpoint connection on that PLS blocks deleting the main
+  resource group's subnet. Delete in dependency order: PE connection →
+  PLS → LB → managed RG → main RG, then `terraform state rm` whatever
+  the state still holds. Budget 30–60 min for the delete itself and
+  record each step in the ledger.
+
+Demo / RHDP environments:
+- Extending a demo environment's auto-stop or lifetime bills a cost
+  center. Ask the human before extending, every time.
+- Post-provision setup scripts often run in phases and exit on the first
+  failure, skipping every later phase. A timing race (a scan schedule
+  created before its profiles are ready) is a typical cause. Read the
+  log tail for the failure line rather than trusting "done". If the
+  script is idempotent, re-run it whole. Detach it from SSH with
+  `setsid nohup … < /dev/null &`.
+- The demo's guide is not the environment. Image contents, compliance
+  profiles and default policy states drift from what the guide shows, and
+  freshly deployed images show no CVEs until the scanner finishes
+  (~10 min). Record what the live environment shows, not what the guide
+  says it should.
+- `pgrep -f <script>` matches the shell running the check itself, so it
+  always reports the process as running. Use a bracket pattern
+  (`pgrep -f "[i]nstall-all-setup.sh"`).
 
 CRD inspection (Operator-managed resources):
 - **Always use recursive property expansion.** When inspecting a CRD's
