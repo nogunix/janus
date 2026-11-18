@@ -2,6 +2,22 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.55.0 — 2026-11-18
+
+**Lesson from an OpenShift AI case: filling casket's missing add-on minors.**
+
+- **`agents/source-trace.md`** (step 1c): add-on products such as RHOAI
+  can sit in casket as one minor per OCP mount (the latest at collection
+  time), so the case's minor may be missing from every mount. Do not
+  leave the stage at `partial`. Hand the gap to github-trace with
+  `red-hat-data-services/<repo>`, the `rhoai-X.Y` branch, and the files
+  or symbols needed.
+- **`agents/github-trace.md`** (step 5c): read that downstream release
+  branch, but pin every citation to the release tag, or failing that the
+  commit SHA. Never cite the branch name. A SHA from the branch head is
+  recorded in Basis as an approximation of what shipped.
+- **SKILL.md**: a fan-in follow-up row for this gap.
+
 ## 0.54.0 — 2026-11-18
 
 **Lessons from three more workspaces (ARO, a disconnected-install

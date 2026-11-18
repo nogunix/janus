@@ -99,6 +99,14 @@ below and say so in Gaps.
    string, but `stackrox/stackrox` and `stackrox/collector` resolve under
    `b-operand`, product `acs`, inside the `sources-layered-ocp4.14`
    through `4.22` mounts — holding exactly two RHACS releases between them.
+   - **Add-on products may hold only one minor per mount.** For RHOAI and
+     similar add-ons, each OCP mount carries only the product's latest
+     minor at collection time, so the case's minor can be absent from every
+     mount. Do not stop at `status: partial` and leave it there. Hand the
+     gap to github-trace in Gaps with the downstream repo and branch
+     (`red-hat-data-services/<repo>`, branch `rhoai-X.Y`) and the files
+     or symbols the question needs, so the lead can launch the follow-up
+     (case: JANUS-030).
 
 2. Use `list_versions` to confirm availability — and enumerate ALL casket
    phases/mounts where the component (or its counterparts in other layers)

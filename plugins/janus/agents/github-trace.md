@@ -63,6 +63,17 @@ write findings.
     OCPBUGS-/RHEL- key) on the next line; `pull_request_read` the ones
     that bear on the case. Report per range: PRs, Jira keys, and whether
     `base` was reached (a range longer than you read is `partial`).
+5c. **Downstream source casket does not hold.** When source-trace hands
+    over a product minor that casket is missing (for example RHOAI, where
+    each OCP mount carries only the latest minor), read the downstream
+    repo's release branch: `red-hat-data-services/<repo>`, branch
+    `rhoai-X.Y`. Branch heads move, so pin every reference. Use the
+    product version's release tag when one exists (`list_tags`), otherwise
+    the commit SHA you read at. Cite `get_file_contents` at that tag or
+    SHA, never at the branch name. Record which kind of pin you used: a
+    release tag stands for what shipped, but a SHA read from the branch
+    head is a later approximation, like casket's `exact: false`, so say so
+    in Basis.
 6. Report negative results explicitly — "searched repo X for symptom Y,
    no issue/PR matches" is evidence.
 

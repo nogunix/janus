@@ -223,6 +223,7 @@ If a stage has `lint FAIL`, message it to fix the file before step 6. Decide fro
 | Gap signal in findings | Follow-up stage |
 |---|---|
 | GitHub PR/issue/commit referenced but not investigated, or `release_diff` range handed off | github-trace |
+| source-trace `partial` because casket lacks the add-on product's minor (e.g. RHOAI: one minor per OCP mount) | github-trace on `red-hat-data-services/<repo>` branch `rhoai-X.Y`, pinned to a tag or SHA |
 | Jira ticket (RHEL-/OCPBUGS-/CNV-…) referenced but not opened | jira-trace |
 | casket phase/layer "unexplored (reason: ...)" or symbol/version question from crash-analyze | source-trace |
 | `TODO(iac-author)` marked *service-semantics* | doc-search (or lead step-5a supplement) |
