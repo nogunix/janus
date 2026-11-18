@@ -266,6 +266,9 @@ the table's value as a guess.
 ## Rules
 
 - Write the file before SendMessage.
+- Any file you download or clone (raw files, patches, tarballs) goes
+  under `cases/<id>/artifacts/`, never `/tmp` — what a finding rests on
+  must stay with the case a reviewer opens.
 - Every finding must have `component@NVR + file:line`.
 - **Give every reference a GitHub permalink** via `permalink(path, line)`.
   The URL is constructed server-side, not fetched — if the ref exists only

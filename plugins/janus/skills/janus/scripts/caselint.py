@@ -22,7 +22,8 @@ is *accepted* downstream rather than rejected.
   warn  no `tracks` (the lead composes the pipeline by hand); no
         `objectives` (the Objectives Assessment gets derived rather than
         declared); a version named in the theme with no `version_scope`
-        declared; `id` not matching the directory name.
+        declared; `id` not matching the directory name; a
+        `related_cases` id with no case directory next to this one.
 
 There is no fail-open path: every answer here is computable from the
 file in hand. An unknown key is ignored, not failed — case.yaml carries
@@ -234,6 +235,15 @@ def check_objectives(case, warnings):
         )
 
 
+def check_related(case, case_dir, warnings):
+    """related_cases names the case this one continues; a typo leaves the
+    reader with a pointer to nothing, so check each id is a sibling dir."""
+    for rid in _as_list(case.get("related_cases")):
+        rid = str(rid).strip()
+        if rid and not (case_dir.parent / rid).is_dir():
+            warnings.append(f"related_cases `{rid}` is not a case directory next to this one")
+
+
 def run(target):
     """Returns (problems, warnings). target is a case dir or a case.yaml."""
     target = Path(target)
@@ -264,6 +274,7 @@ def run(target):
     check_scope(case, problems)
     check_scope_declared(case, warnings)
     check_objectives(case, warnings)
+    check_related(case, case_dir, warnings)
     return problems, warnings
 
 

@@ -2,6 +2,29 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.52.0 — 2026-11-18
+
+**New scope gets a new case; scratch stays inside the case.** Two
+process gaps from recent cases:
+
+- A `done` case was reopened for lab work with a different objective.
+  The work later had to be split into its own case by hand, leaving
+  unsealed files to move, the wrong case id in IaC comments, and
+  lab findings that had never been through `findings.py lint` (the
+  lead ran the lab itself, outside a stage brief).
+  **SKILL.md** now documents the optional `related_cases` key: a `done`
+  case is never reopened for a new objective, the new case names the
+  old one there, and lab work the lead runs itself still writes a
+  findings file that passes `findings.py lint`. **`caselint.py`** warns
+  when a `related_cases` id has no case directory next to this one.
+- github-trace kept downloaded files in `/tmp`. The "never `/tmp`" rule
+  existed only in the lead's section of SKILL.md. It is now rule 5 of
+  the stage contract copied into every brief (downloads, clones and
+  scratch under `cases/<id>/artifacts/`, never `/tmp` or `findings/`),
+  and a Rules line in `agents/github-trace.md` and
+  `agents/source-trace.md`.
+- **`scripts/selftest.py`**: `related_cases` cases in `test_caselint`.
+
 ## 0.51.0 — 2026-11-18
 
 **Lab work needs an approval file, checked at the gates.** Every prompt

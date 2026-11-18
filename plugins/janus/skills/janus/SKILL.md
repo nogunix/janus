@@ -90,6 +90,7 @@ Required fields: `id`, `received_at`, `mode` (`artifact` | `theme`), `status` (`
 
 Optional fields:
 - `version_scope` — product version(s) in scope, grouped by product (e.g. `OCP: ["4.20"]`, `RHEL: ["9.6"]`). A scope entry matches its own z-streams (`4.16` covers `4.16.55`); `versioncheck.py` uses it to flag off-scope drift.
+- `related_cases` — ids of earlier cases this one continues. A `done` case is never reopened for a new objective: new scope gets a new case naming the old one here. Lab work the lead runs itself still writes a `findings/<stage>.md` that passes `findings.py lint`.
 - `report_language` — `en` (default) or `ja`. Headings, table headers and the label vocabulary stay English in both modes (gate C2/section and mechanical checks read them by name). `ja` composes `localize` and enables `prosecheck.py`.
 
 ---
@@ -188,6 +189,8 @@ Stage contract:
    layer/phase/angle is a Gap with a reason, never a Negative Result.
    Attempt at least one scoped fallback before recording either.
 4. Negative results are evidence — report them explicitly.
+5. Downloads, clones and scratch output go under cases/<id>/artifacts/,
+   never /tmp or findings/.
 ```
 
 ### 4. Gate dynamic stages

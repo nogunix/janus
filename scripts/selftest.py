@@ -793,6 +793,17 @@ def test_caselint():
         y.write_text(good)
         problems, warnings = cl.run(case)
         check(not problems and not warnings, "caselint: a complete case is clean")
+        # From JANUS-027/028: new scope landed in a done case and was split
+        # out by hand; the new case names the old one in related_cases.
+        (case.parent / "2026-01-01-old").mkdir()
+        y.write_text(good + "related_cases: [2026-01-01-old]\n")
+        problems, warnings = cl.run(case)
+        check(not problems and not warnings,
+              "caselint: related_cases naming an existing case is clean")
+        y.write_text(good + "related_cases: [2026-01-01-typo]\n")
+        problems, warnings = cl.run(case)
+        check(not problems and any("related_cases" in w for w in warnings),
+              "caselint: a related_cases id with no case directory warns")
 
         y.write_text(good + "report_language: jp\n")
         problems, _ = cl.run(case)
