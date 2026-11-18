@@ -316,7 +316,7 @@ plugins/janus/
   .claude-plugin/plugin.json         # plugin manifest
   skills/janus/SKILL.md              # /janus — pipeline driver
   skills/janus/references/           # SKILL.md / doc-search detail, read on demand
-  skills/janus/scripts/gates.py      # runs the seven step-7 checks, prints only non-passes
+  skills/janus/scripts/gates.py      # runs the eight step-7 checks, prints only non-passes
   skills/janus/scripts/caselint.py   # case.yaml vocabulary check, run at intake
   skills/janus/scripts/reportlint.py # report structure + recomputed counts (C2/section, C1/basis)
   skills/janus/scripts/sendback.py   # send-back ledger + the stopping rule (round cap, repeats)
@@ -334,7 +334,7 @@ plugins/janus/
   skills/md2pdf/                     # Markdown → PDF (pandoc + weasyprint, CJK)
   skills/okp-doc-search/             # okp-mcp research know-how (queries, doc_id rules)
   skills/ocp-triage-heuristics/      # experiential OCP live-cluster triage reference
-  hooks/                             # secret-safety + evidence-lock (PreToolUse denies) + evidence-chain (PostToolUse auto-seal)
+  hooks/                             # secret-safety + evidence-lock/-shell/-drift + findings-truncation (PreToolUse denies) + evidence-chain (PostToolUse auto-seal)
   agents/                            # 11 agents (patterns inlined into each)
     doc-search  source-trace  github-trace  jira-trace  crash-analyze
     iac-author  lab-verify  synthesize  localize  self-improver
@@ -765,6 +765,15 @@ so a stage can no longer clobber another stage's findings mid-flight.
 `chain.py unlock` is the lead's explicit escape hatch for a legitimate
 revision (unlock → edit → re-seal → lock).
 
+Both of those key on the Write/Edit tools, so a shell write went around
+them. A third PreToolUse hook (`hooks/evidence-shell.py`) denies
+redirects, `tee`, `sed -i`, `cp`/`mv`/`rm` and interpreter one-offs
+that name an evidence file already sealed in the case's ledger, while
+new audit logs written with a redirect still pass. And `chain.py seal`
+no longer re-seals a sealed file that changed behind the chain's back
+(the thing `verify` reports as TAMPER) unless the lead names the reason
+with `--accept-change "<why>"`, which is kept in the ledger record.
+
 **Report structure and arithmetic — `scripts/reportlint.py`.** The
 report states things about itself that can be derived from the findings
 it was built from: how many HIGH findings there are, how many VERIFIED,
@@ -955,7 +964,7 @@ that the preset's own rules already skip those node types — the filter is
 a backstop for rules added later, such as `prh` for terminology, which do
 match inside blockquotes.
 
-**One call at handoff — `scripts/gates.py`.** The lead runs all seven
+**One call at handoff — `scripts/gates.py`.** The lead runs all eight
 through a runner that prints one status per check (PASS / WARN / NOTICE
 / FAIL / ERROR / SKIP) and, for anything but a clean pass, only that
 check's non-`OK:` lines — so a report with forty live URLs costs the

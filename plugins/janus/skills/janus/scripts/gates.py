@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Run the seven step-7 pre-checks in one call and print only what needs reading.
+"""Run the eight step-7 pre-checks in one call and print only what needs reading.
 
     python3 gates.py cases/<id> [--skip NAME ...] [--verbose]
 
 Each check stays a standalone CLI; this is a runner, not a replacement.
-It exists for the lead's context budget: seven separate calls print every
+It exists for the lead's context budget: eight separate calls print every
 live URL and every intact seal, while the gate decision only needs the
 lines that are not a clean pass. So per check it prints one status line,
 then — unless the check passed cleanly — its non-`OK:` lines.
@@ -33,11 +33,14 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 # (name, script, argument kind) — step-7 order: chain first, since a
-# tampered evidence base makes every later answer moot, then reportlint,
+# tampered evidence base makes every later answer moot, then approval
+# (lab work with no approval on record is the same kind of NEEDS_HUMAN
+# stop, not a report defect), then reportlint,
 # since a report missing a section or miscounting its own findings makes
 # the citation-level checks premature.
 CHECKS = [
     ("chain", "chain.py", "verify"),
+    ("approval", "approvalcheck.py", "case"),
     ("reportlint", "reportlint.py", "case"),
     ("urlcheck", "urlcheck.py", "report"),
     ("quotecheck", "quotecheck.py", "report"),

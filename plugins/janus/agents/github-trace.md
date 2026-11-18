@@ -137,6 +137,9 @@ the table's value as a guess.
 ## Rules
 
 - Write the file before SendMessage.
+- Any file you download or clone (raw files, patches, tarballs) goes
+  under `cases/<id>/artifacts/`, never `/tmp` — what a finding rests on
+  must stay with the case a reviewer opens.
 - **Read-only.** NEVER open, comment on, or edit an issue/PR, and never
   star/watch/fork. You observe upstream; upstream-adviser (with human
   approval) is the only path toward contribution.

@@ -2,6 +2,88 @@
 
 Versions refer to the `janus` plugin (`plugins/janus/.claude-plugin/plugin.json`).
 
+## 0.52.0 — 2026-11-18
+
+**New scope gets a new case; scratch stays inside the case.** Two
+process gaps from recent cases:
+
+- A `done` case was reopened for lab work with a different objective.
+  The work later had to be split into its own case by hand, leaving
+  unsealed files to move, the wrong case id in IaC comments, and
+  lab findings that had never been through `findings.py lint` (the
+  lead ran the lab itself, outside a stage brief).
+  **SKILL.md** now documents the optional `related_cases` key: a `done`
+  case is never reopened for a new objective, the new case names the
+  old one there, and lab work the lead runs itself still writes a
+  findings file that passes `findings.py lint`. **`caselint.py`** warns
+  when a `related_cases` id has no case directory next to this one.
+- github-trace kept downloaded files in `/tmp`. The "never `/tmp`" rule
+  existed only in the lead's section of SKILL.md. It is now rule 5 of
+  the stage contract copied into every brief (downloads, clones and
+  scratch under `cases/<id>/artifacts/`, never `/tmp` or `findings/`),
+  and a Rules line in `agents/github-trace.md` and
+  `agents/source-trace.md`.
+- **`scripts/selftest.py`**: `related_cases` cases in `test_caselint`.
+
+## 0.51.0 — 2026-11-18
+
+**Lab work needs an approval file, checked at the gates.** Every prompt
+says lab-verify runs only after the human approves
+`review-queue/APPROVE_<id>.md`, but nothing checked that the file exists
+once the lab work is done. A case reached handoff with a full
+lab-verify findings file and no approval file; the approval had likely
+been given only in conversation, so the case could not show it.
+
+- **`scripts/approvalcheck.py`** (new): FAIL when
+  `findings/lab-verify.md` exists and no `APPROVE_<id>.md` /
+  `APPROVE_<id>-<suffix>.md` does in the `review-queue/` next to
+  `cases/`; warn when approval files carry no `APPROVED` / `承認済`
+  marker. No fail-open path.
+- **`gates.py`**: runs it second, after `chain` — now eight checks.
+  A FAIL routes like a chain FAIL (audit record + `NEEDS_HUMAN`), since
+  synthesize cannot fix it. SKILL.md step 4 tells the lead to mark the
+  approval file's title `APPROVED <date>`; step 7 table,
+  `quality-gates.md` and README updated.
+- **`agents/lab-verify.md`**: pre-flight — confirm the approval file
+  exists and is marked before any live command, cite it in the first
+  finding's Ref, and have the lead append scope growth to it.
+- **`scripts/selftest.py`**: `test_approvalcheck`.
+
+## 0.50.0 — 2026-11-18
+
+**Shell writes to sealed evidence are denied, and `chain.py seal` no
+longer silently re-seals a TAMPER.** All the write hooks keyed on the
+Write/Edit tools, so a shell write went around every one of them. The
+prompts already said "never Bash for findings/results", and it still
+happened twice: a synthesize stage rewrote anchors in a sealed report
+with a python one-off, and a lead appended to a sealed audit note with
+`cat >>` and then ran `seal` in the same command line as the failing
+`verify`, which erased the TAMPER signal.
+
+- **`hooks/evidence-shell.py`** (new, PreToolUse on `Bash` /
+  `run_command`): denies a command that would change a file already
+  sealed in the case's `chain.jsonl` via `>`/`>>`, `tee`, `sed -i` /
+  `perl -i`, `cp`/`mv`/`rm`/`truncate`, `dd of=`, `git checkout/restore`,
+  or an interpreter one-off (python/perl/ruby/node) that writes files and
+  names the path. The deny says what to do instead: Edit for
+  findings/results/notes, a new `NN-*.log` for more audit output,
+  `chain.py retire` for a removal. Creating new evidence files with a
+  redirect (`… | tee audit/12-x.log`) stays allowed. Lexical and
+  fail-open; `verify` remains the backstop.
+- **`chain.py seal`** (CLI): a file whose content changed after its
+  last seal is `REFUSED` (exit 1) while files new to the ledger are
+  still sealed. `--accept-change "<reason>"` re-seals it and stores the
+  reason in the ledger record (`accepted`). The library `seal()` stays
+  permissive for the tracked writers (the PostToolUse hook,
+  `sendback.py`).
+- **`references/evidence-chain.md`**: step 6 now says to stop on a
+  failing `verify` and never chain `seal` after it; documents the new
+  hook. `quality-gates.md` fail-direction table, SKILL.md, and README
+  updated.
+- **`scripts/selftest.py`**: `test_evidence_shell_hook` replays both
+  incidents' commands plus the allowed patterns, and covers the seal
+  refusal and `--accept-change`.
+
 ## 0.49.1 — 2026-11-16
 
 **Fan-in: restore the silent-stage rule lost in the 0.49.0 SKILL.md trim.**

@@ -17,6 +17,18 @@ Sealing happens two ways:
 - `chain.py seal` covers files written outside tracked tools (shell
   redirects into audit/, the human's hand-written verdict.md).
 
+The CLI `seal` only adds files that are new to the ledger. A file that
+was sealed and has changed since is exactly what `verify` reports as
+TAMPER, and re-sealing it erases that signal: the next `verify` reads
+OK. Twice in practice (a python one-off in synthesize, a lead's
+`cat >>` onto an audit note) the change came from a shell write and
+was re-sealed in the same command line as the failing verify. So the
+CLI refuses those files and exits 1 unless the caller names the
+reason with `--accept-change "<why>"`; the reason is stored in the
+ledger record, so the acceptance is part of the history. The library
+`seal()` stays permissive for the tracked writers (the PostToolUse
+hook, sendback.py), whose changes are legitimate by construction.
+
 The chain detects rewrites after the fact; `lock` prevents the accident
 in the first place. At fan-in the lead locks the fact base synthesize
 reads (case.yaml, findings/*.md, audit/*) by dropping the files' write
@@ -27,6 +39,7 @@ lead's explicit escape hatch for a legitimate revision
 
 Usage:
   python3 chain.py seal <case-dir> [file ...]    # no files: all default targets
+          [--accept-change "<reason>"]           # also re-seal files changed since their seal
   python3 chain.py verify <case-dir>             # exit 1 on tamper / broken link
   python3 chain.py lock <case-dir> [file ...]    # no files: the fact base
   python3 chain.py unlock <case-dir> [file ...]  # restore owner write
@@ -103,8 +116,40 @@ def _resolve_arg(case_dir, p):
     return (Path(case_dir).resolve() / path).resolve()
 
 
-def seal(case_dir, paths=None, actor="lead"):
-    """Append records for new/changed files; returns the sealed rel-paths."""
+def changed_since_seal(case_dir, paths=None):
+    """Rel-paths of sealed files whose content no longer matches their
+    newest record (what `verify` calls TAMPER). Retired paths and files
+    never sealed are not included."""
+    case_dir = Path(case_dir).resolve()
+    chain_path = case_dir / CHAIN_NAME
+    if not chain_path.is_file():
+        return []
+    records = _parse(chain_path.read_text(encoding="utf-8").splitlines())
+    latest = {}
+    for r in records:
+        latest[r.get("file")] = None if r.get("retired") else r.get("sha256")
+    targets = (
+        [_resolve_arg(case_dir, p) for p in paths] if paths else _default_targets(case_dir)
+    )
+    changed = []
+    for target in sorted(set(targets)):
+        if not target.is_file():
+            continue
+        try:
+            rel = str(target.relative_to(case_dir))
+        except ValueError:
+            continue
+        if latest.get(rel) and latest[rel] != _file_sha(target):
+            changed.append(rel)
+    return changed
+
+
+def seal(case_dir, paths=None, actor="lead", skip=(), reason=None):
+    """Append records for new/changed files; returns the sealed rel-paths.
+
+    `skip` names rel-paths to leave unsealed (the CLI's refused changes).
+    `reason`, when given, is stored on records that re-seal a file that
+    already had a record — the documented acceptance of a change."""
     case_dir = Path(case_dir).resolve()
     chain_path = case_dir / CHAIN_NAME
     targets = (
@@ -125,7 +170,7 @@ def seal(case_dir, paths=None, actor="lead"):
                 rel = str(target.relative_to(case_dir))
             except ValueError:
                 continue  # outside the case dir — not ours to seal
-            if rel == CHAIN_NAME:
+            if rel == CHAIN_NAME or rel in skip:
                 continue
             sha = _file_sha(target)
             if latest.get(rel) == sha:
@@ -138,6 +183,8 @@ def seal(case_dir, paths=None, actor="lead"):
                 "sha256": sha,
                 "prev": prev,
             }
+            if reason and latest.get(rel):
+                rec["accepted"] = reason
             rec["entry"] = _record_hash(rec)
             f.write(json.dumps(rec, sort_keys=True) + "\n")
             latest[rel] = sha
@@ -304,7 +351,8 @@ def main(argv):
     if len(argv) < 3 or argv[1] not in ("seal", "verify", "lock", "unlock", "retire"):
         print(__doc__.strip().splitlines()[0])
         print(
-            "usage: chain.py seal|lock|unlock <case-dir> [file ...] "
+            "usage: chain.py seal <case-dir> [file ...] [--accept-change '...'] "
+            "| chain.py lock|unlock <case-dir> [file ...] "
             "| chain.py verify <case-dir> "
             "| chain.py retire <case-dir> <file> [--reason '...']"
         )
@@ -315,9 +363,30 @@ def main(argv):
         return 2
     try:
         if cmd == "seal":
-            sealed = seal(case_dir, argv[3:] or None)
+            args, reason = list(argv[3:]), None
+            if "--accept-change" in args:
+                i = args.index("--accept-change")
+                reason = args[i + 1].strip() if i + 1 < len(args) else ""
+                del args[i:i + 2]
+                if not reason:
+                    print("error: --accept-change needs a reason")
+                    return 2
+            changed = changed_since_seal(case_dir, args or None)
+            refused = [] if reason else changed
+            sealed = seal(case_dir, args or None, skip=set(refused), reason=reason)
             for rel in sealed:
-                print(f"sealed: {rel}")
+                note = f"  (change accepted: {reason})" if rel in changed else ""
+                print(f"sealed: {rel}{note}")
+            for rel in refused:
+                print(f"REFUSED: {rel} changed after its last seal (verify reports TAMPER)")
+            if refused:
+                print(
+                    "Not re-sealed. A change outside tracked tools is a finding, "
+                    "not housekeeping: record what changed and why in audit/, "
+                    "tell the human, and only then re-run with "
+                    "--accept-change \"<reason>\" (stored in the ledger)."
+                )
+                return 1
             if not sealed:
                 print("chain up to date — nothing new to seal")
             return 0

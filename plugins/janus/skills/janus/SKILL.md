@@ -90,6 +90,7 @@ Required fields: `id`, `received_at`, `mode` (`artifact` | `theme`), `status` (`
 
 Optional fields:
 - `version_scope` — product version(s) in scope, grouped by product (e.g. `OCP: ["4.20"]`, `RHEL: ["9.6"]`). A scope entry matches its own z-streams (`4.16` covers `4.16.55`); `versioncheck.py` uses it to flag off-scope drift.
+- `related_cases` — ids of earlier cases this one continues. A `done` case is never reopened for a new objective: new scope gets a new case naming the old one here. Lab work the lead runs itself still writes a `findings/<stage>.md` that passes `findings.py lint`.
 - `report_language` — `en` (default) or `ja`. Headings, table headers and the label vocabulary stay English in both modes (gate C2/section and mechanical checks read them by name). `ja` composes `localize` and enables `prosecheck.py`.
 
 ---
@@ -188,12 +189,14 @@ Stage contract:
    layer/phase/angle is a Gap with a reason, never a Negative Result.
    Attempt at least one scoped fallback before recording either.
 4. Negative results are evidence — report them explicitly.
+5. Downloads, clones and scratch output go under cases/<id>/artifacts/,
+   never /tmp or findings/.
 ```
 
 ### 4. Gate dynamic stages
 
 If the pipeline has a dynamic stage:
-1. Generate `review-queue/APPROVE_<id>.md` (quoting `iac-author`'s "What this builds" table when `iac-author` is composed) and present it to the human.
+1. Generate `review-queue/APPROVE_<id>.md` (on approval, mark its title `APPROVED <date>`; quoting `iac-author`'s "What this builds" table when `iac-author` is composed) and present it to the human.
 2. Approved → launch `lab-verify` (only after `cases/<id>/findings/iac-author.md` exists when `iac-author` is composed).
 3. Rejected → skip and pass to `synthesize` as a gap.
 
@@ -261,7 +264,7 @@ After `results/synthesis-en.md` exists, launch `localize` with:
 
 ### 7. Quality check (the lead's own job) — named gates
 
-Run the seven mechanical pre-checks in one call:
+Run the eight mechanical pre-checks in one call:
 
 ```bash
 python3 <skill-dir>/scripts/gates.py cases/<id>
@@ -270,12 +273,13 @@ python3 <skill-dir>/scripts/gates.py cases/<id>
 | # | Command | FAIL → |
 |---|---|---|
 | 1 | `chain.py verify cases/<id>` | evidence tampered after seal → record in `audit/`, write `review-queue/NEEDS_HUMAN_<id>.md` |
-| 2 | `reportlint.py cases/<id>` | missing section/cell or mismatched count/`model:` → **C2/section**; unsupported hypothesis rank → **C1/basis**; nonexistent finding ref → **C1/ref** |
-| 3 | `urlcheck.py cases/<id>/results/synthesis.md` | dead citation (404/410, unresolvable host) → **C1/url** |
-| 4 | `quotecheck.py cases/<id>/results/synthesis.md` | mutated/fabricated quote → **C2/quote-mismatch**; no attributed quotes → **C2/quote-absent** |
-| 5 | `versioncheck.py cases/<id>` | unpinned source citation → **C2/version** |
-| 6 | `linkcheck.py cases/<id>/results/synthesis.md` | local link resolves to no file/anchor → **C1/link** |
-| 7 | `prosecheck.py cases/<id>` | `report_language: ja` only — prose defect → **C2/prose** |
+| 2 | `approvalcheck.py cases/<id>` | lab-verify ran with no `review-queue/APPROVE_<id>*.md` → record in `audit/`, `NEEDS_HUMAN_<id>.md` |
+| 3 | `reportlint.py cases/<id>` | missing section/cell or mismatched count/`model:` → **C2/section**; unsupported hypothesis rank → **C1/basis**; nonexistent finding ref → **C1/ref** |
+| 4 | `urlcheck.py cases/<id>/results/synthesis.md` | dead citation (404/410, unresolvable host) → **C1/url** |
+| 5 | `quotecheck.py cases/<id>/results/synthesis.md` | mutated/fabricated quote → **C2/quote-mismatch**; no attributed quotes → **C2/quote-absent** |
+| 6 | `versioncheck.py cases/<id>` | unpinned source citation → **C2/version** |
+| 7 | `linkcheck.py cases/<id>/results/synthesis.md` | local link resolves to no file/anchor → **C1/link** |
+| 8 | `prosecheck.py cases/<id>` | `report_language: ja` only — prose defect → **C2/prose** |
 
 **A notice means *not checked*, never *passed*.** On any FAIL, WARN, or NOTICE, or before writing a send-back brief, read `references/quality-gates.md` for full check behavior, fail directions, and the **C1 (GROUNDING)** / **C2 (COMPLETENESS & FIDELITY)** judgment-gate definitions:
 - **C1 sub-codes**: `C1/ref`, `C1/url`, `C1/link`, `C1/basis`, `C1/spec`, `C1/currency`, `C1/source-of-truth`
@@ -298,7 +302,7 @@ Never read source, search docs, chase PRs/Jira, analyze crashes, write IaC, buil
 ## Inter-stage data format & Evidence chain
 
 - **Findings format**: YAML frontmatter (`stage`, `case`, `date`, `status`, `model`, `tool_calls`, `duration_s`) + `### F<N>:` blocks with `Confidence`, `Basis` (`VERIFIED | REASONED | ASSUMED`), `Type`, `Detail`, `Ref`. Full schema in `references/findings-format.md`.
-- **Evidence chain**: `cases/<id>/chain.jsonl` is an append-only sha256 ledger; `hooks/evidence-chain.py` auto-seals tracked writes, `hooks/evidence-lock.py` denies writes to locked files, `hooks/evidence-drift.py` denies writes over out-of-band drift, and `hooks/findings-truncation.py` denies overwrites that drop findings. Full semantics in `references/evidence-chain.md`.
+- **Evidence chain**: `cases/<id>/chain.jsonl` is an append-only sha256 ledger; `hooks/evidence-chain.py` auto-seals tracked writes, `hooks/evidence-lock.py` denies writes to locked files, `hooks/evidence-shell.py` denies shell writes to sealed files, `hooks/evidence-drift.py` denies writes over out-of-band drift, and `hooks/findings-truncation.py` denies overwrites that drop findings. Full semantics in `references/evidence-chain.md`.
 
 ## Safety (invariant)
 
